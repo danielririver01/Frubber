@@ -1,12 +1,13 @@
 using FrubberPOS.Application.Common;
 using FrubberPOS.Infrastructure.Migrations;
+using FrubberPOS.Tests.TestDoubles;
 using Microsoft.Data.Sqlite;
 
 namespace FrubberPOS.Tests.Infrastructure.Migrations;
 
 public sealed class MigrationRunnerTests
 {
-    private const long FixedNow = 1789248000000L;
+    private static readonly DateTimeOffset FixedMoment = DateTimeOffset.FromUnixTimeMilliseconds(1789248000000L);
 
     private const string TrackingTableSql =
         "CREATE TABLE SchemaMigration (Version INTEGER PRIMARY KEY, ScriptName TEXT NOT NULL, Checksum TEXT NOT NULL, AppliedAtUtcMs INTEGER NOT NULL);";
@@ -17,7 +18,7 @@ public sealed class MigrationRunnerTests
         var path = NewTempDbPath();
         try
         {
-            var runner = new MigrationRunner(MigrationCatalog.Default, () => FixedNow);
+            var runner = new MigrationRunner(MigrationCatalog.Default, new FakeClock(FixedMoment));
             var result = await runner.MigrateAsync(ConnectionString(path), CancellationToken.None);
 
             Assert.True(result.IsSuccess);
@@ -30,7 +31,7 @@ public sealed class MigrationRunnerTests
             Assert.Equal(1, version);
             Assert.Equal("001_Initial.sql", name);
             Assert.Matches("^[0-9A-F]{64}$", checksum);
-            Assert.Equal(FixedNow, appliedAt);
+            Assert.Equal(FixedMoment.ToUnixTimeMilliseconds(), appliedAt);
 
             Assert.True(await TableExistsAsync(connection, "Product"));
             Assert.True(await TableExistsAsync(connection, "Sale"));
@@ -79,7 +80,7 @@ public sealed class MigrationRunnerTests
                 new(1, "001_Ok.sql", TrackingTableSql + "CREATE TABLE T1 (Id INTEGER PRIMARY KEY);"),
                 new(2, "002_Bad.sql", "THIS IS NOT SQL;")
             };
-            var runner = new MigrationRunner(catalog, () => FixedNow);
+            var runner = new MigrationRunner(catalog, new FakeClock(FixedMoment));
 
             var result = await runner.MigrateAsync(ConnectionString(path), CancellationToken.None);
 
@@ -105,12 +106,12 @@ public sealed class MigrationRunnerTests
         {
             var first = new MigrationRunner(
                 new List<KnownMigration> { new(1, "001_Ok.sql", TrackingTableSql + "CREATE TABLE T1 (Id INTEGER PRIMARY KEY);") },
-                () => FixedNow);
+                new FakeClock(FixedMoment));
             Assert.True((await first.MigrateAsync(ConnectionString(path), CancellationToken.None)).IsSuccess);
 
             var tampered = new MigrationRunner(
                 new List<KnownMigration> { new(1, "001_Ok.sql", TrackingTableSql + "CREATE TABLE T1 (Id INTEGER PRIMARY KEY, Extra TEXT);") },
-                () => FixedNow);
+                new FakeClock(FixedMoment));
             var result = await tampered.MigrateAsync(ConnectionString(path), CancellationToken.None);
 
             Assert.True(result.IsFailure);

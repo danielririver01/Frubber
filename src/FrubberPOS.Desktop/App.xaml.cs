@@ -36,7 +36,7 @@ public partial class App : System.Windows.Application
                 return;
             }
 
-            provider = ServiceConfiguration.BuildProvider(ServiceConfiguration.ProductionLoggingOptions());
+            provider = ServiceConfiguration.BuildProvider(ServiceConfiguration.ProductionAppPaths());
             logger = provider.GetRequiredService<IAppLogger>();
             logger.LogInformation("APP_START", "Frubber POS iniciado.");
         }

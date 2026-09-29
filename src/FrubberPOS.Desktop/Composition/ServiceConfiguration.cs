@@ -1,32 +1,37 @@
 using System.IO;
 using FrubberPOS.Application.Logging;
+using FrubberPOS.Application.System;
 using FrubberPOS.Infrastructure.Logging;
+using FrubberPOS.Infrastructure.System;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace FrubberPOS.Desktop.Composition;
 
 /// <summary>
 /// Sole Composition Root helper (P-DD-002, JHO-14). Only <see cref="App"/>
-/// calls this. Future use cases, ViewModels and presentation services
-/// register here; Infrastructure is referenced for composition only.
+/// calls this. Use cases, ViewModels and presentation services register
+/// here; Infrastructure is referenced for composition only.
 /// No Service Locator: the built provider never leaves <see cref="App"/>.
 /// </summary>
 public static class ServiceConfiguration
 {
-    public static IServiceCollection ConfigureServices(IServiceCollection services, LoggingOptions loggingOptions)
+    public static IServiceCollection ConfigureServices(IServiceCollection services, IAppPaths paths)
     {
         ArgumentNullException.ThrowIfNull(services);
-        ArgumentNullException.ThrowIfNull(loggingOptions);
+        ArgumentNullException.ThrowIfNull(paths);
 
-        services.AddSingleton<IAppLogger>(_ => SerilogLoggerFactory.Create(loggingOptions));
+        services.AddSingleton(paths);
+        services.AddSingleton<IClock>(SystemClock.Instance);
+        services.AddSingleton<IFileSystem, LocalFileSystem>();
+        services.AddSingleton<IAppLogger>(_ => SerilogLoggerFactory.Create(new LoggingOptions(paths.LogDirectory)));
 
         return services;
     }
 
-    public static ServiceProvider BuildProvider(LoggingOptions loggingOptions)
+    public static ServiceProvider BuildProvider(IAppPaths paths)
     {
         var services = new ServiceCollection();
-        ConfigureServices(services, loggingOptions);
+        ConfigureServices(services, paths);
         return services.BuildServiceProvider(new ServiceProviderOptions
         {
             ValidateScopes = true,
@@ -35,12 +40,12 @@ public static class ServiceConfiguration
     }
 
     /// <summary>
-    /// Production logging directory. Resolving well-known local paths
-    /// moves to JHO-22; until then the Composition Root owns this line.
+    /// Production paths, created safely. Called once at startup (JHO-22).
     /// </summary>
-    public static LoggingOptions ProductionLoggingOptions() => new(
-        Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-            "FrubberPOS",
-            "Logs"));
+    public static IAppPaths ProductionAppPaths()
+    {
+        IAppPaths paths = new WindowsAppPaths();
+        paths.EnsureCreated();
+        return paths;
+    }
 }

@@ -1,7 +1,9 @@
 using System.Data.Common;
 using FrubberPOS.Application.Common;
 using FrubberPOS.Application.Persistence;
+using FrubberPOS.Application.System;
 using FrubberPOS.Infrastructure.Persistence;
+using FrubberPOS.Infrastructure.System;
 using Microsoft.Data.Sqlite;
 
 namespace FrubberPOS.Infrastructure.Migrations;
@@ -18,24 +20,24 @@ namespace FrubberPOS.Infrastructure.Migrations;
 /// this runner adopts it via <see cref="IDatabaseConnectionFactory"/>.
 /// The pre-migration consistent backup (ADR-008)
 /// is wired in JHO-53; until then the caller owns it. Timestamps come from
-/// an injectable clock source until JHO-22 provides <c>IClock</c>. Scripts
+/// <c>IClock</c> (JHO-22). Scripts
 /// must leave <c>SchemaMigration</c> existing: 001 creates it and it is
 /// never dropped, so the runner never creates it itself.
 /// </remarks>
 public sealed class MigrationRunner
 {
     private readonly IReadOnlyList<KnownMigration> catalog;
-    private readonly Func<long> utcNowMilliseconds;
+    private readonly IClock clock;
 
     public MigrationRunner()
-        : this(MigrationCatalog.Default, SystemUtcNowMilliseconds)
+        : this(MigrationCatalog.Default, SystemClock.Instance)
     {
     }
 
-    public MigrationRunner(IReadOnlyList<KnownMigration> catalog, Func<long> utcNowMilliseconds)
+    public MigrationRunner(IReadOnlyList<KnownMigration> catalog, IClock clock)
     {
         ArgumentNullException.ThrowIfNull(catalog);
-        ArgumentNullException.ThrowIfNull(utcNowMilliseconds);
+        ArgumentNullException.ThrowIfNull(clock);
 
         if (catalog.Select(m => m.Version).Distinct().Count() != catalog.Count)
         {
@@ -43,10 +45,8 @@ public sealed class MigrationRunner
         }
 
         this.catalog = catalog;
-        this.utcNowMilliseconds = utcNowMilliseconds;
+        this.clock = clock;
     }
-
-    public static long SystemUtcNowMilliseconds() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
     /// <returns>Number of migrations applied by this run (0 when updated).</returns>
     public async Task<Result<int>> MigrateAsync(string connectionString, CancellationToken cancellationToken)
@@ -170,7 +170,7 @@ public sealed class MigrationRunner
                 AddParameter(record, "$version", migration.Version);
                 AddParameter(record, "$name", migration.ScriptName);
                 AddParameter(record, "$checksum", MigrationChecksum.Sha256Hex(migration.Sql));
-                AddParameter(record, "$appliedAt", utcNowMilliseconds());
+                AddParameter(record, "$appliedAt", clock.UtcNow.ToUnixTimeMilliseconds());
                 await record.ExecuteNonQueryAsync(cancellationToken);
             }
 
