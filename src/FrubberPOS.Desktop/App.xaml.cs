@@ -116,6 +116,13 @@ public partial class App : System.Windows.Application, INavigationService
 
     public void ShowLogin() => SwapWindow(new LoginWindow(Resolve<LoginViewModel>()));
 
+    public void ShowLicense()
+    {
+        var window = new LicenseWindow(Resolve<LicenseActivationViewModel>());
+        window.Owner = currentWindow;
+        window.ShowDialog();
+    }
+
     public void ShowShell(SignedInUser user) =>
         SwapWindow(new MainWindow(new MainViewModel(
             user,

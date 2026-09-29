@@ -39,6 +39,21 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
+    public void SelectingLicense_OpensLicenseDialog()
+    {
+        var navigator = new FakeNavigator();
+        var viewModel = new MainViewModel(
+            new SignedInUser(1, "Admin", UserRole.Admin),
+            new SignOutUseCase(new FakeCurrentSession()),
+            navigator);
+
+        viewModel.SelectedEntry = viewModel.MenuItems.Single(m => m.Title == "Licencia");
+
+        Assert.Equal(1, navigator.LicenseCount);
+        Assert.Equal("Licencia", viewModel.PageTitle);
+    }
+
+    [Fact]
     public async Task SignOut_ClearsSessionAndShowsLogin()
     {
         var session = new FakeCurrentSession();

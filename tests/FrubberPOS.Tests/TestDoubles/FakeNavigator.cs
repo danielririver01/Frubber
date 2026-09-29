@@ -15,11 +15,15 @@ public sealed class FakeNavigator : INavigationService
 
     public int ShellCount { get; private set; }
 
+    public int LicenseCount { get; private set; }
+
     public SignedInUser? LastShellUser { get; private set; }
 
     public void ShowFirstStart() => FirstStartCount++;
 
     public void ShowLogin() => LoginCount++;
+
+    public void ShowLicense() => LicenseCount++;
 
     public void ShowShell(SignedInUser user)
     {

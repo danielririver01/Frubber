@@ -1,4 +1,5 @@
 using FrubberPOS.Application.Authentication;
+using FrubberPOS.Application.Licensing;
 using FrubberPOS.Application.Logging;
 using FrubberPOS.Application.Persistence;
 using FrubberPOS.Application.Security;
@@ -58,6 +59,14 @@ public sealed class CompositionRootTests
             Assert.NotNull(provider.GetRequiredService<FirstStartViewModel>());
             Assert.NotNull(provider.GetRequiredService<DatabaseOptions>());
             Assert.NotNull(provider.GetRequiredService<MigrationRunner>());
+            Assert.NotNull(provider.GetRequiredService<IMachineCodeProvider>());
+            Assert.NotNull(provider.GetRequiredService<ILicenseSignatureVerifier>());
+            Assert.NotNull(provider.GetRequiredService<ILicenseProtector>());
+            Assert.NotNull(provider.GetRequiredService<ILicenseRepository>());
+            Assert.NotNull(provider.GetRequiredService<GetMachineCodeUseCase>());
+            Assert.NotNull(provider.GetRequiredService<ActivateLicenseUseCase>());
+            Assert.NotNull(provider.GetRequiredService<GetLicenseStatusUseCase>());
+            Assert.NotNull(provider.GetRequiredService<LicenseActivationViewModel>());
 
             var units = provider.GetRequiredService<IUnitOfWorkFactory>();
             await using (var unit = await units.CreateAsync(UnitOfWorkMode.ReadOnly, CancellationToken.None))

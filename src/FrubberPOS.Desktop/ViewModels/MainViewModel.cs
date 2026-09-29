@@ -102,6 +102,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private void ShowSelected()
     {
+        if (SelectedEntry?.Title == "Licencia")
+        {
+            PageTitle = "Licencia";
+            PageDescription = "Gestión de la licencia vitalicia.";
+            navigation.ShowLicense();
+            return;
+        }
+
         PageTitle = SelectedEntry?.Title ?? string.Empty;
         PageDescription = SelectedEntry is null ? string.Empty : "Módulo en construcción.";
     }

@@ -1,5 +1,6 @@
 using System.IO;
 using FrubberPOS.Application.Authentication;
+using FrubberPOS.Application.Licensing;
 using FrubberPOS.Application.Logging;
 using FrubberPOS.Application.Navigation;
 using FrubberPOS.Application.Persistence;
@@ -9,9 +10,11 @@ using FrubberPOS.Application.System;
 using FrubberPOS.Application.Users;
 using FrubberPOS.Desktop.Authentication;
 using FrubberPOS.Desktop.ViewModels;
+using FrubberPOS.Infrastructure.Licensing;
 using FrubberPOS.Infrastructure.Logging;
 using FrubberPOS.Infrastructure.Migrations;
 using FrubberPOS.Infrastructure.Persistence;
+using FrubberPOS.Infrastructure.Persistence.Licensing;
 using FrubberPOS.Infrastructure.Persistence.Users;
 using FrubberPOS.Infrastructure.Security;
 using FrubberPOS.Infrastructure.System;
@@ -43,6 +46,10 @@ public static class ServiceConfiguration
         services.AddSingleton<IUnitOfWorkFactory, SqliteUnitOfWorkFactory>();
         services.AddSingleton<IPinHasher, Pbkdf2PinHasher>();
         services.AddSingleton<IUserRepository, DapperUserRepository>();
+        services.AddSingleton<IMachineCodeProvider, WindowsMachineCodeProvider>();
+        services.AddSingleton<ILicenseSignatureVerifier>(_ => EcdsaLicenseSignatureVerifier.CreateProduction());
+        services.AddSingleton<ILicenseProtector, DpapiLicenseProtector>();
+        services.AddSingleton<ILicenseRepository, DapperLicenseRepository>();
         services.AddSingleton<ICurrentSession, CurrentSession>();
         services.AddTransient<AuthenticateUserUseCase>();
         services.AddTransient<ListActiveUsersUseCase>();
@@ -56,8 +63,12 @@ public static class ServiceConfiguration
         services.AddTransient<GetUserUseCase>();
         services.AddTransient<CreateFirstAdministratorUseCase>();
         services.AddTransient<CheckFirstStartUseCase>();
+        services.AddTransient<GetMachineCodeUseCase>();
+        services.AddTransient<ActivateLicenseUseCase>();
+        services.AddTransient<GetLicenseStatusUseCase>();
         services.AddTransient<LoginViewModel>();
         services.AddTransient<FirstStartViewModel>();
+        services.AddTransient<LicenseActivationViewModel>();
 
         return services;
     }

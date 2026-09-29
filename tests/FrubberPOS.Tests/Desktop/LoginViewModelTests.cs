@@ -131,6 +131,18 @@ public sealed class LoginViewModelTests
         Assert.Equal(0, navigator.ShellCount);
     }
 
+    [Fact]
+    public async Task ShowLicense_OpensLicenseDialog()
+    {
+        await using var bed = await AuthenticationTestBed.CreateAsync();
+        var navigator = new FakeNavigator();
+        var viewModel = Build(bed, navigator);
+
+        viewModel.ShowLicenseCommand.Execute(null);
+
+        Assert.Equal(1, navigator.LicenseCount);
+    }
+
     private static LoginViewModel Build(AuthenticationTestBed bed, FakeNavigator navigator) =>
         new(
             new ListActiveUsersUseCase(bed.Users, bed.Units),

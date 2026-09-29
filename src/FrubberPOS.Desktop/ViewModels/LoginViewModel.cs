@@ -40,6 +40,7 @@ public sealed class LoginViewModel : INotifyPropertyChanged
 
         LoadCommand = new AsyncCommand(_ => LoadUsersAsync());
         LoginCommand = new AsyncCommand(_ => LoginAsync());
+        ShowLicenseCommand = new RelayCommand(() => navigation.ShowLicense());
         EnterDigitCommand = new RelayCommand<string>(EnterDigit);
         BackspaceCommand = new RelayCommand(Backspace);
     }
@@ -83,6 +84,8 @@ public sealed class LoginViewModel : INotifyPropertyChanged
     public ICommand LoadCommand { get; }
 
     public ICommand LoginCommand { get; }
+
+    public ICommand ShowLicenseCommand { get; }
 
     public ICommand EnterDigitCommand { get; }
 
