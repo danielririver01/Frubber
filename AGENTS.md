@@ -27,6 +27,7 @@ Leer en este orden ante cualquier duda. Lo local manda sobre la memoria del agen
 4. `Documentacion/Arquitectura Tecnica/Frubber POS — Documento de Arquitectura Técnica.pdf` (v1.0, ADR-001…ADR-020, §16 estructura)
 5. `Documentacion/Diseño Técnico Detallado/Frubber POS — Diseño Técnico Detallado.pdf` (v1.0, P-DD-001…P-DD-007)
 6. `Documentacion/Diseño de Base de Datos/Frubber POS — Documento de Diseño de Base de Datos.pdf` (v1.0) + `Documentacion/Diseño de Base de Datos/001_Initial.sql` (normativo)
+7. `Documentacion/Diseño de Interfaz y Experiencia de Usuario/Frubber POS — Diseño de Interfaz y Experiencia de Usuario.pdf` (v1.0, P-UX-001…P-UX-014 + `contact_sheet_high_fidelity.png` — manda sobre cualquier ventana: paleta, menú por rol, login con pad, wizard, TPV)
 
 Diseño visual (NO normativo para JHO-16, solo referencia futura):
 `Diseño de Interfaz y Experiencia de Usuario/`

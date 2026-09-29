@@ -28,27 +28,51 @@ public sealed class FirstStartViewModel : INotifyPropertyChanged
         this.createFirstAdmin = createFirstAdmin;
         this.navigation = navigation;
 
-        CreateCommand = new AsyncCommand(_ => CreateAsync());
+        CreateCommand = new AsyncCommand(_ => CreateAsync(), CanCreate);
     }
+
+    public bool CanCreate() =>
+        !string.IsNullOrWhiteSpace(DisplayName)
+        && DisplayName.Trim().Length <= 60
+        && Pin.Length == 4
+        && Pin == ConfirmPin;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public string DisplayName
     {
         get => displayName;
-        set => SetProperty(ref displayName, value);
+        set
+        {
+            if (SetProperty(ref displayName, value))
+            {
+                CreateCommand.RaiseCanExecuteChanged();
+            }
+        }
     }
 
     public string Pin
     {
         get => pin;
-        set => SetProperty(ref pin, value);
+        set
+        {
+            if (SetProperty(ref pin, value))
+            {
+                CreateCommand.RaiseCanExecuteChanged();
+            }
+        }
     }
 
     public string ConfirmPin
     {
         get => confirmPin;
-        set => SetProperty(ref confirmPin, value);
+        set
+        {
+            if (SetProperty(ref confirmPin, value))
+            {
+                CreateCommand.RaiseCanExecuteChanged();
+            }
+        }
     }
 
     public string ErrorMessage
@@ -57,7 +81,7 @@ public sealed class FirstStartViewModel : INotifyPropertyChanged
         private set => SetProperty(ref errorMessage, value);
     }
 
-    public ICommand CreateCommand { get; }
+    public AsyncCommand CreateCommand { get; }
 
     public async Task CreateAsync()
     {
@@ -82,14 +106,15 @@ public sealed class FirstStartViewModel : INotifyPropertyChanged
         navigation.ShowLogin();
     }
 
-    private void SetProperty<T>(ref T field, T value, [CallerMemberName] string? name = null)
+    private bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? name = null)
     {
         if (EqualityComparer<T>.Default.Equals(field, value))
         {
-            return;
+            return false;
         }
 
         field = value;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        return true;
     }
 }

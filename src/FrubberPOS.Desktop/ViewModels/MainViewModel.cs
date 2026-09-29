@@ -24,10 +24,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
         new("Venta", AdminOnly: false),
         new("Caja", AdminOnly: false),
         new("Productos", AdminOnly: true),
-        new("Inventario", AdminOnly: true),
-        new("Usuarios", AdminOnly: true),
         new("Historial", AdminOnly: true),
-        new("Configuración", AdminOnly: true)
+        new("Usuarios", AdminOnly: true),
+        new("Configuración", AdminOnly: true),
+        new("Respaldo", AdminOnly: true),
+        new("Licencia", AdminOnly: true)
     ];
 
     private readonly SignOutUseCase signOut;

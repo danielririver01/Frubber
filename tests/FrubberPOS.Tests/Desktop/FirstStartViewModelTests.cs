@@ -1,7 +1,6 @@
 using FrubberPOS.Application.Persistence;
 using FrubberPOS.Application.Startup;
-using FrubberPOS.Desktop.ViewModels;
-using FrubberPOS.Infrastructure.Migrations;
+using FrubberPOS.Desktop.ViewModels;using FrubberPOS.Infrastructure.Migrations;
 using FrubberPOS.Infrastructure.Persistence;
 using FrubberPOS.Infrastructure.Persistence.Users;
 using FrubberPOS.Infrastructure.Security;
@@ -45,6 +44,32 @@ public sealed class FirstStartViewModelTests
         Assert.Equal(string.Empty, viewModel.ErrorMessage);
         Assert.Equal(1, navigator.LoginCount);
     }
+
+    [Fact]
+    public void CreateCommand_DisabledUntilValid()
+    {
+        var viewModel = new FirstStartViewModel(BuildUseCase(), new FakeNavigator());
+
+        Assert.False(viewModel.CreateCommand.CanExecute(null));
+
+        viewModel.DisplayName = "Dueño";
+        Assert.False(viewModel.CreateCommand.CanExecute(null));
+
+        viewModel.Pin = "1234";
+        viewModel.ConfirmPin = "4321";
+        Assert.False(viewModel.CreateCommand.CanExecute(null));
+
+        viewModel.ConfirmPin = "1234";
+        Assert.True(viewModel.CreateCommand.CanExecute(null));
+    }
+
+    private static CreateFirstAdministratorUseCase BuildUseCase() =>
+        new(
+            new DapperUserRepository(),
+            new Pbkdf2PinHasher(),
+            new SqliteUnitOfWorkFactory(
+                new SqliteConnectionFactory(
+                    new DatabaseOptions(Path.Combine(Path.GetTempPath(), "FrubberPOS", Guid.NewGuid().ToString("N") + ".db")))));
 
     private sealed record Db(DapperUserRepository Users, Pbkdf2PinHasher Hasher, SqliteUnitOfWorkFactory Units, string Path)
     {

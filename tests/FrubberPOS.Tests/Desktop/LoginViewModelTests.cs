@@ -20,7 +20,63 @@ public sealed class LoginViewModelTests
     }
 
     [Fact]
-    public async Task WrongPin_ShowsErrorClearsPinAndStays()
+    public async Task EnterDigit_AppendsUpToFour()
+    {
+        await using var bed = await AuthenticationTestBed.CreateAsync();
+        var viewModel = Build(bed, new FakeNavigator());
+
+        viewModel.EnterDigit("1");
+        viewModel.EnterDigit("2");
+        viewModel.EnterDigit("a");
+        viewModel.EnterDigit(null);
+        viewModel.EnterDigit("12");
+
+        Assert.Equal("12", viewModel.Pin);
+        Assert.Equal("●●○○", viewModel.PinMask);
+
+        viewModel.EnterDigit("3");
+        viewModel.EnterDigit("4");
+        viewModel.EnterDigit("5");
+
+        Assert.Equal("1234", viewModel.Pin);
+        Assert.Equal("●●●●", viewModel.PinMask);
+    }
+
+    [Fact]
+    public async Task Backspace_RemovesLast()
+    {
+        await using var bed = await AuthenticationTestBed.CreateAsync();
+        var viewModel = Build(bed, new FakeNavigator());
+
+        viewModel.Backspace();
+
+        viewModel.EnterDigit("1");
+        viewModel.EnterDigit("2");
+        viewModel.Backspace();
+
+        Assert.Equal("1", viewModel.Pin);
+
+        viewModel.Backspace();
+        viewModel.Backspace();
+
+        Assert.Equal(string.Empty, viewModel.Pin);
+    }
+
+    [Fact]
+    public async Task SelectUser_ClearsPin()
+    {
+        await using var bed = await AuthenticationTestBed.CreateAsync();
+        var viewModel = Build(bed, new FakeNavigator());
+        await viewModel.LoadUsersAsync();
+
+        viewModel.EnterDigit("9");
+        viewModel.SelectedUser = viewModel.Users.Single(u => u.UserId == 2);
+
+        Assert.Equal(string.Empty, viewModel.Pin);
+    }
+
+    [Fact]
+    public async Task WrongPin_ShowsErrorClearsPinKeepsSelectionAndStays()
     {
         await using var bed = await AuthenticationTestBed.CreateAsync();
         var navigator = new FakeNavigator();
@@ -28,11 +84,16 @@ public sealed class LoginViewModelTests
         await viewModel.LoadUsersAsync();
 
         viewModel.SelectedUser = viewModel.Users.Single(u => u.UserId == 2);
-        viewModel.Pin = "9999";
+        foreach (var digit in new[] { "9", "9", "9", "9" })
+        {
+            viewModel.EnterDigit(digit);
+        }
+
         await viewModel.LoginAsync();
 
         Assert.Equal("Usuario o PIN inválidos.", viewModel.ErrorMessage);
         Assert.Equal(string.Empty, viewModel.Pin);
+        Assert.Equal(2, viewModel.SelectedUser!.UserId);
         Assert.Equal(0, navigator.ShellCount);
     }
 
@@ -45,7 +106,11 @@ public sealed class LoginViewModelTests
         await viewModel.LoadUsersAsync();
 
         viewModel.SelectedUser = viewModel.Users.Single(u => u.UserId == 2);
-        viewModel.Pin = "2222";
+        foreach (var digit in new[] { "2", "2", "2", "2" })
+        {
+            viewModel.EnterDigit(digit);
+        }
+
         await viewModel.LoginAsync();
 
         Assert.Equal(string.Empty, viewModel.ErrorMessage);

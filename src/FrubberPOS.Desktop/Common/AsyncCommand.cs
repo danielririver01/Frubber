@@ -25,6 +25,8 @@ public sealed class AsyncCommand : ICommand
 
     public bool IsRunning => running;
 
+    public void RaiseCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+
     public bool CanExecute(object? parameter) => !running && (canExecute?.Invoke() ?? true);
 
     public async void Execute(object? parameter)

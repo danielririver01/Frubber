@@ -34,7 +34,7 @@ public sealed class MainViewModelTests
 
         var titles = viewModel.MenuItems.Select(m => m.Title).ToList();
 
-        Assert.Equal(["Venta", "Caja", "Productos", "Inventario", "Usuarios", "Historial", "Configuración"], titles);
+        Assert.Equal(["Venta", "Caja", "Productos", "Historial", "Usuarios", "Configuración", "Respaldo", "Licencia"], titles);
         Assert.True(viewModel.IsAdmin);
     }
 

@@ -27,7 +27,7 @@ public static class LastAdminProtection
             && target.IsActive
             && await users.CountActiveAdminsAsync(unit, cancellationToken) <= 1)
         {
-            return new Error(ErrorCode.Conflict, "No se puede retirar al último administrador activo.");
+            return new Error(ErrorCode.Conflict, "Debe existir al menos un administrador activo.");
         }
 
         return null;

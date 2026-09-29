@@ -79,15 +79,12 @@ public partial class App : System.Windows.Application, INavigationService
         }
         catch (Exception ex)
         {
-            instanceGuard?.Dispose();
-            instanceGuard = null;
-            provider?.Dispose();
-            provider = null;
-
-            // Last-resort handler: logging itself may be what's broken, so the
-            // diagnostic write is best-effort and never allowed to hide the
-            // safe message (this is the one place where catching without
-            // rethrowing is correct: there is no higher UI boundary).
+            // Last-resort handler: log BEFORE releasing anything, because
+            // disposing the provider also disposes the logger singleton.
+            // Logging itself may be what's broken, so the diagnostic write
+            // is best-effort and never allowed to hide the safe message
+            // (this is the one place where catching without rethrowing is
+            // correct: there is no higher UI boundary).
             var detail = "Intente de nuevo y si el problema continúa, contacte al soporte técnico.";
             if (logger is not null)
             {
@@ -100,6 +97,11 @@ public partial class App : System.Windows.Application, INavigationService
                     // Keep the generic safe message.
                 }
             }
+
+            instanceGuard?.Dispose();
+            instanceGuard = null;
+            provider?.Dispose();
+            provider = null;
 
             MessageBox.Show(
                 $"Frubber POS no pudo iniciar. {detail}",
