@@ -22,7 +22,7 @@ public sealed class MigrationRunnerTests
             var result = await runner.MigrateAsync(ConnectionString(path), CancellationToken.None);
 
             Assert.True(result.IsSuccess);
-            Assert.Equal(1, result.Value);
+            Assert.Equal(2, result.Value);
 
             await using var connection = new SqliteConnection(ConnectionString(path));
             await connection.OpenAsync();
@@ -33,9 +33,14 @@ public sealed class MigrationRunnerTests
             Assert.Matches("^[0-9A-F]{64}$", checksum);
             Assert.Equal(FixedMoment.ToUnixTimeMilliseconds(), appliedAt);
 
+            var trial = await ReadRecordAsync(connection, 2);
+            Assert.Equal(2, trial.Version);
+            Assert.Equal("002_Trial.sql", trial.Name);
+
             Assert.True(await TableExistsAsync(connection, "Product"));
             Assert.True(await TableExistsAsync(connection, "Sale"));
             Assert.True(await TableExistsAsync(connection, "SaleVoid"));
+            Assert.True(await TableExistsAsync(connection, "TrialState"));
 
             await using var sequence = connection.CreateCommand();
             sequence.CommandText = "SELECT LastValue FROM SystemSequence WHERE SequenceName = 'SaleNumber';";
@@ -54,7 +59,7 @@ public sealed class MigrationRunnerTests
         try
         {
             var runner = new MigrationRunner();
-            Assert.Equal(1, (await runner.MigrateAsync(ConnectionString(path), CancellationToken.None)).Value);
+            Assert.Equal(2, (await runner.MigrateAsync(ConnectionString(path), CancellationToken.None)).Value);
 
             var before = await RowCountAsync(path, "SchemaMigration");
             var second = await runner.MigrateAsync(ConnectionString(path), CancellationToken.None);
@@ -62,6 +67,35 @@ public sealed class MigrationRunnerTests
             Assert.True(second.IsSuccess);
             Assert.Equal(0, second.Value);
             Assert.Equal(before, await RowCountAsync(path, "SchemaMigration"));
+        }
+        finally
+        {
+            DeleteTempDb(path);
+        }
+    }
+
+    [Fact]
+    public async Task UpgradeFromV1_AppliesTrialOnly()
+    {
+        var path = NewTempDbPath();
+        try
+        {
+            var v1 = MigrationCatalog.Default.Where(m => m.Version == 1).ToList();
+            var first = await new MigrationRunner(v1, new FakeClock(FixedMoment))
+                .MigrateAsync(ConnectionString(path), CancellationToken.None);
+            Assert.True(first.IsSuccess);
+            Assert.Equal(1, first.Value);
+
+            var second = await new MigrationRunner(MigrationCatalog.Default, new FakeClock(FixedMoment))
+                .MigrateAsync(ConnectionString(path), CancellationToken.None);
+
+            Assert.True(second.IsSuccess);
+            Assert.Equal(1, second.Value);
+
+            await using var connection = new SqliteConnection(ConnectionString(path));
+            await connection.OpenAsync();
+            Assert.True(await TableExistsAsync(connection, "TrialState"));
+            Assert.Equal(2, await RowCountAsync(path, "SchemaMigration"));
         }
         finally
         {

@@ -10,10 +10,20 @@ public static class MigrationScripts
 {
     public const string InitialScriptResourceName = "FrubberPOS.Infrastructure.Migrations.001_Initial.sql";
 
+    public const string TrialScriptResourceName = "FrubberPOS.Infrastructure.Migrations.002_Trial.sql";
+
     public static string GetInitialScript()
     {
         using var stream = typeof(MigrationScripts).Assembly.GetManifestResourceStream(InitialScriptResourceName)
             ?? throw new InvalidOperationException($"Recurso embebido no encontrado: {InitialScriptResourceName}.");
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
+
+    public static string GetTrialScript()
+    {
+        using var stream = typeof(MigrationScripts).Assembly.GetManifestResourceStream(TrialScriptResourceName)
+            ?? throw new InvalidOperationException($"Recurso embebido no encontrado: {TrialScriptResourceName}.");
         using var reader = new StreamReader(stream);
         return reader.ReadToEnd();
     }

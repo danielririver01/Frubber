@@ -1,4 +1,6 @@
 using FrubberPOS.Application.Authentication;
+using FrubberPOS.Application.Licensing;
+using FrubberPOS.Application.Trial;
 using FrubberPOS.Desktop.ViewModels;
 using FrubberPOS.Tests.Authentication;
 using FrubberPOS.Tests.TestDoubles;
@@ -143,9 +145,29 @@ public sealed class LoginViewModelTests
         Assert.Equal(1, navigator.LicenseCount);
     }
 
+    [Fact]
+    public async Task TrialLine_FreshTrial_ShowsThirtyDays()
+    {
+        await using var bed = await AuthenticationTestBed.CreateAsync();
+        var viewModel = Build(bed, new FakeNavigator());
+
+        await viewModel.LoadTrialAsync();
+
+        Assert.Equal("Versión de prueba — quedan 30 días.", viewModel.TrialLine);
+    }
+
     private static LoginViewModel Build(AuthenticationTestBed bed, FakeNavigator navigator) =>
         new(
             new ListActiveUsersUseCase(bed.Users, bed.Units),
             new AuthenticateUserUseCase(bed.Users, bed.Hasher, bed.Session, bed.Units),
+            new EvaluateTrialUseCase(
+                new GetLicenseStatusUseCase(
+                    new FakeMachineCodeProvider("0123456789ABCDEF"),
+                    new FakeLicenseProtector(),
+                    new FakeLicenseRepository(),
+                    new FakeUnitOfWorkFactory()),
+                new FakeTrialRepository(),
+                new FakeUnitOfWorkFactory(),
+                new FakeClock(new DateTimeOffset(2026, 9, 29, 12, 0, 0, TimeSpan.Zero))),
             navigator);
 }

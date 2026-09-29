@@ -47,6 +47,7 @@
                 <Button Content="Entrar" Command="{Binding LoginCommand}"/>
             </UniformGrid>
             <TextBlock Text="{Binding ErrorMessage}" Foreground="#B91C1C" Margin="0,8,0,0" TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding TrialLine}" Margin="0,8,0,0" TextWrapping="Wrap" Foreground="#5F6B66"/>
             <Button Content="Activar licencia" Command="{Binding ShowLicenseCommand}" Margin="0,12,0,0" HorizontalAlignment="Left" Padding="12,4"/>
         </StackPanel>
     </Grid>

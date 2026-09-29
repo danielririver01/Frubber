@@ -25,6 +25,7 @@ public partial class LoginWindow : Window
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         await viewModel.LoadUsersAsync();
+        await viewModel.LoadTrialAsync();
     }
 
     private void OnPreviewKeyDown(object sender, KeyEventArgs e)

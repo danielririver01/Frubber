@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Migrations/001_Initial.sql" />
+    <EmbeddedResource Include="Migrations/002_Trial.sql" />
   </ItemGroup>
 
   <PropertyGroup>

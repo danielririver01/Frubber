@@ -7,6 +7,7 @@ using FrubberPOS.Application.Persistence;
 using FrubberPOS.Application.Security;
 using FrubberPOS.Application.Startup;
 using FrubberPOS.Application.System;
+using FrubberPOS.Application.Trial;
 using FrubberPOS.Application.Users;
 using FrubberPOS.Desktop.Authentication;
 using FrubberPOS.Desktop.ViewModels;
@@ -15,6 +16,7 @@ using FrubberPOS.Infrastructure.Logging;
 using FrubberPOS.Infrastructure.Migrations;
 using FrubberPOS.Infrastructure.Persistence;
 using FrubberPOS.Infrastructure.Persistence.Licensing;
+using FrubberPOS.Infrastructure.Persistence.Trial;
 using FrubberPOS.Infrastructure.Persistence.Users;
 using FrubberPOS.Infrastructure.Security;
 using FrubberPOS.Infrastructure.System;
@@ -50,6 +52,7 @@ public static class ServiceConfiguration
         services.AddSingleton<ILicenseSignatureVerifier>(_ => EcdsaLicenseSignatureVerifier.CreateProduction());
         services.AddSingleton<ILicenseProtector, DpapiLicenseProtector>();
         services.AddSingleton<ILicenseRepository, DapperLicenseRepository>();
+        services.AddSingleton<ITrialRepository, DapperTrialRepository>();
         services.AddSingleton<ICurrentSession, CurrentSession>();
         services.AddTransient<AuthenticateUserUseCase>();
         services.AddTransient<ListActiveUsersUseCase>();
@@ -66,9 +69,11 @@ public static class ServiceConfiguration
         services.AddTransient<GetMachineCodeUseCase>();
         services.AddTransient<ActivateLicenseUseCase>();
         services.AddTransient<GetLicenseStatusUseCase>();
+        services.AddTransient<EvaluateTrialUseCase>();
         services.AddTransient<LoginViewModel>();
         services.AddTransient<FirstStartViewModel>();
         services.AddTransient<LicenseActivationViewModel>();
+        services.AddTransient<TrialBlockedViewModel>();
 
         return services;
     }

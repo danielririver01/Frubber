@@ -129,6 +129,10 @@ script Inno Setup dentro de la solución (§16.8).
 ## 7. Flujo de trabajo con Linear
 
 - Todo cambio corresponde a un issue. Cerrar un hijo no cierra al padre.
+- Operar con autonomía (2026-09-29): avanzar por los issues sin pedir
+  confirmación en cada paso. Interrumpir al dueño solo para: pruebas que
+  exijan sus ojos en la app, material de su llave privada, o
+  contradicciones documentales. Reportar al cerrar cada issue.
 - Commits en la rama del issue (`gitBranchName` en Linear).
   Mensaje tipo: `JHO-16: crea solución y estructura de proyectos`.
 - Acumular ~45 archivos con cambios antes de cada commit + push a GitHub

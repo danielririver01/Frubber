@@ -16,12 +16,33 @@ namespace FrubberPOS.Infrastructure.Licensing;
 [SupportedOSPlatform("windows")]
 public sealed class WindowsMachineCodeProvider : IMachineCodeProvider
 {
+    private static readonly TimeSpan WmiTimeout = TimeSpan.FromSeconds(10);
+
     public async Task<MachineFingerprint> GetFingerprintAsync(CancellationToken cancellationToken)
     {
-        var raw = await Task.Run(ReadRawIdentifiers, cancellationToken);
+        var raw = await ReadWithRetryAsync(cancellationToken);
         var code = MachineCode.Compute(raw);
         var redacted = raw.Select(MachineIdentityRedactor.Redact).ToList();
         return new MachineFingerprint(code, redacted);
+    }
+
+    private static async Task<IReadOnlyList<string>> ReadWithRetryAsync(CancellationToken cancellationToken)
+    {
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            try
+            {
+                return await Task.Run(ReadRawIdentifiers, cancellationToken).WaitAsync(WmiTimeout, cancellationToken);
+            }
+            catch (TimeoutException)
+            {
+                // WMI wedged (notably on disk queries): one retry before the
+                // documented fallback, so a transient stall cannot rebind
+                // the license to another code nor hang startup forever.
+            }
+        }
+
+        return ["FALLBACK-" + Environment.MachineName.Trim()];
     }
 
     private static IReadOnlyList<string> ReadRawIdentifiers()

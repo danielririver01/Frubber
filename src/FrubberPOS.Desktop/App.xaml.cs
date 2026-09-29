@@ -6,6 +6,7 @@ using FrubberPOS.Application.Logging;
 using FrubberPOS.Application.Navigation;
 using FrubberPOS.Application.Persistence;
 using FrubberPOS.Application.Startup;
+using FrubberPOS.Application.Trial;
 using FrubberPOS.Desktop.Composition;
 using FrubberPOS.Desktop.ViewModels;
 using FrubberPOS.Desktop.Views;
@@ -60,6 +61,38 @@ public partial class App : System.Windows.Application, INavigationService
             }
 
             logger.LogInformation("APP_START", "Frubber POS iniciado.");
+
+            // Runs off the UI thread on purpose: the trial evaluation touches
+            // thread-pool work (WMI) that must never resume on the blocked
+            // startup thread (deadlock). Other startup calls stay direct.
+            var trial = Task.Run(() => provider.GetRequiredService<EvaluateTrialUseCase>()
+                .ExecuteAsync(new EvaluateTrialRequest(), CancellationToken.None)).GetAwaiter().GetResult();
+            if (!trial.IsSuccess)
+            {
+                MessageBox.Show(trial.Error!.Message, "Frubber POS", MessageBoxButton.OK, MessageBoxImage.Error);
+                Shutdown();
+                return;
+            }
+
+            if (trial.Value.IsBlocked)
+            {
+                logger.LogInformation("APP_TRIAL", $"Bloqueado: {trial.Value.Outcome}.");
+                var blockedViewModel = Resolve<TrialBlockedViewModel>();
+                blockedViewModel.Setup(trial.Value.Outcome);
+                if (new TrialBlockedWindow(blockedViewModel).ShowDialog() != true)
+                {
+                    Shutdown();
+                    return;
+                }
+            }
+            else if (trial.Value.IsLicensed)
+            {
+                logger.LogInformation("APP_TRIAL", "Licencia vitalicia activa.");
+            }
+            else
+            {
+                logger.LogInformation("APP_TRIAL", $"Prueba activa: quedan {trial.Value.DaysLeft} días.");
+            }
 
             var firstStart = provider.GetRequiredService<CheckFirstStartUseCase>()
                 .ExecuteAsync(new CheckFirstStartRequest(), CancellationToken.None).GetAwaiter().GetResult();

@@ -4,8 +4,10 @@ using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using FrubberPOS.Application.Authentication;
 using FrubberPOS.Application.Navigation;
+using FrubberPOS.Application.Trial;
 using FrubberPOS.Application.Users;
 using FrubberPOS.Desktop.Common;
+using FrubberPOS.Domain.Trial;
 
 namespace FrubberPOS.Desktop.ViewModels;
 
@@ -20,25 +22,31 @@ public sealed class LoginViewModel : INotifyPropertyChanged
 
     private readonly ListActiveUsersUseCase listUsers;
     private readonly AuthenticateUserUseCase authenticate;
+    private readonly EvaluateTrialUseCase trial;
     private readonly INavigationService navigation;
 
     private ActiveUserDto? selectedUser;
     private string pin = string.Empty;
     private string errorMessage = string.Empty;
+    private string trialLine = string.Empty;
 
     public LoginViewModel(
         ListActiveUsersUseCase listUsers,
         AuthenticateUserUseCase authenticate,
+        EvaluateTrialUseCase trial,
         INavigationService navigation)
     {
         ArgumentNullException.ThrowIfNull(listUsers);
         ArgumentNullException.ThrowIfNull(authenticate);
+        ArgumentNullException.ThrowIfNull(trial);
         ArgumentNullException.ThrowIfNull(navigation);
         this.listUsers = listUsers;
         this.authenticate = authenticate;
+        this.trial = trial;
         this.navigation = navigation;
 
         LoadCommand = new AsyncCommand(_ => LoadUsersAsync());
+        TrialCommand = new AsyncCommand(_ => LoadTrialAsync());
         LoginCommand = new AsyncCommand(_ => LoginAsync());
         ShowLicenseCommand = new RelayCommand(() => navigation.ShowLicense());
         EnterDigitCommand = new RelayCommand<string>(EnterDigit);
@@ -81,7 +89,15 @@ public sealed class LoginViewModel : INotifyPropertyChanged
         private set => SetProperty(ref errorMessage, value);
     }
 
+    public string TrialLine
+    {
+        get => trialLine;
+        private set => SetProperty(ref trialLine, value);
+    }
+
     public ICommand LoadCommand { get; }
+
+    public ICommand TrialCommand { get; }
 
     public ICommand LoginCommand { get; }
 
@@ -92,8 +108,7 @@ public sealed class LoginViewModel : INotifyPropertyChanged
     public ICommand BackspaceCommand { get; }
 
     public async Task LoadUsersAsync()
-    {
-        var result = await listUsers.ExecuteAsync(new ListActiveUsersRequest(), CancellationToken.None);
+    {        var result = await listUsers.ExecuteAsync(new ListActiveUsersRequest(), CancellationToken.None);
         if (!result.IsSuccess)
         {
             ErrorMessage = result.Error!.Message;
@@ -107,6 +122,24 @@ public sealed class LoginViewModel : INotifyPropertyChanged
         }
 
         ErrorMessage = string.Empty;
+    }
+
+    public async Task LoadTrialAsync()
+    {
+        var result = await trial.ExecuteAsync(new EvaluateTrialRequest(), CancellationToken.None);
+        if (!result.IsSuccess)
+        {
+            TrialLine = string.Empty;
+            return;
+        }
+
+        TrialLine = result.Value switch
+        {
+            { IsLicensed: true } => string.Empty,
+            { Outcome: TrialOutcome.Active, DaysLeft: 1 } => "Versión de prueba — queda 1 día.",
+            { Outcome: TrialOutcome.Active } => $"Versión de prueba — quedan {result.Value.DaysLeft} días.",
+            _ => "La prueba no está disponible en este equipo."
+        };
     }
 
     public void EnterDigit(string? digit)

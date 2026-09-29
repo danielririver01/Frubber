@@ -1,6 +1,7 @@
 using System.Data.Common;
 using FrubberPOS.Application.Licensing;
 using FrubberPOS.Application.Persistence;
+using FrubberPOS.Application.Trial;
 
 namespace FrubberPOS.Tests.TestDoubles;
 
@@ -47,4 +48,22 @@ public sealed class FakeUnitOfWorkFactory : IUnitOfWorkFactory
 {
     public Task<IUnitOfWork> CreateAsync(UnitOfWorkMode mode, CancellationToken cancellationToken) =>
         Task.FromResult<IUnitOfWork>(new FakeUnitOfWork());
+}
+
+/// <summary>
+/// In-memory trial row for tests. Production code never uses this.
+/// </summary>
+public sealed class FakeTrialRepository : ITrialRepository
+{
+    private StoredTrial? stored;
+
+    public Task<StoredTrial?> ReadAsync(IUnitOfWork unit, CancellationToken cancellationToken) =>
+        Task.FromResult(stored);
+
+    public Task SaveAsync(IUnitOfWork unit, StoredTrial trial, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(trial);
+        stored = trial;
+        return Task.CompletedTask;
+    }
 }
