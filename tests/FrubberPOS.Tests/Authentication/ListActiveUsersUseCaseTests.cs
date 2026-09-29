@@ -9,7 +9,7 @@ public sealed class ListActiveUsersUseCaseTests
     public async Task ReturnsOnlyActiveUsersOrderedByName()
     {
         await using var bed = await AuthenticationTestBed.CreateAsync();
-        var useCase = new ListActiveUsersUseCase(bed.Users);
+        var useCase = new ListActiveUsersUseCase(bed.Users, bed.Units);
 
         var result = await useCase.ExecuteAsync(new ListActiveUsersRequest(), CancellationToken.None);
 

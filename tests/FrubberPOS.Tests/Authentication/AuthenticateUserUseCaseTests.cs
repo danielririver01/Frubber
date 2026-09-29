@@ -10,7 +10,7 @@ public sealed class AuthenticateUserUseCaseTests
     public async Task CorrectPin_SignsInAndReturnsResponse()
     {
         await using var bed = await AuthenticationTestBed.CreateAsync();
-        var useCase = new AuthenticateUserUseCase(bed.Users, bed.Hasher, bed.Session);
+        var useCase = new AuthenticateUserUseCase(bed.Users, bed.Hasher, bed.Session, bed.Units);
 
         var result = await useCase.ExecuteAsync(new AuthenticateUserRequest(2, "2222"), CancellationToken.None);
 
@@ -26,7 +26,7 @@ public sealed class AuthenticateUserUseCaseTests
     public async Task WrongPin_FailsWithoutSession()
     {
         await using var bed = await AuthenticationTestBed.CreateAsync();
-        var useCase = new AuthenticateUserUseCase(bed.Users, bed.Hasher, bed.Session);
+        var useCase = new AuthenticateUserUseCase(bed.Users, bed.Hasher, bed.Session, bed.Units);
 
         var result = await useCase.ExecuteAsync(new AuthenticateUserRequest(2, "9999"), CancellationToken.None);
 
@@ -39,7 +39,7 @@ public sealed class AuthenticateUserUseCaseTests
     public async Task UnknownInactiveAndWrongPin_ShareOneMessage()
     {
         await using var bed = await AuthenticationTestBed.CreateAsync();
-        var useCase = new AuthenticateUserUseCase(bed.Users, bed.Hasher, bed.Session);
+        var useCase = new AuthenticateUserUseCase(bed.Users, bed.Hasher, bed.Session, bed.Units);
 
         var wrong = await useCase.ExecuteAsync(new AuthenticateUserRequest(2, "9999"), CancellationToken.None);
         var unknown = await useCase.ExecuteAsync(new AuthenticateUserRequest(999, "2222"), CancellationToken.None);
@@ -58,7 +58,7 @@ public sealed class AuthenticateUserUseCaseTests
     public async Task BadFormat_FailsValidation(string pin)
     {
         await using var bed = await AuthenticationTestBed.CreateAsync();
-        var useCase = new AuthenticateUserUseCase(bed.Users, bed.Hasher, bed.Session);
+        var useCase = new AuthenticateUserUseCase(bed.Users, bed.Hasher, bed.Session, bed.Units);
 
         var result = await useCase.ExecuteAsync(new AuthenticateUserRequest(2, pin), CancellationToken.None);
 
@@ -72,7 +72,7 @@ public sealed class AuthenticateUserUseCaseTests
     public async Task FailureMessage_ContainsNoSecrets()
     {
         await using var bed = await AuthenticationTestBed.CreateAsync();
-        var useCase = new AuthenticateUserUseCase(bed.Users, bed.Hasher, bed.Session);
+        var useCase = new AuthenticateUserUseCase(bed.Users, bed.Hasher, bed.Session, bed.Units);
 
         var result = await useCase.ExecuteAsync(new AuthenticateUserRequest(2, "1234"), CancellationToken.None);
 

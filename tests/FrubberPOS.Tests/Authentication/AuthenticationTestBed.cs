@@ -22,12 +22,18 @@ internal sealed class AuthenticationTestBed : IAsyncDisposable
 
     private readonly string path;
 
-    private AuthenticationTestBed(string path, Pbkdf2PinHasher hasher, DapperUserRepository users, FakeCurrentSession session)
+    private AuthenticationTestBed(
+        string path,
+        Pbkdf2PinHasher hasher,
+        DapperUserRepository users,
+        FakeCurrentSession session,
+        SqliteUnitOfWorkFactory units)
     {
         this.path = path;
         Hasher = hasher;
         Users = users;
         Session = session;
+        Units = units;
     }
 
     public Pbkdf2PinHasher Hasher { get; }
@@ -35,6 +41,8 @@ internal sealed class AuthenticationTestBed : IAsyncDisposable
     public DapperUserRepository Users { get; }
 
     public FakeCurrentSession Session { get; }
+
+    public SqliteUnitOfWorkFactory Units { get; }
 
     public static async Task<AuthenticationTestBed> CreateAsync()
     {
@@ -49,7 +57,7 @@ internal sealed class AuthenticationTestBed : IAsyncDisposable
 
         var hasher = new Pbkdf2PinHasher();
         var units = new SqliteUnitOfWorkFactory(new SqliteConnectionFactory(new DatabaseOptions(path)));
-        var bed = new AuthenticationTestBed(path, hasher, new DapperUserRepository(units), new FakeCurrentSession());
+        var bed = new AuthenticationTestBed(path, hasher, new DapperUserRepository(), new FakeCurrentSession(), units);
 
         await bed.SeedUserAsync(1, "Admin", "ADMIN", "1111", isActive: true);
         await bed.SeedUserAsync(2, "Zed Cajero", "CASHIER", "2222", isActive: true);
@@ -75,6 +83,16 @@ internal sealed class AuthenticationTestBed : IAsyncDisposable
             PinIterations = derived.Iterations,
             PinAlgorithmVersion = derived.AlgorithmVersion
         });
+    }
+
+    public async Task SeedCashSessionAsync(int userId, string openedByName)
+    {
+        await using var connection = new SqliteConnection($"Data Source={path}");
+        await connection.OpenAsync();
+        await connection.ExecuteAsync(
+            "INSERT INTO CashSession (OpenedAtUtcMs, OpenedAtOffsetMinutes, OpenedByUserId, OpenedByNameSnapshot, OpeningBalanceCop)"
+            + " VALUES (1, 0, @UserId, @Name, 0);",
+            new { UserId = userId, Name = openedByName });
     }
 
     public async ValueTask DisposeAsync()

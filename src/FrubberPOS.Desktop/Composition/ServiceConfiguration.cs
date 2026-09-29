@@ -41,6 +41,13 @@ public static class ServiceConfiguration
         services.AddTransient<AuthenticateUserUseCase>();
         services.AddTransient<ListActiveUsersUseCase>();
         services.AddTransient<SignOutUseCase>();
+        services.AddTransient<CreateUserUseCase>();
+        services.AddTransient<UpdateUserUseCase>();
+        services.AddTransient<ResetUserPinUseCase>();
+        services.AddTransient<SetUserActiveStateUseCase>();
+        services.AddTransient<DeleteUserUseCase>();
+        services.AddTransient<ListUsersUseCase>();
+        services.AddTransient<GetUserUseCase>();
 
         return services;
     }

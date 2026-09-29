@@ -46,6 +46,13 @@ public sealed class LoggingCompositionTests
                 .AddTransient<AuthenticateUserUseCase>()
                 .AddTransient<ListActiveUsersUseCase>()
                 .AddTransient<SignOutUseCase>()
+                .AddTransient<CreateUserUseCase>()
+                .AddTransient<UpdateUserUseCase>()
+                .AddTransient<ResetUserPinUseCase>()
+                .AddTransient<SetUserActiveStateUseCase>()
+                .AddTransient<DeleteUserUseCase>()
+                .AddTransient<ListUsersUseCase>()
+                .AddTransient<GetUserUseCase>()
                 .BuildServiceProvider(new ServiceProviderOptions
                 {
                     ValidateScopes = true,
@@ -60,6 +67,13 @@ public sealed class LoggingCompositionTests
                 Assert.NotNull(provider.GetRequiredService<IUserRepository>());
                 Assert.NotNull(provider.GetRequiredService<ICurrentSession>());
                 Assert.NotNull(provider.GetRequiredService<AuthenticateUserUseCase>());
+                Assert.NotNull(provider.GetRequiredService<CreateUserUseCase>());
+                Assert.NotNull(provider.GetRequiredService<UpdateUserUseCase>());
+                Assert.NotNull(provider.GetRequiredService<ResetUserPinUseCase>());
+                Assert.NotNull(provider.GetRequiredService<SetUserActiveStateUseCase>());
+                Assert.NotNull(provider.GetRequiredService<DeleteUserUseCase>());
+                Assert.NotNull(provider.GetRequiredService<ListUsersUseCase>());
+                Assert.NotNull(provider.GetRequiredService<GetUserUseCase>());
 
                 var units = provider.GetRequiredService<IUnitOfWorkFactory>();
                 await using (var unit = await units.CreateAsync(UnitOfWorkMode.ReadOnly, CancellationToken.None))

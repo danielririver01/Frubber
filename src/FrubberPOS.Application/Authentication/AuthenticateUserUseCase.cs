@@ -1,4 +1,5 @@
 using FrubberPOS.Application.Common;
+using FrubberPOS.Application.Persistence;
 using FrubberPOS.Application.Security;
 using FrubberPOS.Application.Users;
 
@@ -22,15 +23,18 @@ public sealed class AuthenticateUserUseCase : IUseCase<AuthenticateUserRequest, 
     private readonly IUserRepository users;
     private readonly IPinHasher hasher;
     private readonly ICurrentSession session;
+    private readonly IUnitOfWorkFactory units;
 
-    public AuthenticateUserUseCase(IUserRepository users, IPinHasher hasher, ICurrentSession session)
+    public AuthenticateUserUseCase(IUserRepository users, IPinHasher hasher, ICurrentSession session, IUnitOfWorkFactory units)
     {
         ArgumentNullException.ThrowIfNull(users);
         ArgumentNullException.ThrowIfNull(hasher);
         ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(units);
         this.users = users;
         this.hasher = hasher;
         this.session = session;
+        this.units = units;
     }
 
     public async Task<Result<AuthenticateUserResponse>> ExecuteAsync(AuthenticateUserRequest request, CancellationToken cancellationToken)
@@ -43,7 +47,8 @@ public sealed class AuthenticateUserUseCase : IUseCase<AuthenticateUserRequest, 
                 ErrorCode.Validation, "El PIN debe ser de 4 dígitos.", "Pin"));
         }
 
-        var credentials = await users.FindCredentialsByIdAsync(request.UserId, cancellationToken);
+        await using var unit = await units.CreateAsync(UnitOfWorkMode.ReadOnly, cancellationToken);
+        var credentials = await users.FindCredentialsByIdAsync(unit, request.UserId, cancellationToken);
         if (credentials is null || !credentials.IsActive)
         {
             return Result<AuthenticateUserResponse>.Failure(new Error(ErrorCode.Authentication, InvalidCredentialsMessage));
