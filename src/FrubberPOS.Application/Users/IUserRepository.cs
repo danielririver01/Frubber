@@ -47,5 +47,7 @@ public interface IUserRepository
 
     Task<int> CountActiveAdminsAsync(IUnitOfWork unit, CancellationToken cancellationToken);
 
+    Task<int> CountAllAsync(IUnitOfWork unit, CancellationToken cancellationToken);
+
     Task<bool> HasHistoryAsync(IUnitOfWork unit, int userId, CancellationToken cancellationToken);
 }

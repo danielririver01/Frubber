@@ -168,6 +168,14 @@ public sealed class DapperUserRepository : IUserRepository
         return await unit.Connection.QuerySingleAsync<int>(sql, transaction: unit.Transaction);
     }
 
+    public async Task<int> CountAllAsync(IUnitOfWork unit, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(unit);
+
+        const string sql = "SELECT COUNT(*) FROM \"User\";";
+        return await unit.Connection.QuerySingleAsync<int>(sql, transaction: unit.Transaction);
+    }
+
     public async Task<bool> HasHistoryAsync(IUnitOfWork unit, int userId, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(unit);

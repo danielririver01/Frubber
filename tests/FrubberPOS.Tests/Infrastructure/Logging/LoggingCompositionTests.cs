@@ -2,6 +2,7 @@ using FrubberPOS.Application.Authentication;
 using FrubberPOS.Application.Logging;
 using FrubberPOS.Application.Persistence;
 using FrubberPOS.Application.Security;
+using FrubberPOS.Application.Startup;
 using FrubberPOS.Application.System;
 using FrubberPOS.Application.Users;
 using FrubberPOS.Infrastructure.Logging;
@@ -53,6 +54,8 @@ public sealed class LoggingCompositionTests
                 .AddTransient<DeleteUserUseCase>()
                 .AddTransient<ListUsersUseCase>()
                 .AddTransient<GetUserUseCase>()
+                .AddTransient<CreateFirstAdministratorUseCase>()
+                .AddTransient<CheckFirstStartUseCase>()
                 .BuildServiceProvider(new ServiceProviderOptions
                 {
                     ValidateScopes = true,
@@ -74,6 +77,8 @@ public sealed class LoggingCompositionTests
                 Assert.NotNull(provider.GetRequiredService<DeleteUserUseCase>());
                 Assert.NotNull(provider.GetRequiredService<ListUsersUseCase>());
                 Assert.NotNull(provider.GetRequiredService<GetUserUseCase>());
+                Assert.NotNull(provider.GetRequiredService<CreateFirstAdministratorUseCase>());
+                Assert.NotNull(provider.GetRequiredService<CheckFirstStartUseCase>());
 
                 var units = provider.GetRequiredService<IUnitOfWorkFactory>();
                 await using (var unit = await units.CreateAsync(UnitOfWorkMode.ReadOnly, CancellationToken.None))

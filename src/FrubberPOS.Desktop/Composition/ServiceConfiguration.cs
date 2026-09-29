@@ -3,6 +3,7 @@ using FrubberPOS.Application.Authentication;
 using FrubberPOS.Application.Logging;
 using FrubberPOS.Application.Persistence;
 using FrubberPOS.Application.Security;
+using FrubberPOS.Application.Startup;
 using FrubberPOS.Application.System;
 using FrubberPOS.Application.Users;
 using FrubberPOS.Desktop.Authentication;
@@ -48,6 +49,8 @@ public static class ServiceConfiguration
         services.AddTransient<DeleteUserUseCase>();
         services.AddTransient<ListUsersUseCase>();
         services.AddTransient<GetUserUseCase>();
+        services.AddTransient<CreateFirstAdministratorUseCase>();
+        services.AddTransient<CheckFirstStartUseCase>();
 
         return services;
     }
