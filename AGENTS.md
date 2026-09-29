@@ -130,6 +130,8 @@ script Inno Setup dentro de la solución (§16.8).
 - Todo cambio corresponde a un issue. Cerrar un hijo no cierra al padre.
 - Commits en la rama del issue (`gitBranchName` en Linear).
   Mensaje tipo: `JHO-16: crea solución y estructura de proyectos`.
+- Si `git status` acumula cambios sin subir (~80 archivos), commit + push a
+  GitHub antes de seguir con cualquier otro issue de Linear.
 - Si un documento aprobado contradice al código o a otro documento: NO suponer.
   Registrar el hallazgo y pedir aprobación de Jhoan Rivera (dueño del producto).
 

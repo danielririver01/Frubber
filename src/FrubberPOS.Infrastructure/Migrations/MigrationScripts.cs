@@ -1,0 +1,20 @@
+namespace FrubberPOS.Infrastructure.Migrations;
+
+/// <summary>
+/// Access to embedded migration scripts. Scripts are immutable approved
+/// artifacts (JHO-19): never edited, never given BEGIN/COMMIT (the JHO-20
+/// executor opens the transaction). Versioning and execution belong
+/// to JHO-20.
+/// </summary>
+public static class MigrationScripts
+{
+    public const string InitialScriptResourceName = "FrubberPOS.Infrastructure.Migrations.001_Initial.sql";
+
+    public static string GetInitialScript()
+    {
+        using var stream = typeof(MigrationScripts).Assembly.GetManifestResourceStream(InitialScriptResourceName)
+            ?? throw new InvalidOperationException($"Recurso embebido no encontrado: {InitialScriptResourceName}.");
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
+}
