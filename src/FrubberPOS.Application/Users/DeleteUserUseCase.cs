@@ -1,3 +1,4 @@
+using FrubberPOS.Application.Authentication;
 using FrubberPOS.Application.Common;
 using FrubberPOS.Application.Persistence;
 
@@ -18,18 +19,27 @@ public sealed class DeleteUserUseCase : IUseCase<DeleteUserRequest, DeleteUserRe
 {
     private readonly IUserRepository users;
     private readonly IUnitOfWorkFactory units;
+    private readonly ICurrentSession session;
 
-    public DeleteUserUseCase(IUserRepository users, IUnitOfWorkFactory units)
+    public DeleteUserUseCase(IUserRepository users, IUnitOfWorkFactory units, ICurrentSession session)
     {
         ArgumentNullException.ThrowIfNull(users);
         ArgumentNullException.ThrowIfNull(units);
+        ArgumentNullException.ThrowIfNull(session);
         this.users = users;
         this.units = units;
+        this.session = session;
     }
 
     public async Task<Result<DeleteUserResponse>> ExecuteAsync(DeleteUserRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
+
+        var denied = Authorization.RequireAdmin(session);
+        if (denied is not null)
+        {
+            return Result<DeleteUserResponse>.Failure(denied);
+        }
 
         await using var unit = await units.CreateAsync(UnitOfWorkMode.WriteImmediate, cancellationToken);
 

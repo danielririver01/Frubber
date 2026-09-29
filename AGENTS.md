@@ -57,7 +57,7 @@ src/FrubberPOS.Domain/FrubberPOS.Domain.csproj          (net10.0, sin dependenci
 src/FrubberPOS.Application/FrubberPOS.Application.csproj (net10.0, ref → Domain)
 src/FrubberPOS.Infrastructure/FrubberPOS.Infrastructure.csproj (net10.0, ref → Application, Domain)
 src/FrubberPOS.Desktop/FrubberPOS.Desktop.csproj        (net10.0-windows, UseWPF, ref → Application; ref → Infrastructure SOLO para composición en App)
-tests/FrubberPOS.Tests/FrubberPOS.Tests.csproj          (net10.0, xUnit — decidido 2026-09-28, ref según necesidad)
+tests/FrubberPOS.Tests/FrubberPOS.Tests.csproj          (net10.0-windows, xUnit — decidido 2026-09-28; Windows-only como el producto, puede referenciar Desktop para probar ViewModels sin abrir ventanas)
 ```
 
 Reglas de dependencia (prohibidas las circulares):

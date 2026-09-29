@@ -1,13 +1,16 @@
 using System.IO;
 using FrubberPOS.Application.Authentication;
 using FrubberPOS.Application.Logging;
+using FrubberPOS.Application.Navigation;
 using FrubberPOS.Application.Persistence;
 using FrubberPOS.Application.Security;
 using FrubberPOS.Application.Startup;
 using FrubberPOS.Application.System;
 using FrubberPOS.Application.Users;
 using FrubberPOS.Desktop.Authentication;
+using FrubberPOS.Desktop.ViewModels;
 using FrubberPOS.Infrastructure.Logging;
+using FrubberPOS.Infrastructure.Migrations;
 using FrubberPOS.Infrastructure.Persistence;
 using FrubberPOS.Infrastructure.Persistence.Users;
 using FrubberPOS.Infrastructure.Security;
@@ -35,6 +38,8 @@ public static class ServiceConfiguration
         services.AddSingleton<IAppLogger>(_ => SerilogLoggerFactory.Create(new LoggingOptions(paths.LogDirectory)));
         services.AddSingleton<IDatabaseConnectionFactory>(provider =>
             new SqliteConnectionFactory(new DatabaseOptions(provider.GetRequiredService<IAppPaths>().DatabaseFilePath)));
+        services.AddSingleton(sp => new DatabaseOptions(sp.GetRequiredService<IAppPaths>().DatabaseFilePath));
+        services.AddSingleton<MigrationRunner>();
         services.AddSingleton<IUnitOfWorkFactory, SqliteUnitOfWorkFactory>();
         services.AddSingleton<IPinHasher, Pbkdf2PinHasher>();
         services.AddSingleton<IUserRepository, DapperUserRepository>();
@@ -51,14 +56,19 @@ public static class ServiceConfiguration
         services.AddTransient<GetUserUseCase>();
         services.AddTransient<CreateFirstAdministratorUseCase>();
         services.AddTransient<CheckFirstStartUseCase>();
+        services.AddTransient<LoginViewModel>();
+        services.AddTransient<FirstStartViewModel>();
 
         return services;
     }
 
-    public static ServiceProvider BuildProvider(IAppPaths paths)
+    public static ServiceProvider BuildProvider(IAppPaths paths, INavigationService navigation)
     {
+        ArgumentNullException.ThrowIfNull(navigation);
+
         var services = new ServiceCollection();
         ConfigureServices(services, paths);
+        services.AddSingleton(navigation);
         return services.BuildServiceProvider(new ServiceProviderOptions
         {
             ValidateScopes = true,

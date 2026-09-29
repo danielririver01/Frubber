@@ -1,3 +1,4 @@
+using FrubberPOS.Application.Authentication;
 using FrubberPOS.Application.Common;
 using FrubberPOS.Application.Persistence;
 using FrubberPOS.Domain.Users;
@@ -17,18 +18,27 @@ public sealed class UpdateUserUseCase : IUseCase<UpdateUserRequest, UpdateUserRe
 {
     private readonly IUserRepository users;
     private readonly IUnitOfWorkFactory units;
+    private readonly ICurrentSession session;
 
-    public UpdateUserUseCase(IUserRepository users, IUnitOfWorkFactory units)
+    public UpdateUserUseCase(IUserRepository users, IUnitOfWorkFactory units, ICurrentSession session)
     {
         ArgumentNullException.ThrowIfNull(users);
         ArgumentNullException.ThrowIfNull(units);
+        ArgumentNullException.ThrowIfNull(session);
         this.users = users;
         this.units = units;
+        this.session = session;
     }
 
     public async Task<Result<UpdateUserResponse>> ExecuteAsync(UpdateUserRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
+
+        var denied = Authorization.RequireAdmin(session);
+        if (denied is not null)
+        {
+            return Result<UpdateUserResponse>.Failure(denied);
+        }
 
         var name = request.DisplayName?.Trim() ?? string.Empty;
         if (name.Length is < 1 or > 60)

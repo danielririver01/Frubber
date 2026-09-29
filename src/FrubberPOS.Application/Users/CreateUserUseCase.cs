@@ -1,3 +1,4 @@
+using FrubberPOS.Application.Authentication;
 using FrubberPOS.Application.Common;
 using FrubberPOS.Application.Persistence;
 using FrubberPOS.Application.Security;
@@ -18,20 +19,29 @@ public sealed class CreateUserUseCase : IUseCase<CreateUserRequest, CreateUserRe
     private readonly IUserRepository users;
     private readonly IPinHasher hasher;
     private readonly IUnitOfWorkFactory units;
+    private readonly ICurrentSession session;
 
-    public CreateUserUseCase(IUserRepository users, IPinHasher hasher, IUnitOfWorkFactory units)
+    public CreateUserUseCase(IUserRepository users, IPinHasher hasher, IUnitOfWorkFactory units, ICurrentSession session)
     {
         ArgumentNullException.ThrowIfNull(users);
         ArgumentNullException.ThrowIfNull(hasher);
         ArgumentNullException.ThrowIfNull(units);
+        ArgumentNullException.ThrowIfNull(session);
         this.users = users;
         this.hasher = hasher;
         this.units = units;
+        this.session = session;
     }
 
     public async Task<Result<CreateUserResponse>> ExecuteAsync(CreateUserRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
+
+        var denied = Authorization.RequireAdmin(session);
+        if (denied is not null)
+        {
+            return Result<CreateUserResponse>.Failure(denied);
+        }
 
         var name = request.DisplayName?.Trim() ?? string.Empty;
         if (name.Length is < 1 or > 60)

@@ -1,3 +1,4 @@
+using FrubberPOS.Application.Authentication;
 using FrubberPOS.Application.Common;
 using FrubberPOS.Application.Persistence;
 using FrubberPOS.Application.Security;
@@ -18,20 +19,29 @@ public sealed class ResetUserPinUseCase : IUseCase<ResetUserPinRequest, ResetUse
     private readonly IUserRepository users;
     private readonly IPinHasher hasher;
     private readonly IUnitOfWorkFactory units;
+    private readonly ICurrentSession session;
 
-    public ResetUserPinUseCase(IUserRepository users, IPinHasher hasher, IUnitOfWorkFactory units)
+    public ResetUserPinUseCase(IUserRepository users, IPinHasher hasher, IUnitOfWorkFactory units, ICurrentSession session)
     {
         ArgumentNullException.ThrowIfNull(users);
         ArgumentNullException.ThrowIfNull(hasher);
         ArgumentNullException.ThrowIfNull(units);
+        ArgumentNullException.ThrowIfNull(session);
         this.users = users;
         this.hasher = hasher;
         this.units = units;
+        this.session = session;
     }
 
     public async Task<Result<ResetUserPinResponse>> ExecuteAsync(ResetUserPinRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
+
+        var denied = Authorization.RequireAdmin(session);
+        if (denied is not null)
+        {
+            return Result<ResetUserPinResponse>.Failure(denied);
+        }
 
         if (!PinRules.IsValidFormat(request.NewPin))
         {

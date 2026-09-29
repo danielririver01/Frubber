@@ -1,0 +1,16 @@
+<Window x:Class="FrubberPOS.Desktop.Views.LoginWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Frubber POS — Iniciar sesión" Height="460" Width="380"
+        WindowStartupLocation="CenterScreen" Loaded="OnLoaded">
+    <StackPanel Margin="24">
+        <TextBlock Text="Frubber POS" FontSize="24" FontWeight="Bold"/>
+        <TextBlock Text="Seleccione su usuario:" Margin="0,16,0,4"/>
+        <ListBox ItemsSource="{Binding Users}" DisplayMemberPath="DisplayName"
+                 SelectedItem="{Binding SelectedUser}" Height="150"/>
+        <TextBlock Text="PIN (4 dígitos):" Margin="0,12,0,4"/>
+        <PasswordBox x:Name="PinBox" MaxLength="4" PasswordChanged="PinBox_PasswordChanged"/>
+        <TextBlock Text="{Binding ErrorMessage}" Foreground="Red" Margin="0,8,0,0" TextWrapping="Wrap"/>
+        <Button Content="Ingresar" Command="{Binding LoginCommand}" Margin="0,12,0,0" Padding="0,8"/>
+    </StackPanel>
+</Window>

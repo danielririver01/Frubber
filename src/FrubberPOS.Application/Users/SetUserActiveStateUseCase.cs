@@ -1,3 +1,4 @@
+using FrubberPOS.Application.Authentication;
 using FrubberPOS.Application.Common;
 using FrubberPOS.Application.Persistence;
 
@@ -16,18 +17,27 @@ public sealed class SetUserActiveStateUseCase : IUseCase<SetUserActiveStateReque
 {
     private readonly IUserRepository users;
     private readonly IUnitOfWorkFactory units;
+    private readonly ICurrentSession session;
 
-    public SetUserActiveStateUseCase(IUserRepository users, IUnitOfWorkFactory units)
+    public SetUserActiveStateUseCase(IUserRepository users, IUnitOfWorkFactory units, ICurrentSession session)
     {
         ArgumentNullException.ThrowIfNull(users);
         ArgumentNullException.ThrowIfNull(units);
+        ArgumentNullException.ThrowIfNull(session);
         this.users = users;
         this.units = units;
+        this.session = session;
     }
 
     public async Task<Result<SetUserActiveStateResponse>> ExecuteAsync(SetUserActiveStateRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
+
+        var denied = Authorization.RequireAdmin(session);
+        if (denied is not null)
+        {
+            return Result<SetUserActiveStateResponse>.Failure(denied);
+        }
 
         await using var unit = await units.CreateAsync(UnitOfWorkMode.WriteImmediate, cancellationToken);
 

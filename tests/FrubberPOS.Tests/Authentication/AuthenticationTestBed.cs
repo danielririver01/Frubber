@@ -1,5 +1,7 @@
 using Dapper;
+using FrubberPOS.Application.Authentication;
 using FrubberPOS.Application.Persistence;
+using FrubberPOS.Domain.Users;
 using FrubberPOS.Infrastructure.Migrations;
 using FrubberPOS.Infrastructure.Persistence;
 using FrubberPOS.Infrastructure.Persistence.Users;
@@ -43,6 +45,17 @@ internal sealed class AuthenticationTestBed : IAsyncDisposable
     public FakeCurrentSession Session { get; }
 
     public SqliteUnitOfWorkFactory Units { get; }
+
+    /// <summary>
+    /// Fresh admin-signed session for admin-only use cases. Never touches
+    /// <see cref="Session"/> (login tests need it unsigned).
+    /// </summary>
+    public static FakeCurrentSession AdminSession()
+    {
+        var session = new FakeCurrentSession();
+        session.SignIn(new SignedInUser(1, "Admin", UserRole.Admin));
+        return session;
+    }
 
     public static async Task<AuthenticationTestBed> CreateAsync()
     {

@@ -69,6 +69,16 @@ public sealed class MigrationRunner
         return await MigrateAsync(factory, cancellationToken);
     }
 
+    /// <summary>
+    /// Migrates the configured file database. Used at startup (JHO-29).
+    /// </summary>
+    public Task<Result<int>> MigrateAsync(DatabaseOptions options, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        var connectionString = new SqliteConnectionStringBuilder { DataSource = options.DatabaseFilePath }.ConnectionString;
+        return MigrateAsync(connectionString, cancellationToken);
+    }
+
     /// <returns>Number of migrations applied by this run (0 when updated).</returns>
     public async Task<Result<int>> MigrateAsync(IDatabaseConnectionFactory connectionFactory, CancellationToken cancellationToken)
     {

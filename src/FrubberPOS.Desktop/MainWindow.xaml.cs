@@ -1,23 +1,18 @@
-﻿using System.Text;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
+﻿using System.Windows;
+using FrubberPOS.Desktop.ViewModels;
 
 namespace FrubberPOS.Desktop;
 
 /// <summary>
-/// Interaction logic for MainWindow.xaml
+/// Shell window: role-filtered menu plus page host. Composed by
+/// <see cref="App"/> with its ViewModel.
 /// </summary>
 public partial class MainWindow : Window
 {
-    public MainWindow()
+    public MainWindow(MainViewModel viewModel)
     {
+        ArgumentNullException.ThrowIfNull(viewModel);
+        DataContext = viewModel;
         InitializeComponent();
     }
 }
