@@ -31,6 +31,8 @@ public partial class App : System.Windows.Application, INavigationService
     {
         base.OnStartup(e);
 
+        DispatcherUnhandledException += OnDispatcherUnhandledException;
+
         IAppLogger? logger = null;
         try
         {
@@ -129,8 +131,26 @@ public partial class App : System.Windows.Application, INavigationService
             Resolve<SignOutUseCase>(),
             this)));
 
-    protected override void OnExit(ExitEventArgs e)
+    private void OnDispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
     {
+        try
+        {
+            provider?.GetRequiredService<IAppLogger>().LogError("APP_UI_FAILURE", e.Exception.ToString());
+        }
+        catch
+        {
+            // Logging must never hide the safe message.
+        }
+
+        MessageBox.Show(
+            "Ocurrió un problema inesperado. Intente de nuevo y si el problema continúa, contacte al soporte técnico.",
+            "Frubber POS",
+            MessageBoxButton.OK,
+            MessageBoxImage.Error);
+        e.Handled = true;
+    }
+
+    protected override void OnExit(ExitEventArgs e)    {
         provider?.Dispose();
         provider = null;
         instanceGuard?.Dispose();

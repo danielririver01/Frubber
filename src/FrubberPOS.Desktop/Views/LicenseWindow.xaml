@@ -6,9 +6,7 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="24">
             <TextBlock Text="Licencia del equipo" FontSize="20" FontWeight="Bold"/>
-            <TextBlock Margin="0,12,0,4" FontWeight="Bold">
-                <Run Text="Estado: "/><Run Text="{Binding StatusText}"/>
-            </TextBlock>
+            <TextBlock Text="{Binding StatusLine}" Margin="0,12,0,4" FontWeight="Bold" FontSize="16"/>
 
             <TextBlock Text="Código de este equipo (compártalo para recibir su licencia):" TextWrapping="Wrap" Margin="0,8,0,4"/>
             <DockPanel>
@@ -20,6 +18,7 @@
             <TextBox Text="{Binding LicenseText, UpdateSourceTrigger=PropertyChanged}" Height="120" TextWrapping="Wrap"
                      VerticalScrollBarVisibility="Auto" AcceptsReturn="True" Padding="6"/>
             <Button Content="Activar" Command="{Binding ActivateCommand}" Padding="12,6" Margin="0,12,0,0" HorizontalAlignment="Left"/>
+            <TextBlock Text="{Binding ConfirmationMessage}" Foreground="#15803D" Margin="0,8,0,0" TextWrapping="Wrap" FontWeight="Bold"/>
             <TextBlock Text="{Binding ErrorMessage}" Foreground="#B91C1C" Margin="0,8,0,0" TextWrapping="Wrap"/>
         </StackPanel>
     </ScrollViewer>

@@ -21,6 +21,8 @@ public sealed class LicenseActivationViewModel : INotifyPropertyChanged
     private string machineDisplayCode = string.Empty;
     private string licenseText = string.Empty;
     private string statusText = "Sin activar";
+    private string statusLine = "Estado: Sin activar";
+    private string confirmationMessage = string.Empty;
     private string errorMessage = string.Empty;
     private bool isLicensed;
 
@@ -60,6 +62,18 @@ public sealed class LicenseActivationViewModel : INotifyPropertyChanged
         private set => SetProperty(ref statusText, value);
     }
 
+    public string StatusLine
+    {
+        get => statusLine;
+        private set => SetProperty(ref statusLine, value);
+    }
+
+    public string ConfirmationMessage
+    {
+        get => confirmationMessage;
+        private set => SetProperty(ref confirmationMessage, value);
+    }
+
     public string ErrorMessage
     {
         get => errorMessage;
@@ -78,6 +92,7 @@ public sealed class LicenseActivationViewModel : INotifyPropertyChanged
 
     public async Task LoadAsync()
     {
+        ConfirmationMessage = string.Empty;
         ErrorMessage = string.Empty;
 
         var code = await machineCode.ExecuteAsync(new GetMachineCodeRequest(), CancellationToken.None);
@@ -101,6 +116,7 @@ public sealed class LicenseActivationViewModel : INotifyPropertyChanged
 
     public async Task ActivateAsync()
     {
+        ConfirmationMessage = string.Empty;
         if (string.IsNullOrWhiteSpace(LicenseText))
         {
             ErrorMessage = "Pegue el código de licencia que recibió.";
@@ -118,12 +134,14 @@ public sealed class LicenseActivationViewModel : INotifyPropertyChanged
         LicenseText = string.Empty;
         ErrorMessage = string.Empty;
         ApplyStatus(true);
+        ConfirmationMessage = "Licencia activada correctamente.";
     }
 
     private void ApplyStatus(bool licensed)
     {
         IsLicensed = licensed;
         StatusText = licensed ? "Licencia vitalicia" : "Sin activar";
+        StatusLine = $"Estado: {StatusText}";
     }
 
     private bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? name = null)

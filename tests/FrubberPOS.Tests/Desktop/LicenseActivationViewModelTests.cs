@@ -30,6 +30,7 @@ public sealed class LicenseActivationViewModelTests
         Assert.Equal("0123-4567-89AB-CDEF", viewModel.MachineDisplayCode);
         Assert.False(viewModel.IsLicensed);
         Assert.Equal("Sin activar", viewModel.StatusText);
+        Assert.Equal("Estado: Sin activar", viewModel.StatusLine);
         Assert.Equal(string.Empty, viewModel.ErrorMessage);
     }
 
@@ -77,6 +78,8 @@ public sealed class LicenseActivationViewModelTests
 
         Assert.True(viewModel.IsLicensed);
         Assert.Equal("Licencia vitalicia", viewModel.StatusText);
+        Assert.Equal("Estado: Licencia vitalicia", viewModel.StatusLine);
+        Assert.Equal("Licencia activada correctamente.", viewModel.ConfirmationMessage);
         Assert.Equal(string.Empty, viewModel.LicenseText);
         Assert.Equal(string.Empty, viewModel.ErrorMessage);
     }
