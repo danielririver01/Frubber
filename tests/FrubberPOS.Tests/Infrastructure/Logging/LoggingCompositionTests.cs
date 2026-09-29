@@ -1,9 +1,15 @@
+using FrubberPOS.Application.Authentication;
 using FrubberPOS.Application.Logging;
 using FrubberPOS.Application.Persistence;
+using FrubberPOS.Application.Security;
 using FrubberPOS.Application.System;
+using FrubberPOS.Application.Users;
 using FrubberPOS.Infrastructure.Logging;
 using FrubberPOS.Infrastructure.Persistence;
+using FrubberPOS.Infrastructure.Persistence.Users;
+using FrubberPOS.Infrastructure.Security;
 using FrubberPOS.Infrastructure.System;
+using FrubberPOS.Tests.TestDoubles;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -34,6 +40,12 @@ public sealed class LoggingCompositionTests
                 .AddSingleton<IDatabaseConnectionFactory>(sp =>
                     new SqliteConnectionFactory(new DatabaseOptions(sp.GetRequiredService<IAppPaths>().DatabaseFilePath)))
                 .AddSingleton<IUnitOfWorkFactory, SqliteUnitOfWorkFactory>()
+                .AddSingleton<IPinHasher, Pbkdf2PinHasher>()
+                .AddSingleton<IUserRepository, DapperUserRepository>()
+                .AddSingleton<ICurrentSession, FakeCurrentSession>()
+                .AddTransient<AuthenticateUserUseCase>()
+                .AddTransient<ListActiveUsersUseCase>()
+                .AddTransient<SignOutUseCase>()
                 .BuildServiceProvider(new ServiceProviderOptions
                 {
                     ValidateScopes = true,
@@ -44,6 +56,10 @@ public sealed class LoggingCompositionTests
                 Assert.NotNull(provider.GetRequiredService<IClock>());
                 Assert.NotNull(provider.GetRequiredService<IFileSystem>());
                 Assert.NotNull(provider.GetRequiredService<IDatabaseConnectionFactory>());
+                Assert.NotNull(provider.GetRequiredService<IPinHasher>());
+                Assert.NotNull(provider.GetRequiredService<IUserRepository>());
+                Assert.NotNull(provider.GetRequiredService<ICurrentSession>());
+                Assert.NotNull(provider.GetRequiredService<AuthenticateUserUseCase>());
 
                 var units = provider.GetRequiredService<IUnitOfWorkFactory>();
                 await using (var unit = await units.CreateAsync(UnitOfWorkMode.ReadOnly, CancellationToken.None))

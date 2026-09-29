@@ -1,9 +1,15 @@
 using System.IO;
+using FrubberPOS.Application.Authentication;
 using FrubberPOS.Application.Logging;
 using FrubberPOS.Application.Persistence;
+using FrubberPOS.Application.Security;
 using FrubberPOS.Application.System;
+using FrubberPOS.Application.Users;
+using FrubberPOS.Desktop.Authentication;
 using FrubberPOS.Infrastructure.Logging;
 using FrubberPOS.Infrastructure.Persistence;
+using FrubberPOS.Infrastructure.Persistence.Users;
+using FrubberPOS.Infrastructure.Security;
 using FrubberPOS.Infrastructure.System;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -29,6 +35,12 @@ public static class ServiceConfiguration
         services.AddSingleton<IDatabaseConnectionFactory>(provider =>
             new SqliteConnectionFactory(new DatabaseOptions(provider.GetRequiredService<IAppPaths>().DatabaseFilePath)));
         services.AddSingleton<IUnitOfWorkFactory, SqliteUnitOfWorkFactory>();
+        services.AddSingleton<IPinHasher, Pbkdf2PinHasher>();
+        services.AddSingleton<IUserRepository, DapperUserRepository>();
+        services.AddSingleton<ICurrentSession, CurrentSession>();
+        services.AddTransient<AuthenticateUserUseCase>();
+        services.AddTransient<ListActiveUsersUseCase>();
+        services.AddTransient<SignOutUseCase>();
 
         return services;
     }
