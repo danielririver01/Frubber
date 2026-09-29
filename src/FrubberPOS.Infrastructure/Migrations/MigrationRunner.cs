@@ -56,15 +56,25 @@ public sealed class MigrationRunner
             return Result<int>.Failure(new Error(ErrorCode.Validation, "La cadena de conexión no puede estar vacía.", "connectionString"));
         }
 
-        await using var connection = new SqliteConnection(connectionString);
-        await connection.OpenAsync(cancellationToken);
-
-        await using (var pragma = connection.CreateCommand())
+        IDatabaseConnectionFactory factory;
+        try
         {
-            pragma.CommandText = "PRAGMA foreign_keys = ON;";
-            await pragma.ExecuteNonQueryAsync(cancellationToken);
+            factory = new SqliteConnectionFactory(new DatabaseOptions(new SqliteConnectionStringBuilder(connectionString).DataSource));
+        }
+        catch (Exception ex) when (ex is ArgumentException || ex is FormatException)
+        {
+            return Result<int>.Failure(new Error(ErrorCode.Validation, "La cadena de conexión no es válida.", "connectionString"));
         }
 
+        return await MigrateAsync(factory, cancellationToken);
+    }
+
+    /// <returns>Number of migrations applied by this run (0 when updated).</returns>
+    public async Task<Result<int>> MigrateAsync(IDatabaseConnectionFactory connectionFactory, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(connectionFactory);
+
+        await using var connection = await connectionFactory.CreateOpenConnectionAsync(cancellationToken);
         var applied = await ReadAppliedAsync(connection, cancellationToken);
         var ordered = catalog.OrderBy(m => m.Version).ToList();
         var latestKnown = ordered.Count == 0 ? 0 : ordered[^1].Version;
@@ -111,7 +121,7 @@ public sealed class MigrationRunner
     }
 
     private static async Task<Dictionary<int, (string ScriptName, string Checksum)>> ReadAppliedAsync(
-        SqliteConnection connection,
+        DbConnection connection,
         CancellationToken cancellationToken)
     {
         var applied = new Dictionary<int, (string ScriptName, string Checksum)>();
@@ -139,7 +149,7 @@ public sealed class MigrationRunner
     }
 
     private async Task<Result<int>> ApplyOnceAsync(
-        SqliteConnection connection,
+        DbConnection connection,
         KnownMigration migration,
         CancellationToken cancellationToken)
     {
@@ -157,10 +167,10 @@ public sealed class MigrationRunner
             {
                 record.Transaction = transaction;
                 record.CommandText = "INSERT INTO SchemaMigration (Version, ScriptName, Checksum, AppliedAtUtcMs) VALUES ($version, $name, $checksum, $appliedAt);";
-                record.Parameters.AddWithValue("$version", migration.Version);
-                record.Parameters.AddWithValue("$name", migration.ScriptName);
-                record.Parameters.AddWithValue("$checksum", MigrationChecksum.Sha256Hex(migration.Sql));
-                record.Parameters.AddWithValue("$appliedAt", utcNowMilliseconds());
+                AddParameter(record, "$version", migration.Version);
+                AddParameter(record, "$name", migration.ScriptName);
+                AddParameter(record, "$checksum", MigrationChecksum.Sha256Hex(migration.Sql));
+                AddParameter(record, "$appliedAt", utcNowMilliseconds());
                 await record.ExecuteNonQueryAsync(cancellationToken);
             }
 
@@ -175,5 +185,13 @@ public sealed class MigrationRunner
                 ErrorCode.Storage,
                 $"No se pudo aplicar la migración {migration.ScriptName} (versión {migration.Version}). La base quedó sin cambios."));
         }
+    }
+
+    private static void AddParameter(DbCommand command, string name, object value)
+    {
+        var parameter = command.CreateParameter();
+        parameter.ParameterName = name;
+        parameter.Value = value;
+        command.Parameters.Add(parameter);
     }
 }
