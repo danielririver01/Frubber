@@ -110,7 +110,7 @@ internal sealed class AuthenticationTestBed : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        SqliteConnection.ClearAllPools();
+        SqliteConnection.ClearPool(new SqliteConnection($"Data Source={path}"));
         if (File.Exists(path))
         {
             File.Delete(path);

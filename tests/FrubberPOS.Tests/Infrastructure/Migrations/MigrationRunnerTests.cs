@@ -167,7 +167,7 @@ public sealed class MigrationRunnerTests
 
     private static void DeleteTempDb(string path)
     {
-        SqliteConnection.ClearAllPools();
+        SqliteConnection.ClearPool(new SqliteConnection($"Data Source={path}"));
         File.Delete(path);
     }
 

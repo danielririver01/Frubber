@@ -146,7 +146,7 @@ public sealed class FirstStartUseCaseTests
     {
         public async ValueTask DisposeAsync()
         {
-            SqliteConnection.ClearAllPools();
+            SqliteConnection.ClearPool(new SqliteConnection($"Data Source={Path}"));
             if (File.Exists(Path))
             {
                 File.Delete(Path);

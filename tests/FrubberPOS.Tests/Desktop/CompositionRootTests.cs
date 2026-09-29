@@ -25,12 +25,14 @@ public sealed class CompositionRootTests
     public async Task ProductionRegistrations_BuildValidContainer()
     {
         var root = Path.Combine(Path.GetTempPath(), "FrubberPOS", Guid.NewGuid().ToString("N"));
+        var dbPath = string.Empty;
         try
         {
             IAppPaths paths = new WindowsAppPaths(root);
             paths.EnsureCreated();
 
             using var provider = ServiceConfiguration.BuildProvider(paths, new FakeNavigator());
+            dbPath = provider.GetRequiredService<DatabaseOptions>().DatabaseFilePath;
 
             Assert.NotNull(provider.GetRequiredService<IAppPaths>());
             Assert.NotNull(provider.GetRequiredService<IClock>());
@@ -72,7 +74,7 @@ public sealed class CompositionRootTests
         }
         finally
         {
-            SqliteConnection.ClearAllPools();
+            SqliteConnection.ClearPool(new SqliteConnection($"Data Source={dbPath}"));
             Directory.Delete(root, recursive: true);
         }
     }
