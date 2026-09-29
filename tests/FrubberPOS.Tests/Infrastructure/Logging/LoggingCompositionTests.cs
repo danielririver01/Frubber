@@ -1,7 +1,10 @@
 using FrubberPOS.Application.Logging;
+using FrubberPOS.Application.Persistence;
 using FrubberPOS.Application.System;
 using FrubberPOS.Infrastructure.Logging;
+using FrubberPOS.Infrastructure.Persistence;
 using FrubberPOS.Infrastructure.System;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace FrubberPOS.Tests.Infrastructure.Logging;
@@ -15,7 +18,7 @@ namespace FrubberPOS.Tests.Infrastructure.Logging;
 public sealed class LoggingCompositionTests
 {
     [Fact]
-    public void ProductionRegistrations_BuildValidContainerResolvingLogger()
+    public async Task ProductionRegistrations_BuildValidContainerResolvingLogger()
     {
         var root = Path.Combine(Path.GetTempPath(), "FrubberPOS", Guid.NewGuid().ToString("N"));
         try
@@ -28,6 +31,9 @@ public sealed class LoggingCompositionTests
                 .AddSingleton<IClock>(SystemClock.Instance)
                 .AddSingleton<IFileSystem, LocalFileSystem>()
                 .AddSingleton<IAppLogger>(_ => SerilogLoggerFactory.Create(new LoggingOptions(paths.LogDirectory)))
+                .AddSingleton<IDatabaseConnectionFactory>(sp =>
+                    new SqliteConnectionFactory(new DatabaseOptions(sp.GetRequiredService<IAppPaths>().DatabaseFilePath)))
+                .AddSingleton<IUnitOfWorkFactory, SqliteUnitOfWorkFactory>()
                 .BuildServiceProvider(new ServiceProviderOptions
                 {
                     ValidateScopes = true,
@@ -37,6 +43,13 @@ public sealed class LoggingCompositionTests
                 Assert.NotNull(provider.GetRequiredService<IAppPaths>());
                 Assert.NotNull(provider.GetRequiredService<IClock>());
                 Assert.NotNull(provider.GetRequiredService<IFileSystem>());
+                Assert.NotNull(provider.GetRequiredService<IDatabaseConnectionFactory>());
+
+                var units = provider.GetRequiredService<IUnitOfWorkFactory>();
+                await using (var unit = await units.CreateAsync(UnitOfWorkMode.ReadOnly, CancellationToken.None))
+                {
+                    Assert.NotNull(unit.Connection);
+                }
 
                 var logger = provider.GetRequiredService<IAppLogger>();
                 logger.LogInformation("DI_SMOKE", "Contenedor válido.");
@@ -47,6 +60,7 @@ public sealed class LoggingCompositionTests
         }
         finally
         {
+            SqliteConnection.ClearAllPools();
             Directory.Delete(root, recursive: true);
         }
     }

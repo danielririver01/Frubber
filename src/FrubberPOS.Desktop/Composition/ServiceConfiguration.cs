@@ -1,7 +1,9 @@
 using System.IO;
 using FrubberPOS.Application.Logging;
+using FrubberPOS.Application.Persistence;
 using FrubberPOS.Application.System;
 using FrubberPOS.Infrastructure.Logging;
+using FrubberPOS.Infrastructure.Persistence;
 using FrubberPOS.Infrastructure.System;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -24,6 +26,9 @@ public static class ServiceConfiguration
         services.AddSingleton<IClock>(SystemClock.Instance);
         services.AddSingleton<IFileSystem, LocalFileSystem>();
         services.AddSingleton<IAppLogger>(_ => SerilogLoggerFactory.Create(new LoggingOptions(paths.LogDirectory)));
+        services.AddSingleton<IDatabaseConnectionFactory>(provider =>
+            new SqliteConnectionFactory(new DatabaseOptions(provider.GetRequiredService<IAppPaths>().DatabaseFilePath)));
+        services.AddSingleton<IUnitOfWorkFactory, SqliteUnitOfWorkFactory>();
 
         return services;
     }
