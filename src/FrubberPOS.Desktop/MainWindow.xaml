@@ -10,10 +10,22 @@
         </StackPanel>
         <ListBox DockPanel.Dock="Left" Width="170" Margin="12,0,0,12"
                  ItemsSource="{Binding MenuItems}" DisplayMemberPath="Title"
-                 SelectedItem="{Binding SelectedEntry}"/>
-        <StackPanel Margin="24">
-            <TextBlock Text="{Binding PageTitle}" FontSize="24" FontWeight="Bold"/>
-            <TextBlock Text="{Binding PageDescription}" Margin="0,8,0,0"/>
-        </StackPanel>
+                 SelectedItem="{Binding SelectedEntry}"
+                 AutomationProperties.Name="Menú principal"/>
+        <DockPanel Margin="24">
+            <TextBlock DockPanel.Dock="Top" Text="{Binding PageTitle}" FontSize="24" FontWeight="Bold"/>
+            <TextBlock DockPanel.Dock="Top" Text="{Binding PageDescription}" Margin="0,8,0,0">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding PageDescription}" Value="">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+            <ContentControl DockPanel.Dock="Top" Content="{Binding CurrentPage}" Margin="0,12,0,0"/>
+        </DockPanel>
     </DockPanel>
 </Window>

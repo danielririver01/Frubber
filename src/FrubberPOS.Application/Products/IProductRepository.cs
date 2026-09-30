@@ -18,10 +18,10 @@ public interface IProductRepository
 
     /// <summary>
     /// Matches by PLU prefix or name substring (case-insensitive). An empty
-    /// term lists everything. Result is capped at 500 rows ordered by
-    /// active first, then name.
+    /// term lists everything under <paramref name="filter"/>. Result is
+    /// capped at 500 rows ordered by active first, then name.
     /// </summary>
-    Task<IReadOnlyList<ProductDto>> SearchAsync(IUnitOfWork unit, string term, bool includeInactive, CancellationToken cancellationToken);
+    Task<IReadOnlyList<ProductDto>> SearchAsync(IUnitOfWork unit, string term, ProductStatusFilter filter, CancellationToken cancellationToken);
 
     Task<int> CreateAsync(
         IUnitOfWork unit,

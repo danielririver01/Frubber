@@ -5,6 +5,7 @@ using FrubberPOS.Application.Authentication;
 using FrubberPOS.Application.Logging;
 using FrubberPOS.Application.Navigation;
 using FrubberPOS.Application.Persistence;
+using FrubberPOS.Application.Products;
 using FrubberPOS.Application.Startup;
 using FrubberPOS.Application.Trial;
 using FrubberPOS.Desktop.Composition;
@@ -162,7 +163,41 @@ public partial class App : System.Windows.Application, INavigationService
         SwapWindow(new MainWindow(new MainViewModel(
             user,
             Resolve<SignOutUseCase>(),
-            this)));
+            this,
+            () => new ProductsView(Resolve<ProductsViewModel>()))));
+
+    public bool ShowProductEditor(ProductDto? existing)
+    {
+        var window = new ProductEditorDialog(Resolve<ProductEditorViewModel>(), existing)
+        {
+            Owner = currentWindow
+        };
+        return window.ShowDialog() == true;
+    }
+
+    public bool ShowAdjustStock(ProductDto product)
+    {
+        ArgumentNullException.ThrowIfNull(product);
+        var viewModel = Resolve<AdjustStockViewModel>();
+        viewModel.Load(product);
+        var window = new AdjustStockDialog(viewModel)
+        {
+            Owner = currentWindow
+        };
+        return window.ShowDialog() == true;
+    }
+
+    public bool ConfirmProductDeletion(ProductDto product)
+    {
+        ArgumentNullException.ThrowIfNull(product);
+        var answer = MessageBox.Show(
+            currentWindow,
+            $"¿Eliminar «{product.Name}» ({product.Plu})? Esta acción no se puede deshacer.",
+            "Frubber POS — Eliminar producto",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+        return answer == MessageBoxResult.Yes;
+    }
 
     private void OnDispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
     {

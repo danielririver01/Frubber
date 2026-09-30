@@ -5,7 +5,8 @@ namespace FrubberPOS.Desktop;
 
 /// <summary>
 /// Shell window: role-filtered menu plus page host. Composed by
-/// <see cref="App"/> with its ViewModel.
+/// <see cref="App"/> with its ViewModel; page content (products, JHO-30)
+/// binds <see cref="MainViewModel.CurrentPage"/> to the ContentControl.
 /// </summary>
 public partial class MainWindow : Window
 {

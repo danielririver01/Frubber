@@ -4,15 +4,16 @@ using FrubberPOS.Application.Persistence;
 
 namespace FrubberPOS.Application.Products;
 
-public sealed record SearchProductsRequest(string Query, bool IncludeInactive);
+public sealed record SearchProductsRequest(string Query, ProductStatusFilter Filter);
 
 public sealed record SearchProductsResponse(IReadOnlyList<ProductDto> Products);
 
 /// <summary>
 /// Product search by PLU prefix or name substring, case-insensitive
-/// (JHO-32). An empty query lists the catalog (active only unless
-/// <c>IncludeInactive</c>). Any signed-in user may search: the TPV needs
-/// it (JHO-40). Admin-only mutations stay in the other use cases.
+/// (JHO-32). An empty query lists the catalog under the requested state
+/// filter (spec §12.1: Todos/Activos/Inactivos). Any signed-in user may
+/// search: the TPV needs it (JHO-40). Admin-only mutations stay in the
+/// other use cases.
 /// </summary>
 public sealed class SearchProductsUseCase : IUseCase<SearchProductsRequest, SearchProductsResponse>
 {
@@ -41,7 +42,7 @@ public sealed class SearchProductsUseCase : IUseCase<SearchProductsRequest, Sear
         }
 
         await using var unit = await units.CreateAsync(UnitOfWorkMode.ReadOnly, cancellationToken);
-        var found = await products.SearchAsync(unit, request.Query?.Trim() ?? string.Empty, request.IncludeInactive, cancellationToken);
+        var found = await products.SearchAsync(unit, request.Query?.Trim() ?? string.Empty, request.Filter, cancellationToken);
         return Result<SearchProductsResponse>.Success(new SearchProductsResponse(found));
     }
 }

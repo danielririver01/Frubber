@@ -14,7 +14,8 @@ namespace FrubberPOS.Infrastructure.Persistence.Products;
 /// </summary>
 public sealed class DapperProductRepository : IProductRepository
 {
-    private const string Columns = "ProductId, Plu, Name, Unit, PriceCop, StockMilli, IsActive, UnitLocked";
+    private const string Columns = "ProductId, Plu, Name, Unit, PriceCop, StockMilli, IsActive, UnitLocked,"
+        + " CASE WHEN EXISTS (SELECT 1 FROM SaleLine sl WHERE sl.ProductId = Product.ProductId) THEN 1 ELSE 0 END AS HasSalesHistory";
 
     public async Task<ProductDto?> FindByIdAsync(IUnitOfWork unit, int productId, CancellationToken cancellationToken)
     {
@@ -47,7 +48,7 @@ public sealed class DapperProductRepository : IProductRepository
         return count > 0;
     }
 
-    public async Task<IReadOnlyList<ProductDto>> SearchAsync(IUnitOfWork unit, string term, bool includeInactive, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<ProductDto>> SearchAsync(IUnitOfWork unit, string term, ProductStatusFilter filter, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(unit);
 
@@ -57,7 +58,7 @@ public sealed class DapperProductRepository : IProductRepository
             .Replace("_", "\\_", StringComparison.Ordinal);
 
         var sql = $"SELECT {Columns} FROM Product"
-            + " WHERE (@IncludeInactive = 1 OR IsActive = 1)"
+            + " WHERE (@Filter = 0 OR (@Filter = 1 AND IsActive = 1) OR (@Filter = 2 AND IsActive = 0))"
             + " AND (@Term = '' OR Plu LIKE @Prefix ESCAPE '\\' OR Name LIKE @Contains ESCAPE '\\')"
             + " ORDER BY IsActive DESC, Name COLLATE NOCASE"
             + " LIMIT 500;";
@@ -65,7 +66,7 @@ public sealed class DapperProductRepository : IProductRepository
             sql,
             new
             {
-                IncludeInactive = includeInactive ? 1 : 0,
+                Filter = (int)filter,
                 Term = term,
                 Prefix = escaped + "%",
                 Contains = "%" + escaped + "%"
@@ -165,7 +166,8 @@ public sealed class DapperProductRepository : IProductRepository
         row.PriceCop,
         row.StockMilli,
         row.IsActive != 0,
-        row.UnitLocked != 0);
+        row.UnitLocked != 0,
+        row.HasSalesHistory != 0);
 
     private sealed class ProductRow
     {
@@ -184,5 +186,7 @@ public sealed class DapperProductRepository : IProductRepository
         public int IsActive { get; set; }
 
         public int UnitLocked { get; set; }
+
+        public int HasSalesHistory { get; set; }
     }
 }

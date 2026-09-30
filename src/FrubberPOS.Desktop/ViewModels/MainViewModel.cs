@@ -33,18 +33,21 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private readonly SignOutUseCase signOut;
     private readonly INavigationService navigation;
+    private readonly Func<object>? productsPageFactory;
 
     private MenuEntry? selectedEntry;
     private string pageTitle = string.Empty;
     private string pageDescription = string.Empty;
+    private object? currentPage;
 
-    public MainViewModel(SignedInUser user, SignOutUseCase signOut, INavigationService navigation)
+    public MainViewModel(SignedInUser user, SignOutUseCase signOut, INavigationService navigation, Func<object>? productsPageFactory = null)
     {
         ArgumentNullException.ThrowIfNull(user);
         ArgumentNullException.ThrowIfNull(signOut);
         ArgumentNullException.ThrowIfNull(navigation);
         this.signOut = signOut;
         this.navigation = navigation;
+        this.productsPageFactory = productsPageFactory;
 
         DisplayName = user.DisplayName;
         IsAdmin = user.Role == UserRole.Admin;
@@ -90,6 +93,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
         private set => SetProperty(ref pageDescription, value);
     }
 
+    /// <summary>Real page content (JHO-30: products); <c>null</c> shows the placeholder.</summary>
+    public object? CurrentPage
+    {
+        get => currentPage;
+        private set => SetProperty(ref currentPage, value);
+    }
+
     public ICommand NavigateCommand { get; }
 
     public ICommand SignOutCommand { get; }
@@ -106,11 +116,20 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             PageTitle = "Licencia";
             PageDescription = "Gestión de la licencia vitalicia.";
+            CurrentPage = null;
             navigation.ShowLicense();
             return;
         }
 
         PageTitle = SelectedEntry?.Title ?? string.Empty;
+        if (SelectedEntry?.Title == "Productos" && productsPageFactory is not null)
+        {
+            PageDescription = string.Empty;
+            CurrentPage ??= productsPageFactory();
+            return;
+        }
+
+        CurrentPage = null;
         PageDescription = SelectedEntry is null ? string.Empty : "Módulo en construcción.";
     }
 

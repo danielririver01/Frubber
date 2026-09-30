@@ -22,7 +22,7 @@ public sealed class AdjustStockUseCaseTests
         Assert.Equal(3500, adjusted.Value.StockMilli);
 
         var search = new SearchProductsUseCase(bed.Products, bed.Units, ProductTestBed.CashierSession());
-        var found = await search.ExecuteAsync(new SearchProductsRequest("aguacate", false), CancellationToken.None);
+        var found = await search.ExecuteAsync(new SearchProductsRequest("aguacate", ProductStatusFilter.Activos), CancellationToken.None);
         Assert.Single(found.Value.Products);
         Assert.Equal(3500, found.Value.Products[0].StockMilli);
     }

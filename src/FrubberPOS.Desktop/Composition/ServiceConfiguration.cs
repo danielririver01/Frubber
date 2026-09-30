@@ -85,6 +85,8 @@ public static class ServiceConfiguration
         services.AddTransient<LicenseActivationViewModel>();
         services.AddTransient<TrialBlockedViewModel>();
         services.AddTransient<AdjustStockViewModel>();
+        services.AddTransient<ProductsViewModel>();
+        services.AddTransient<ProductEditorViewModel>();
 
         return services;
     }

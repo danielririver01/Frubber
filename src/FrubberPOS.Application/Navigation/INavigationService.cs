@@ -1,4 +1,5 @@
 using FrubberPOS.Application.Authentication;
+using FrubberPOS.Application.Products;
 
 namespace FrubberPOS.Application.Navigation;
 
@@ -19,4 +20,13 @@ public interface INavigationService
     void ShowShell(SignedInUser user);
 
     void ShowLicense();
+
+    /// <summary>Product editor dialog (JHO-30); <c>null</c> creates. Returns true when saved.</summary>
+    bool ShowProductEditor(ProductDto? existing);
+
+    /// <summary>Direct stock adjustment dialog (JHO-33). Returns true when saved.</summary>
+    bool ShowAdjustStock(ProductDto product);
+
+    /// <summary>Delete confirmation for a product (spec §12.5). <c>true</c> when confirmed.</summary>
+    bool ConfirmProductDeletion(ProductDto product);
 }

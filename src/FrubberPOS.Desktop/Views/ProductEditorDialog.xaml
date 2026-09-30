@@ -1,0 +1,60 @@
+<Window x:Class="FrubberPOS.Desktop.Views.ProductEditorDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:v="clr-namespace:FrubberPOS.Desktop.Views"
+        Title="{Binding Title, StringFormat='Frubber POS — {0}'}" Height="480" Width="440"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize">
+    <Window.Resources>
+        <v:InverseBoolToVisibilityConverter x:Key="InverseBoolToVis"/>
+    </Window.Resources>
+    <StackPanel Margin="24">
+        <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Bold"/>
+
+        <TextBlock Text="PLU (letras y números, en mayúsculas):" Margin="0,14,0,4"/>
+        <TextBox x:Name="PluBox" Text="{Binding Plu, UpdateSourceTrigger=PropertyChanged}"
+                 FontSize="14" Padding="6" LostFocus="OnPluLostFocus"
+                 CharacterCasing="Upper" AutomationProperties.Name="PLU"/>
+
+        <TextBlock Text="Nombre:" Margin="0,10,0,4"/>
+        <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" FontSize="14" Padding="6"
+                 AutomationProperties.Name="Nombre del producto"/>
+
+        <Grid Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock Text="Unidad:" Margin="0,0,0,4"/>
+                <ComboBox ItemsSource="{Binding Units}"
+                          SelectedItem="{Binding SelectedUnit}"
+                          DisplayMemberPath="Code"
+                          IsEnabled="{Binding IsUnitEnabled}" FontSize="14" Padding="6,3"
+                          AutomationProperties.Name="Unidad de venta"/>
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+                <TextBlock Text="Precio (pesos):" Margin="0,0,0,4"/>
+                <TextBox Text="{Binding PriceText, UpdateSourceTrigger=PropertyChanged}"
+                         FontSize="14" Padding="6" AutomationProperties.Name="Precio en pesos"/>
+            </StackPanel>
+        </Grid>
+        <TextBlock Text="{Binding UnitLockedHint}" Foreground="#B45309" TextWrapping="Wrap"
+                   Margin="0,4,0,0"
+                   Visibility="{Binding IsUnitEnabled, Converter={StaticResource InverseBoolToVis}}"/>
+
+        <StackPanel Visibility="{Binding IsEditing, Converter={StaticResource InverseBoolToVis}}">
+            <TextBlock Text="Existencia inicial (kg/lb con 3 decimales; unidad entera):" Margin="0,10,0,4"/>
+            <TextBox Text="{Binding StockText, UpdateSourceTrigger=PropertyChanged}"
+                     FontSize="14" Padding="6" AutomationProperties.Name="Existencia inicial"/>
+        </StackPanel>
+
+        <CheckBox Content="Producto activo" IsChecked="{Binding IsActive}" Margin="0,12,0,0" FontSize="14"/>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="Cancelar" Click="OnCancel" Padding="12,6" Margin="0,0,8,0"/>
+            <Button Content="Guardar" Command="{Binding SaveCommand}" Padding="12,6" FontWeight="Bold"/>
+        </StackPanel>
+        <TextBlock Text="{Binding ErrorMessage}" Foreground="#B91C1C" Margin="0,8,0,0" TextWrapping="Wrap"/>
+    </StackPanel>
+</Window>

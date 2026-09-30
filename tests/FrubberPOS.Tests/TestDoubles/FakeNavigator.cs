@@ -1,5 +1,6 @@
 using FrubberPOS.Application.Authentication;
 using FrubberPOS.Application.Navigation;
+using FrubberPOS.Application.Products;
 
 namespace FrubberPOS.Tests.TestDoubles;
 
@@ -24,6 +25,43 @@ public sealed class FakeNavigator : INavigationService
     public void ShowLogin() => LoginCount++;
 
     public void ShowLicense() => LicenseCount++;
+
+    public int ProductEditorCount { get; private set; }
+
+    public int AdjustStockCount { get; private set; }
+
+    public int ConfirmCount { get; private set; }
+
+    public int ConfirmDeletionCount { get; private set; }
+
+    public ProductDto? LastEditedProduct { get; private set; }
+
+    public bool NextEditorResult { get; set; }
+
+    public bool NextAdjustResult { get; set; }
+
+    public bool NextConfirmResult { get; set; } = true;
+
+    public bool ShowProductEditor(ProductDto? existing)
+    {
+        ProductEditorCount++;
+        LastEditedProduct = existing;
+        return NextEditorResult;
+    }
+
+    public bool ShowAdjustStock(ProductDto product)
+    {
+        ArgumentNullException.ThrowIfNull(product);
+        AdjustStockCount++;
+        return NextAdjustResult;
+    }
+
+    public bool ConfirmProductDeletion(ProductDto product)
+    {
+        ArgumentNullException.ThrowIfNull(product);
+        ConfirmDeletionCount++;
+        return NextConfirmResult;
+    }
 
     public void ShowShell(SignedInUser user)
     {

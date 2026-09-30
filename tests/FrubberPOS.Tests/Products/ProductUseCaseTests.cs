@@ -259,11 +259,11 @@ public sealed class ProductUseCaseTests
 
         var search = new SearchProductsUseCase(bed.Products, bed.Units, ProductTestBed.CashierSession());
 
-        var byPlu = await search.ExecuteAsync(new SearchProductsRequest("m", false), CancellationToken.None);
+        var byPlu = await search.ExecuteAsync(new SearchProductsRequest("m", ProductStatusFilter.Activos), CancellationToken.None);
         Assert.True(byPlu.IsSuccess);
         Assert.Equal(2, byPlu.Value.Products.Count);
 
-        var byName = await search.ExecuteAsync(new SearchProductsRequest("banano", false), CancellationToken.None);
+        var byName = await search.ExecuteAsync(new SearchProductsRequest("banano", ProductStatusFilter.Activos), CancellationToken.None);
         Assert.Single(byName.Value.Products);
         Assert.Equal("B1", byName.Value.Products[0].Plu);
     }
@@ -282,11 +282,11 @@ public sealed class ProductUseCaseTests
             new SetProductActiveStateRequest(first.Value.ProductId, false), CancellationToken.None)).IsSuccess);
 
         var search = new SearchProductsUseCase(bed.Products, bed.Units, ProductTestBed.CashierSession());
-        var activeOnly = await search.ExecuteAsync(new SearchProductsRequest("", false), CancellationToken.None);
+        var activeOnly = await search.ExecuteAsync(new SearchProductsRequest("", ProductStatusFilter.Activos), CancellationToken.None);
         Assert.Single(activeOnly.Value.Products);
         Assert.Equal("L2", activeOnly.Value.Products[0].Plu);
 
-        var all = await search.ExecuteAsync(new SearchProductsRequest("", true), CancellationToken.None);
+        var all = await search.ExecuteAsync(new SearchProductsRequest("", ProductStatusFilter.Todos), CancellationToken.None);
         Assert.Equal(2, all.Value.Products.Count);
         Assert.False(all.Value.Products.First(p => p.Plu == "L1").IsActive);
     }
@@ -301,7 +301,7 @@ public sealed class ProductUseCaseTests
         await create.ExecuteAsync(new CreateProductRequest("C2", "Coco entero", ProductUnit.Unit, 5000, 0), CancellationToken.None);
 
         var search = new SearchProductsUseCase(bed.Products, bed.Units, ProductTestBed.CashierSession());
-        var result = await search.ExecuteAsync(new SearchProductsRequest("50%", false), CancellationToken.None);
+        var result = await search.ExecuteAsync(new SearchProductsRequest("50%", ProductStatusFilter.Activos), CancellationToken.None);
 
         Assert.Single(result.Value.Products);
         Assert.Equal("C1", result.Value.Products[0].Plu);
@@ -313,7 +313,7 @@ public sealed class ProductUseCaseTests
         await using var bed = await ProductTestBed.CreateAsync();
         var search = new SearchProductsUseCase(bed.Products, bed.Units, new TestDoubles.FakeCurrentSession());
 
-        var result = await search.ExecuteAsync(new SearchProductsRequest("", false), CancellationToken.None);
+        var result = await search.ExecuteAsync(new SearchProductsRequest("", ProductStatusFilter.Activos), CancellationToken.None);
 
         Assert.True(result.IsFailure);
         Assert.Equal(ErrorCode.Authorization, result.Error!.Code);
