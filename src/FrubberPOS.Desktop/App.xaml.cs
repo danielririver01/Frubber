@@ -164,7 +164,8 @@ public partial class App : System.Windows.Application, INavigationService
             user,
             Resolve<SignOutUseCase>(),
             this,
-            () => new ProductsView(Resolve<ProductsViewModel>()))));
+            () => new ProductsView(Resolve<ProductsViewModel>()),
+            () => new CashView(Resolve<CashViewModel>()))));
 
     public bool ShowProductEditor(ProductDto? existing)
     {
@@ -194,6 +195,17 @@ public partial class App : System.Windows.Application, INavigationService
             currentWindow,
             $"¿Eliminar «{product.Name}» ({product.Plu})? Esta acción no se puede deshacer.",
             "Frubber POS — Eliminar producto",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+        return answer == MessageBoxResult.Yes;
+    }
+
+    public bool ConfirmCashClosure()
+    {
+        var answer = MessageBox.Show(
+            currentWindow,
+            "¿Cerrar la caja? Esta acción es irreversible y conservará el resumen histórico.",
+            "Frubber POS — Cerrar caja",
             MessageBoxButton.YesNo,
             MessageBoxImage.Warning);
         return answer == MessageBoxResult.Yes;

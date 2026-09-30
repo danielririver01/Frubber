@@ -29,4 +29,7 @@ public interface INavigationService
 
     /// <summary>Delete confirmation for a product (spec §12.5). <c>true</c> when confirmed.</summary>
     bool ConfirmProductDeletion(ProductDto product);
+
+    /// <summary>Cash close confirmation, irreversible (spec §11.3). <c>true</c> when confirmed.</summary>
+    bool ConfirmCashClosure();
 }

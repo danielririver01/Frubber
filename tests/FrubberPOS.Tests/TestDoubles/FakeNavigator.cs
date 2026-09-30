@@ -63,6 +63,14 @@ public sealed class FakeNavigator : INavigationService
         return NextConfirmResult;
     }
 
+    public bool ConfirmCashClosure()
+    {
+        ConfirmCashClosureCount++;
+        return NextConfirmResult;
+    }
+
+    public int ConfirmCashClosureCount { get; private set; }
+
     public void ShowShell(SignedInUser user)
     {
         ArgumentNullException.ThrowIfNull(user);

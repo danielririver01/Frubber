@@ -94,6 +94,7 @@ public static class ServiceConfiguration
         services.AddTransient<AdjustStockViewModel>();
         services.AddTransient<ProductsViewModel>();
         services.AddTransient<ProductEditorViewModel>();
+        services.AddTransient<CashViewModel>();
 
         return services;
     }

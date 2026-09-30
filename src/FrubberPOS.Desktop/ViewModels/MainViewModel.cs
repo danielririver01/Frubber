@@ -34,13 +34,15 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private readonly SignOutUseCase signOut;
     private readonly INavigationService navigation;
     private readonly Func<object>? productsPageFactory;
+    private readonly Func<object>? cashPageFactory;
 
     private MenuEntry? selectedEntry;
     private string pageTitle = string.Empty;
     private string pageDescription = string.Empty;
     private object? currentPage;
+    private object? cashPage;
 
-    public MainViewModel(SignedInUser user, SignOutUseCase signOut, INavigationService navigation, Func<object>? productsPageFactory = null)
+    public MainViewModel(SignedInUser user, SignOutUseCase signOut, INavigationService navigation, Func<object>? productsPageFactory = null, Func<object>? cashPageFactory = null)
     {
         ArgumentNullException.ThrowIfNull(user);
         ArgumentNullException.ThrowIfNull(signOut);
@@ -48,6 +50,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         this.signOut = signOut;
         this.navigation = navigation;
         this.productsPageFactory = productsPageFactory;
+        this.cashPageFactory = cashPageFactory;
 
         DisplayName = user.DisplayName;
         IsAdmin = user.Role == UserRole.Admin;
@@ -126,6 +129,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             PageDescription = string.Empty;
             CurrentPage ??= productsPageFactory();
+            return;
+        }
+
+        if (SelectedEntry?.Title == "Caja" && cashPageFactory is not null)
+        {
+            PageDescription = string.Empty;
+            CurrentPage = cashPage ??= cashPageFactory();
             return;
         }
 
