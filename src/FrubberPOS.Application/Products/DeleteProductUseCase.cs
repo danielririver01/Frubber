@@ -9,12 +9,10 @@ public sealed record DeleteProductRequest(int ProductId);
 public sealed record DeleteProductResponse;
 
 /// <summary>
-/// Permanent deletion only when the product has no sale lines (JHO-32);
-/// otherwise <see cref="ErrorCode.Conflict"/> directing to deactivate
-/// instead. SaleLine's FK is ON DELETE RESTRICT, so the friendly check
-/// runs first inside the same transaction. The remaining conditions of a
-/// conditioned deletion (e.g. non-zero stock) belong to JHO-31.
-/// Admin only.
+/// Permanent deletion only when the product has no sale lines (JHO-32,
+/// JHO-31); otherwise <see cref="ErrorCode.Conflict"/> directing to
+/// deactivate instead. SaleLine's FK is ON DELETE RESTRICT, so the
+/// friendly check runs first inside the same transaction. Admin only.
 /// </summary>
 public sealed class DeleteProductUseCase : IUseCase<DeleteProductRequest, DeleteProductResponse>
 {

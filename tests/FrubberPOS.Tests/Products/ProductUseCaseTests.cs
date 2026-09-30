@@ -210,6 +210,41 @@ public sealed class ProductUseCaseTests
         Assert.True(result.IsFailure);
         Assert.Equal(ErrorCode.Conflict, result.Error!.Code);
         Assert.Equal("Unit", result.Error.Field);
+        Assert.Contains("existencias", result.Error.Message);
+    }
+
+    [Fact]
+    public async Task Update_UnitChangeAfterSalesWithZeroStock_Conflict()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        var admin = ProductTestBed.AdminSession();
+        var created = await Create(bed, admin).ExecuteAsync(
+            new CreateProductRequest("V1", "Uva", ProductUnit.Kg, 8000, 0), CancellationToken.None);
+        await bed.SeedSaleLineAsync(created.Value.ProductId, "V1", "Uva");
+
+        var update = new UpdateProductUseCase(bed.Products, bed.Units, admin);
+        var result = await update.ExecuteAsync(
+            new UpdateProductRequest(created.Value.ProductId, "V1", "Uva", ProductUnit.Lb, 8000), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(ErrorCode.Conflict, result.Error!.Code);
+        Assert.Equal("Unit", result.Error.Field);
+        Assert.Contains("ventas", result.Error.Message);
+    }
+
+    [Fact]
+    public async Task Update_SameUnitWithStock_Ok()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        var admin = ProductTestBed.AdminSession();
+        var created = await Create(bed, admin).ExecuteAsync(
+            new CreateProductRequest("S2", "Tomate Chonto", ProductUnit.Kg, 3000, 1500), CancellationToken.None);
+
+        var update = new UpdateProductUseCase(bed.Products, bed.Units, admin);
+        var result = await update.ExecuteAsync(
+            new UpdateProductRequest(created.Value.ProductId, "S2", "Tomate Chonto", ProductUnit.Kg, 3500), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
     }
 
     [Fact]
@@ -325,5 +360,22 @@ public sealed class ProductUseCaseTests
 
         Assert.True(result.IsFailure);
         Assert.Equal(ErrorCode.Conflict, result.Error!.Code);
+        Assert.Contains("Desactívelo", result.Error.Message);
+    }
+
+    [Fact]
+    public async Task Delete_WithSalesHistory_ButCanStillDeactivate()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        var admin = ProductTestBed.AdminSession();
+        var created = await Create(bed, admin).ExecuteAsync(
+            new CreateProductRequest("H2", "Yuca", ProductUnit.Unit, 1200, 0), CancellationToken.None);
+        await bed.SeedSaleLineAsync(created.Value.ProductId, "H2", "Yuca");
+
+        var deactivate = new SetProductActiveStateUseCase(bed.Products, bed.Units, admin);
+        var result = await deactivate.ExecuteAsync(
+            new SetProductActiveStateRequest(created.Value.ProductId, false), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
     }
 }

@@ -12,9 +12,9 @@ public sealed record UpdateProductResponse;
 /// <summary>
 /// Edits PLU, name, unit and price (JHO-32). Stock never changes here:
 /// it moves only through sales and the direct adjustments of JHO-33. The
-/// PLU is re-normalized and re-checked unique. A provisional guard refuses
-/// a unit change while stock exists so the 001 CHECKs cannot trip; the
-/// full unit-lock rule belongs to JHO-31. Admin only.
+/// PLU is re-normalized and re-checked unique. The unit is immutable once
+/// the product has stock or sales history (JHO-31): the refusal message
+/// states why. Admin only.
 /// </summary>
 public sealed class UpdateProductUseCase : IUseCase<UpdateProductRequest, UpdateProductResponse>
 {
@@ -68,10 +68,23 @@ public sealed class UpdateProductUseCase : IUseCase<UpdateProductRequest, Update
                 ErrorCode.Conflict, "El PLU ya está en uso.", "Plu"));
         }
 
-        if (request.Unit != current.Unit && current.StockMilli != 0)
+        if (request.Unit != current.Unit)
         {
-            return Result<UpdateProductResponse>.Failure(new Error(
-                ErrorCode.Conflict, "No se puede cambiar la unidad mientras el producto tenga existencias.", "Unit"));
+            if (current.StockMilli != 0)
+            {
+                return Result<UpdateProductResponse>.Failure(new Error(
+                    ErrorCode.Conflict,
+                    "No se puede cambiar la unidad porque el producto tiene existencias. Ajuste la existencia a cero primero.",
+                    "Unit"));
+            }
+
+            if (await products.HasSalesHistoryAsync(unit, request.ProductId, cancellationToken))
+            {
+                return Result<UpdateProductResponse>.Failure(new Error(
+                    ErrorCode.Conflict,
+                    "No se puede cambiar la unidad porque el producto tiene ventas registradas con la unidad actual.",
+                    "Unit"));
+            }
         }
 
         await products.UpdateAsync(unit, request.ProductId, plu, name, request.Unit, request.PriceCop, cancellationToken);
