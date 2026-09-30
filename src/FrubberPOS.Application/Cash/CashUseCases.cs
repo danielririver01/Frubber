@@ -6,6 +6,50 @@ using FrubberPOS.Application.System;
 namespace FrubberPOS.Application.Cash;
 
 /// <summary>
+/// Financial summary of any cash session, open or closed (JHO-35): the
+/// numbers come from valid sales while open and stay frozen after closing
+/// — later voids never reopen them (RN-CAJ-010). Any signed-in role reads;
+/// the cashier screen (JHO-36) uses it to render the panel.
+/// </summary>
+public sealed class GetCashSessionSummaryUseCase : IUseCase<GetCashSessionSummaryRequest, GetCashSessionSummaryResponse>
+{
+    private readonly ICashSessionRepository sessions;
+    private readonly IUnitOfWorkFactory units;
+    private readonly ICurrentSession session;
+
+    public GetCashSessionSummaryUseCase(ICashSessionRepository sessions, IUnitOfWorkFactory units, ICurrentSession session)
+    {
+        ArgumentNullException.ThrowIfNull(sessions);
+        ArgumentNullException.ThrowIfNull(units);
+        ArgumentNullException.ThrowIfNull(session);
+        this.sessions = sessions;
+        this.units = units;
+        this.session = session;
+    }
+
+    public async Task<Result<GetCashSessionSummaryResponse>> ExecuteAsync(GetCashSessionSummaryRequest request, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var denied = Authorization.RequireSignedIn(session);
+        if (denied is not null)
+        {
+            return Result<GetCashSessionSummaryResponse>.Failure(denied);
+        }
+
+        await using var unit = await units.CreateAsync(UnitOfWorkMode.ReadOnly, cancellationToken);
+        var summary = await sessions.FindSummaryAsync(unit, request.CashSessionId, cancellationToken);
+
+        if (summary is null)
+        {
+            return Result<GetCashSessionSummaryResponse>.Failure(new Error(ErrorCode.NotFound, "La sesión de caja no existe."));
+        }
+
+        return Result<GetCashSessionSummaryResponse>.Success(new GetCashSessionSummaryResponse(summary));
+    }
+}
+
+/// <summary>
 /// Opens the single cash session (JHO-38, RN-CAJ-001/003/004): only one
 /// open per installation, balance in whole COP never negative, records
 /// session user and local timestamp. Any signed-in role may open.

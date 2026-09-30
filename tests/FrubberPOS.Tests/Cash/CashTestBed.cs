@@ -21,6 +21,7 @@ internal sealed class CashTestBed : IAsyncDisposable
     private CashTestBed(string path, DapperCashSessionRepository sessions, FakeCurrentSession session, SqliteUnitOfWorkFactory units)
     {
         this.path = path;
+        DbPath = path;
         Sessions = sessions;
         Session = session;
         Units = units;
@@ -31,6 +32,8 @@ internal sealed class CashTestBed : IAsyncDisposable
     public FakeCurrentSession Session { get; }
 
     public SqliteUnitOfWorkFactory Units { get; }
+
+    public string DbPath { get; }
 
     public FakeClock Clock { get; } = new(new DateTimeOffset(2026, 9, 30, 12, 0, 0, TimeSpan.FromHours(-5)));
 

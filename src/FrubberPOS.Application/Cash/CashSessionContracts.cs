@@ -46,7 +46,36 @@ public interface ICashSessionRepository
         int closedByUserId,
         string closedByNameSnapshot,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Financial summary of a session (JHO-35). For the open session the
+    /// totals compute from valid sales; for a closed one they come frozen
+    /// from the row. <c>null</c> when the id is unknown.
+    /// </summary>
+    Task<CashSessionSummaryDto?> FindSummaryAsync(IUnitOfWork unit, int cashSessionId, CancellationToken cancellationToken);
 }
+
+/// <summary>
+/// Session financial summary (JHO-35, RN-CAJ-005/006/007/010): cash and
+/// transfer split, discounts, net sales, expected cash and sale count in
+/// whole COP (ADR-009). Voided sales never inflate the numbers.
+/// </summary>
+public sealed record CashSessionSummaryDto(
+    int CashSessionId,
+    long OpenedAtUtcMs,
+    int OpenedAtOffsetMinutes,
+    string OpenedByNameSnapshot,
+    long OpeningBalanceCop,
+    bool IsClosed,
+    long? ClosedAtUtcMs,
+    int? ClosedAtOffsetMinutes,
+    string? ClosedByNameSnapshot,
+    long CashSalesCop,
+    long TransferSalesCop,
+    long DiscountCop,
+    long NetSalesCop,
+    long ExpectedCashCop,
+    int SaleCount);
 
 public sealed record OpenCashSessionRequest(long OpeningBalanceCop);
 
@@ -59,3 +88,7 @@ public sealed record GetOpenCashSessionResponse(OpenCashSessionDto? Session);
 public sealed record CloseCashSessionRequest;
 
 public sealed record CloseCashSessionResponse;
+
+public sealed record GetCashSessionSummaryRequest(int CashSessionId);
+
+public sealed record GetCashSessionSummaryResponse(CashSessionSummaryDto Summary);

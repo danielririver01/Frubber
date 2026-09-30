@@ -112,6 +112,88 @@ public sealed class DapperCashSessionRepository : ICashSessionRepository
         return affected > 0;
     }
 
+    public async Task<CashSessionSummaryDto?> FindSummaryAsync(IUnitOfWork unit, int cashSessionId, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(unit);
+
+        const string sql = "SELECT cs.CashSessionId, cs.OpenedAtUtcMs, cs.OpenedAtOffsetMinutes, cs.OpenedByNameSnapshot,"
+            + " cs.OpeningBalanceCop, cs.ClosedAtUtcMs, cs.ClosedAtOffsetMinutes, cs.ClosedByNameSnapshot,"
+            + " cs.ClosedCashSalesCop, cs.ClosedTransferSalesCop, cs.ClosedDiscountCop, cs.ClosedSaleCount,"
+            + " COALESCE(SUM(CASE WHEN s.PaymentMethod = 'CASH' AND v.SaleId IS NULL THEN s.TotalCop ELSE 0 END), 0) AS CashSalesCop,"
+            + " COALESCE(SUM(CASE WHEN s.PaymentMethod = 'TRANSFER' AND v.SaleId IS NULL THEN s.TotalCop ELSE 0 END), 0) AS TransferSalesCop,"
+            + " COALESCE(SUM(CASE WHEN v.SaleId IS NULL THEN s.DiscountCop ELSE 0 END), 0) AS DiscountCop,"
+            + " COALESCE(SUM(CASE WHEN v.SaleId IS NULL THEN 1 ELSE 0 END), 0) AS SaleCount"
+            + " FROM CashSession cs"
+            + " LEFT JOIN Sale s ON s.CashSessionId = cs.CashSessionId"
+            + " LEFT JOIN SaleVoid v ON v.SaleId = s.SaleId"
+            + " WHERE cs.CashSessionId = @Id"
+            + " GROUP BY cs.CashSessionId;";
+        var row = await unit.Connection.QuerySingleOrDefaultAsync<SummaryRow>(sql, new { Id = cashSessionId }, unit.Transaction);
+
+        if (row is null)
+        {
+            return null;
+        }
+
+        var isClosed = row.ClosedAtUtcMs is not null;
+        var cash = isClosed ? row.ClosedCashSalesCop!.Value : row.CashSalesCop;
+        var transfer = isClosed ? row.ClosedTransferSalesCop!.Value : row.TransferSalesCop;
+        var discount = isClosed ? row.ClosedDiscountCop!.Value : row.DiscountCop;
+        var count = isClosed ? row.ClosedSaleCount!.Value : row.SaleCount;
+
+        return new CashSessionSummaryDto(
+            row.CashSessionId,
+            row.OpenedAtUtcMs,
+            row.OpenedAtOffsetMinutes,
+            row.OpenedByNameSnapshot,
+            row.OpeningBalanceCop,
+            isClosed,
+            row.ClosedAtUtcMs,
+            row.ClosedAtOffsetMinutes,
+            row.ClosedByNameSnapshot,
+            cash,
+            transfer,
+            discount,
+            cash + transfer,
+            row.OpeningBalanceCop + cash,
+            count);
+    }
+
+    private sealed class SummaryRow
+    {
+        public int CashSessionId { get; set; }
+
+        public long OpenedAtUtcMs { get; set; }
+
+        public int OpenedAtOffsetMinutes { get; set; }
+
+        public string OpenedByNameSnapshot { get; set; } = string.Empty;
+
+        public long OpeningBalanceCop { get; set; }
+
+        public long CashSalesCop { get; set; }
+
+        public long TransferSalesCop { get; set; }
+
+        public long DiscountCop { get; set; }
+
+        public int SaleCount { get; set; }
+
+        public long? ClosedAtUtcMs { get; set; }
+
+        public int? ClosedAtOffsetMinutes { get; set; }
+
+        public string? ClosedByNameSnapshot { get; set; }
+
+        public long? ClosedCashSalesCop { get; set; }
+
+        public long? ClosedTransferSalesCop { get; set; }
+
+        public long? ClosedDiscountCop { get; set; }
+
+        public int? ClosedSaleCount { get; set; }
+    }
+
     private sealed class OpenRow
     {
         public int CashSessionId { get; set; }
