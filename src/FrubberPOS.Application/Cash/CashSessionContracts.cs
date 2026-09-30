@@ -1,0 +1,61 @@
+using FrubberPOS.Application.Common;
+using FrubberPOS.Application.Persistence;
+
+namespace FrubberPOS.Application.Cash;
+
+/// <summary>
+/// Read model of the open cash session with its running totals (JHO-38,
+/// RN-CAJ-005/006/007): cash and transfer sales separate, expected cash =
+/// opening balance + valid cash sales. Money stays whole COP (ADR-009).
+/// </summary>
+public sealed record OpenCashSessionDto(
+    int CashSessionId,
+    long OpenedAtUtcMs,
+    int OpenedAtOffsetMinutes,
+    string OpenedByNameSnapshot,
+    long OpeningBalanceCop,
+    long CashSalesCop,
+    long TransferSalesCop,
+    long DiscountCop,
+    int SaleCount)
+{
+    public long NetSalesCop => CashSalesCop + TransferSalesCop;
+
+    public long ExpectedCashCop => OpeningBalanceCop + CashSalesCop;
+}
+
+/// <summary>Cash persistence port (P-DD §8.2). Single open session per installation.</summary>
+public interface ICashSessionRepository
+{
+    Task<OpenCashSessionDto?> FindOpenAsync(IUnitOfWork unit, CancellationToken cancellationToken);
+
+    Task<int> OpenAsync(
+        IUnitOfWork unit,
+        long openedAtUtcMs,
+        int openedAtOffsetMinutes,
+        int openedByUserId,
+        string openedByNameSnapshot,
+        long openingBalanceCop,
+        CancellationToken cancellationToken);
+
+    /// <summary>Closes the open session freezing its totals. <c>false</c> when nothing was open.</summary>
+    Task<bool> CloseOpenAsync(
+        IUnitOfWork unit,
+        long closedAtUtcMs,
+        int closedAtOffsetMinutes,
+        int closedByUserId,
+        string closedByNameSnapshot,
+        CancellationToken cancellationToken);
+}
+
+public sealed record OpenCashSessionRequest(long OpeningBalanceCop);
+
+public sealed record OpenCashSessionResponse(int CashSessionId);
+
+public sealed record GetOpenCashSessionRequest;
+
+public sealed record GetOpenCashSessionResponse(OpenCashSessionDto? Session);
+
+public sealed record CloseCashSessionRequest;
+
+public sealed record CloseCashSessionResponse;

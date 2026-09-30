@@ -1,5 +1,6 @@
 using System.IO;
 using FrubberPOS.Application.Authentication;
+using FrubberPOS.Application.Cash;
 using FrubberPOS.Application.Licensing;
 using FrubberPOS.Application.Logging;
 using FrubberPOS.Application.Navigation;
@@ -16,6 +17,8 @@ using FrubberPOS.Infrastructure.Licensing;
 using FrubberPOS.Infrastructure.Logging;
 using FrubberPOS.Infrastructure.Migrations;
 using FrubberPOS.Infrastructure.Persistence;
+using FrubberPOS.Infrastructure.Persistence.Cash;
+using FrubberPOS.Infrastructure.Persistence.Cash;
 using FrubberPOS.Infrastructure.Persistence.Licensing;
 using FrubberPOS.Infrastructure.Persistence.Products;
 using FrubberPOS.Infrastructure.Persistence.Trial;
@@ -56,6 +59,8 @@ public static class ServiceConfiguration
         services.AddSingleton<ILicenseRepository, DapperLicenseRepository>();
         services.AddSingleton<ITrialRepository, DapperTrialRepository>();
         services.AddSingleton<IProductRepository, DapperProductRepository>();
+        services.AddSingleton<ICashSessionRepository, DapperCashSessionRepository>();
+        services.AddSingleton<ICashSessionRepository, DapperCashSessionRepository>();
         services.AddSingleton<ICurrentSession, CurrentSession>();
         services.AddTransient<AuthenticateUserUseCase>();
         services.AddTransient<ListActiveUsersUseCase>();
@@ -80,6 +85,12 @@ public static class ServiceConfiguration
         services.AddTransient<SetProductActiveStateUseCase>();
         services.AddTransient<DeleteProductUseCase>();
         services.AddTransient<AdjustStockUseCase>();
+        services.AddTransient<OpenCashSessionUseCase>();
+        services.AddTransient<GetOpenCashSessionUseCase>();
+        services.AddTransient<CloseCashSessionUseCase>();
+        services.AddTransient<OpenCashSessionUseCase>();
+        services.AddTransient<GetOpenCashSessionUseCase>();
+        services.AddTransient<CloseCashSessionUseCase>();
         services.AddTransient<LoginViewModel>();
         services.AddTransient<FirstStartViewModel>();
         services.AddTransient<LicenseActivationViewModel>();
