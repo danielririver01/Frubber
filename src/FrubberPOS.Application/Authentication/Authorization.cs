@@ -21,4 +21,13 @@ public static class Authorization
             ? null
             : new Error(ErrorCode.Authorization, DeniedMessage);
     }
+
+    /// <returns><c>null</c> when anyone is signed in, else the denial error.</returns>
+    public static Error? RequireSignedIn(ICurrentSession session)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        return session.Current is not null
+            ? null
+            : new Error(ErrorCode.Authorization, "Debe iniciar sesión.");
+    }
 }
