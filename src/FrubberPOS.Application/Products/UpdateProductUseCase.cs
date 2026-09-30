@@ -78,6 +78,16 @@ public sealed class UpdateProductUseCase : IUseCase<UpdateProductRequest, Update
                     "Unit"));
             }
 
+            // La bandera UnitLocked nunca se desbloquea: la unidad quedó
+            // inmutable desde el primer movimiento de inventario (JHO-31).
+            if (current.UnitLocked)
+            {
+                return Result<UpdateProductResponse>.Failure(new Error(
+                    ErrorCode.Conflict,
+                    "No se puede cambiar la unidad porque el producto ya registró movimientos de inventario.",
+                    "Unit"));
+            }
+
             if (await products.HasSalesHistoryAsync(unit, request.ProductId, cancellationToken))
             {
                 return Result<UpdateProductResponse>.Failure(new Error(

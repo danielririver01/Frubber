@@ -79,10 +79,12 @@ public static class ServiceConfiguration
         services.AddTransient<SearchProductsUseCase>();
         services.AddTransient<SetProductActiveStateUseCase>();
         services.AddTransient<DeleteProductUseCase>();
+        services.AddTransient<AdjustStockUseCase>();
         services.AddTransient<LoginViewModel>();
         services.AddTransient<FirstStartViewModel>();
         services.AddTransient<LicenseActivationViewModel>();
         services.AddTransient<TrialBlockedViewModel>();
+        services.AddTransient<AdjustStockViewModel>();
 
         return services;
     }

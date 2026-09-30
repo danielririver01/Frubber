@@ -131,6 +131,16 @@ public sealed class DapperProductRepository : IProductRepository
         await unit.Connection.ExecuteAsync(sql, new { Active = isActive ? 1 : 0, ProductId = productId }, unit.Transaction);
     }
 
+    public async Task SetStockAsync(IUnitOfWork unit, int productId, long newStockMilli, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(unit);
+
+        const string sql = "UPDATE Product SET StockMilli = @Stock,"
+            + " UnitLocked = CASE WHEN @Stock <> 0 THEN 1 ELSE UnitLocked END"
+            + " WHERE ProductId = @ProductId;";
+        await unit.Connection.ExecuteAsync(sql, new { Stock = newStockMilli, ProductId = productId }, unit.Transaction);
+    }
+
     public async Task DeleteAsync(IUnitOfWork unit, int productId, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(unit);

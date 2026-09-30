@@ -44,6 +44,12 @@ public interface IProductRepository
 
     Task SetActiveAsync(IUnitOfWork unit, int productId, bool isActive, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Direct stock replacement (RN-INV-003/004). Setting a non-zero value
+    /// locks the unit (001 CHECK parity); zeroing never unlocks it (JHO-31).
+    /// </summary>
+    Task SetStockAsync(IUnitOfWork unit, int productId, long newStockMilli, CancellationToken cancellationToken);
+
     Task DeleteAsync(IUnitOfWork unit, int productId, CancellationToken cancellationToken);
 
     Task<bool> HasSalesHistoryAsync(IUnitOfWork unit, int productId, CancellationToken cancellationToken);
