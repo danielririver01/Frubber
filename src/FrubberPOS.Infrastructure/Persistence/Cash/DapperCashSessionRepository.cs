@@ -98,7 +98,7 @@ public sealed class DapperCashSessionRepository : ICashSessionRepository
             + "   SELECT COALESCE(SUM(CASE WHEN s.PaymentMethod = 'CASH' AND v.SaleId IS NULL THEN s.TotalCop ELSE 0 END), 0) AS CashSales,"
             + "          COALESCE(SUM(CASE WHEN s.PaymentMethod = 'TRANSFER' AND v.SaleId IS NULL THEN s.TotalCop ELSE 0 END), 0) AS TransferSales,"
             + "          COALESCE(SUM(CASE WHEN v.SaleId IS NULL THEN s.DiscountCop ELSE 0 END), 0) AS Discount,"
-            + "          COALESCE(SUM(CASE WHEN v.SaleId IS NULL THEN 1 ELSE 0 END), 0) AS SaleCount"
+            + "          COALESCE(SUM(CASE WHEN s.SaleId IS NOT NULL AND v.SaleId IS NULL THEN 1 ELSE 0 END), 0) AS SaleCount"
             + "   FROM CashSession cs"
             + "   LEFT JOIN Sale s ON s.CashSessionId = cs.CashSessionId"
             + "   LEFT JOIN SaleVoid v ON v.SaleId = s.SaleId"
