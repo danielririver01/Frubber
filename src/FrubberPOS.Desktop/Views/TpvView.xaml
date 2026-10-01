@@ -54,7 +54,6 @@
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="HorizontalAlignment" Value="Right"/>
-                                        <Setter Property="Typography.NumeralStyle" Value="Tabular"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
@@ -62,7 +61,6 @@
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="HorizontalAlignment" Value="Right"/>
-                                        <Setter Property="Typography.NumeralStyle" Value="Tabular"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
@@ -175,18 +173,11 @@
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="#" Binding="{Binding Number}" Width="48"/>
                             <DataGridTextColumn Header="PRODUCTO" Binding="{Binding Name}" Width="*"/>
-                            <DataGridTextColumn Header="CANTIDAD" Binding="{Binding QuantityText}" Width="130">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Typography.NumeralStyle" Value="Tabular"/>
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="CANTIDAD" Binding="{Binding QuantityText}" Width="130"/>
                             <DataGridTextColumn Header="PRECIO" Binding="{Binding PriceText}" Width="110">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="HorizontalAlignment" Value="Right"/>
-                                        <Setter Property="Typography.NumeralStyle" Value="Tabular"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
@@ -194,7 +185,6 @@
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="HorizontalAlignment" Value="Right"/>
-                                        <Setter Property="Typography.NumeralStyle" Value="Tabular"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>

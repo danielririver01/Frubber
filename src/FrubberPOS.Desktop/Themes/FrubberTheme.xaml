@@ -146,19 +146,16 @@
 
     <!-- Valor numérico/monetario: cifras tabulares (columnas alineadas) -->
     <Style x:Key="NumericText" TargetType="TextBlock">
-        <Setter Property="Typography.NumeralStyle" Value="Tabular"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
     </Style>
 
     <Style x:Key="DisplayTotal" TargetType="TextBlock">
-        <Setter Property="Typography.NumeralStyle" Value="Tabular"/>
         <Setter Property="FontSize" Value="32"/>
         <Setter Property="FontWeight" Value="ExtraBold"/>
         <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
     </Style>
 
     <Style x:Key="KpiMetric" TargetType="TextBlock">
-        <Setter Property="Typography.NumeralStyle" Value="Tabular"/>
         <Setter Property="FontSize" Value="22"/>
         <Setter Property="FontWeight" Value="Bold"/>
         <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
@@ -378,7 +375,6 @@
         <Setter Property="RowHeight" Value="40"/>
         <Setter Property="FontFamily" Value="{StaticResource AppFont}"/>
         <Setter Property="FontSize" Value="13"/>
-        <Setter Property="Typography.NumeralStyle" Value="Tabular"/>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="GridLinesVisibility" Value="Horizontal"/>

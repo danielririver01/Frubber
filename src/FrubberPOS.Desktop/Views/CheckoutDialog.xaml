@@ -56,14 +56,13 @@
                                    HorizontalAlignment="Right"/>
                     </DockPanel>
                     <TextBlock Text="Descuento (pesos, 0 al subtotal):" Style="{DynamicResource PageSubtitle}" Margin="0,8,0,4"/>
-                    <TextBox x:Name="DiscountBox" Text="{Binding DiscountText, UpdateSourceTrigger=PropertyChanged}"
-                             Typography.NumeralStyle="Tabular" AutomationProperties.Name="Descuento"/>
+                    <TextBox x:Name="DiscountBox" Text="{Binding DiscountText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Descuento"/>
                     <Border Background="{DynamicResource MintHoverBrush}" CornerRadius="8" Padding="14,10" Margin="0,10,0,0">
                         <StackPanel>
                             <TextBlock Text="TOTAL" Style="{DynamicResource ColumnCaption}"
                                        Foreground="{DynamicResource PrimaryBrush}"/>
                             <TextBlock Text="{Binding TotalText}" FontWeight="ExtraBold" FontSize="26"
-                                       Foreground="{DynamicResource PrimaryBrush}" Typography.NumeralStyle="Tabular"
+                                       Foreground="{DynamicResource PrimaryBrush}"
                                        AutomationProperties.Name="Total a cobrar"/>
                         </StackPanel>
                     </Border>
@@ -85,8 +84,7 @@
                             <Border DockPanel.Dock="Right" Style="{DynamicResource ShortcutChip}" Padding="8,4" Margin="6,0,0,0">
                                 <TextBlock Text="COP" Style="{DynamicResource ShortcutText}" FontWeight="SemiBold"/>
                             </Border>
-                            <TextBox x:Name="ReceivedBox" Text="{Binding ReceivedText, UpdateSourceTrigger=PropertyChanged}"
-                                     Typography.NumeralStyle="Tabular" MinHeight="44"
+                            <TextBox x:Name="ReceivedBox" Text="{Binding ReceivedText, UpdateSourceTrigger=PropertyChanged}" MinHeight="44"
                                      AutomationProperties.Name="Efectivo recibido"/>
                         </DockPanel>
                         <Border Background="{DynamicResource SuccessSoftBrush}" CornerRadius="8" Padding="12,8" Margin="0,10,0,0">
@@ -94,7 +92,7 @@
                                 <TextBlock Text="CAMBIO" Style="{DynamicResource ColumnCaption}"
                                            Foreground="{DynamicResource SuccessBrush}"/>
                                 <TextBlock Text="{Binding ChangeText}" FontWeight="ExtraBold" FontSize="22"
-                                           Foreground="{DynamicResource SuccessBrush}" Typography.NumeralStyle="Tabular"
+                                           Foreground="{DynamicResource SuccessBrush}"
                                            AutomationProperties.Name="Cambio"/>
                             </StackPanel>
                         </Border>
