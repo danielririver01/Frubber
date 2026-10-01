@@ -38,6 +38,8 @@ public sealed record SaleDetailLineDto(
 /// Full sale detail as it happened (JHO-48, RN-HIS-001/002): financial
 /// header, cash session, cashier, lines and payment. Voided sales carry
 /// the administrator and the void moment. Read-only by construction.
+/// <see cref="CashSessionOpen"/> gates the "Anular" action (RN-HIS-007);
+/// rule enforcement still belongs to <c>VoidSaleUseCase</c>.
 /// </summary>
 public sealed record SaleDetailDto(
     long SaleNumber,
@@ -52,6 +54,7 @@ public sealed record SaleDetailDto(
     long? ReceivedCop,
     long? ChangeCop,
     string Status,
+    bool CashSessionOpen,
     long? VoidedAtUtcMs,
     int? VoidedAtOffsetMinutes,
     string? VoidedByAdminName,

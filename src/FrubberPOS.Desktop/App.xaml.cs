@@ -166,7 +166,8 @@ public partial class App : System.Windows.Application, INavigationService
             this,
             () => new ProductsView(Resolve<ProductsViewModel>()),
             () => new CashView(Resolve<CashViewModel>()),
-            () => new TpvView(Resolve<TpvViewModel>()))));
+            () => new TpvView(Resolve<TpvViewModel>()),
+            () => new SalesHistoryView(Resolve<SalesHistoryViewModel>()))));
 
     public bool ShowProductEditor(ProductDto? existing)
     {
@@ -269,6 +270,26 @@ public partial class App : System.Windows.Application, INavigationService
             Owner = currentWindow
         };
         return window.ShowDialog() == true ? window.SelectedPrinterName : null;
+    }
+
+    public bool ShowSaleDetail(long saleNumber)
+    {
+        var viewModel = Resolve<SaleDetailViewModel>();
+        var viewerIsAdmin = provider!.GetRequiredService<ICurrentSession>().Current?.Role == Domain.Users.UserRole.Admin;
+        var window = new SaleDetailDialog(viewModel, saleNumber, viewerIsAdmin)
+        {
+            Owner = currentWindow
+        };
+        return window.ShowDialog() == true;
+    }
+
+    public bool ConfirmSaleVoid(long saleNumber)
+    {
+        var window = new ConfirmVoidDialog(saleNumber)
+        {
+            Owner = currentWindow
+        };
+        return window.ShowDialog() == true;
     }
 
     private void OnDispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)

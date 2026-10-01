@@ -54,6 +54,18 @@ public interface INavigationService
     /// (printing stays optional per RN-IMP-005).
     /// </summary>
     string? AskPrinter(string? configuredPrinterName);
+
+    /// <summary>
+    /// Historical sale detail dialog (JHO-46, P-UX §13.3/13.4). Returns
+    /// true cuando la venta quedó anulada desde el diálogo.
+    /// </summary>
+    bool ShowSaleDetail(long saleNumber);
+
+    /// <summary>
+    /// Void confirmation (P-UX §13.4, RN-HIS-010): advierte reintegro de
+    /// inventario y no pide motivo. F9 confirma, Esc cancela.
+    /// </summary>
+    bool ConfirmSaleVoid(long saleNumber);
 }
 
 /// <summary>Checkout modal answer (JHO-41). Whole COP only.</summary>

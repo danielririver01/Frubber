@@ -36,6 +36,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private readonly Func<object>? productsPageFactory;
     private readonly Func<object>? cashPageFactory;
     private readonly Func<object>? tpvPageFactory;
+    private readonly Func<object>? historyPageFactory;
 
     private MenuEntry? selectedEntry;
     private string pageTitle = string.Empty;
@@ -43,8 +44,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private object? currentPage;
     private object? cashPage;
     private object? tpvPage;
+    private object? historyPage;
 
-    public MainViewModel(SignedInUser user, SignOutUseCase signOut, INavigationService navigation, Func<object>? productsPageFactory = null, Func<object>? cashPageFactory = null, Func<object>? tpvPageFactory = null)
+    public MainViewModel(SignedInUser user, SignOutUseCase signOut, INavigationService navigation, Func<object>? productsPageFactory = null, Func<object>? cashPageFactory = null, Func<object>? tpvPageFactory = null, Func<object>? historyPageFactory = null)
     {
         ArgumentNullException.ThrowIfNull(user);
         ArgumentNullException.ThrowIfNull(signOut);
@@ -54,6 +56,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         this.productsPageFactory = productsPageFactory;
         this.cashPageFactory = cashPageFactory;
         this.tpvPageFactory = tpvPageFactory;
+        this.historyPageFactory = historyPageFactory;
 
         DisplayName = user.DisplayName;
         IsAdmin = user.Role == UserRole.Admin;
@@ -146,6 +149,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             PageDescription = string.Empty;
             CurrentPage = tpvPage ??= tpvPageFactory();
+            return;
+        }
+
+        if (SelectedEntry?.Title == "Historial" && historyPageFactory is not null)
+        {
+            PageDescription = string.Empty;
+            CurrentPage = historyPage ??= historyPageFactory();
             return;
         }
 

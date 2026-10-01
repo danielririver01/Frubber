@@ -114,6 +114,8 @@ public static class ServiceConfiguration
         services.AddTransient<CheckoutViewModel>();
         services.AddTransient<TpvViewModel>();
         services.AddTransient<CashViewModel>();
+        services.AddTransient<SalesHistoryViewModel>();
+        services.AddTransient<SaleDetailViewModel>();
 
         return services;
     }

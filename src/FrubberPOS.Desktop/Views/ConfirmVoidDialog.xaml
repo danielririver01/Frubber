@@ -1,0 +1,17 @@
+<Window x:Class="FrubberPOS.Desktop.Views.ConfirmVoidDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Frubber POS — Anular venta" Height="220" Width="460"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        KeyDown="OnKeyDown">
+    <StackPanel Margin="24">
+        <TextBlock Text="Anular venta" FontSize="20" FontWeight="Bold" Foreground="#B91C1C"/>
+        <TextBlock x:Name="MessageText" Margin="0,12,0,0" TextWrapping="Wrap" AutomationProperties.Name="Confirmación de anulación"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
+            <Button Content="Cancelar (Esc)" Click="OnCancel" Padding="12,6" Margin="0,0,8,0" IsCancel="True"
+                    AutomationProperties.Name="Cancelar anulación"/>
+            <Button Content="Anular venta" Click="OnConfirm" Padding="12,6" FontWeight="Bold"
+                    Background="#B91C1C" Foreground="White" AutomationProperties.Name="Confirmar anulación"/>
+        </StackPanel>
+    </StackPanel>
+</Window>

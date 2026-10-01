@@ -62,6 +62,18 @@ public sealed class FakeNavigator : INavigationService
     /// <summary>Printer picked in the picker; null = no printing.</summary>
     public string? NextPrinterName { get; set; }
 
+    public int ShowSaleDetailCount { get; private set; }
+
+    public long? LastSaleDetailNumber { get; private set; }
+
+    public int ConfirmSaleVoidCount { get; private set; }
+
+    /// <summary>Detail dialog outcome: true = la venta quedó anulada ahí.</summary>
+    public bool NextSaleDetailVoided { get; set; }
+
+    /// <summary>Void confirmation answer (P-UX §13.4).</summary>
+    public bool NextSaleVoidConfirmed { get; set; } = true;
+
     /// <summary>
     /// One-shot hook fired inside <see cref="ShowCheckout"/>: simulates a
     /// re-entrant Enter/click while the dialog is open (JHO-39).
@@ -146,5 +158,18 @@ public sealed class FakeNavigator : INavigationService
         AskPrinterCount++;
         LastConfiguredPrinterName = configuredPrinterName;
         return NextPrinterName;
+    }
+
+    public bool ShowSaleDetail(long saleNumber)
+    {
+        ShowSaleDetailCount++;
+        LastSaleDetailNumber = saleNumber;
+        return NextSaleDetailVoided;
+    }
+
+    public bool ConfirmSaleVoid(long saleNumber)
+    {
+        ConfirmSaleVoidCount++;
+        return NextSaleVoidConfirmed;
     }
 }

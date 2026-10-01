@@ -51,11 +51,14 @@ public sealed class DapperSaleHistoryRepository : ISaleHistoryRepository
     {
         ArgumentNullException.ThrowIfNull(unit);
 
-        const string headerSql = "SELECT SaleId, SaleNumber, CashSessionId, CashierNameSnapshot AS CashierName,"
-            + " SoldAtUtcMs, SoldAtOffsetMinutes, SubtotalCop, DiscountCop, TotalCop, PaymentMethod,"
-            + " ReceivedCop, ChangeCop, SaleStatus AS Status,"
-            + " VoidedAtUtcMs, VoidedAtOffsetMinutes, AdminNameSnapshot AS VoidedByAdminName"
-            + " FROM V_SaleHistory WHERE SaleNumber = @SaleNumber;";
+        const string headerSql = "SELECT v.SaleId, v.SaleNumber, v.CashSessionId, v.CashierNameSnapshot AS CashierName,"
+            + " v.SoldAtUtcMs, v.SoldAtOffsetMinutes, v.SubtotalCop, v.DiscountCop, v.TotalCop, v.PaymentMethod,"
+            + " v.ReceivedCop, v.ChangeCop, v.SaleStatus AS Status,"
+            + " v.VoidedAtUtcMs, v.VoidedAtOffsetMinutes, v.AdminNameSnapshot AS VoidedByAdminName,"
+            + " CASE WHEN cs.ClosedAtUtcMs IS NULL THEN 1 ELSE 0 END AS CashSessionOpen"
+            + " FROM V_SaleHistory AS v"
+            + " JOIN CashSession AS cs ON cs.CashSessionId = v.CashSessionId"
+            + " WHERE v.SaleNumber = @SaleNumber;";
         var header = await unit.Connection.QuerySingleOrDefaultAsync<SaleDetailHeaderRow>(
             new CommandDefinition(headerSql, new { SaleNumber = saleNumber }, unit.Transaction, cancellationToken: cancellationToken));
         if (header is null)
@@ -82,6 +85,7 @@ public sealed class DapperSaleHistoryRepository : ISaleHistoryRepository
             header.ReceivedCop,
             header.ChangeCop,
             header.Status,
+            header.CashSessionOpen,
             header.VoidedAtUtcMs,
             header.VoidedAtOffsetMinutes,
             header.VoidedByAdminName,
@@ -139,6 +143,8 @@ public sealed class DapperSaleHistoryRepository : ISaleHistoryRepository
         public long? ChangeCop { get; set; }
 
         public string Status { get; set; } = string.Empty;
+
+        public bool CashSessionOpen { get; set; }
 
         public long? VoidedAtUtcMs { get; set; }
 
