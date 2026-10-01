@@ -42,6 +42,12 @@ public interface ISaleRepository
 
     /// <summary>Current row for revalidation: <c>null</c> when the product disappeared.</summary>
     Task<ProductPriceRow?> FindProductRowAsync(IUnitOfWork unit, int productId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Historical sale header + lines for the ticket (JHO-45). Read-only;
+    /// <c>null</c> when no sale owns that number.
+    /// </summary>
+    Task<TicketSaleData?> FindSaleForTicketAsync(IUnitOfWork unit, long saleNumber, CancellationToken cancellationToken);
 }
 
 public sealed class ProductPriceRow

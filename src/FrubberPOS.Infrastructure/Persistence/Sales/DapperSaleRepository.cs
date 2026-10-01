@@ -110,4 +110,80 @@ public sealed class DapperSaleRepository : ISaleRepository
         const string sql = "SELECT ProductId, Plu, Name, Unit, PriceCop, StockMilli, IsActive FROM Product WHERE ProductId = @ProductId;";
         return await unit.Connection.QuerySingleOrDefaultAsync<ProductPriceRow>(sql, new { ProductId = productId }, unit.Transaction);
     }
+
+    public async Task<TicketSaleData?> FindSaleForTicketAsync(IUnitOfWork unit, long saleNumber, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(unit);
+
+        const string headerSql = "SELECT SaleId, SaleNumber, SoldAtUtcMs, SoldAtOffsetMinutes, CashierNameSnapshot,"
+            + " SubtotalCop, DiscountCop, TotalCop, PaymentMethod, ReceivedCop, ChangeCop"
+            + " FROM Sale WHERE SaleNumber = @SaleNumber;";
+        var header = await unit.Connection.QuerySingleOrDefaultAsync<SaleTicketHeaderRow>(
+            headerSql, new { SaleNumber = saleNumber }, unit.Transaction);
+        if (header is null)
+        {
+            return null;
+        }
+
+        const string linesSql = "SELECT LineNumber, ProductNameSnapshot AS Name, UnitSnapshot AS UnitCode,"
+            + " QuantityMilli, UnitPriceCopSnapshot AS UnitPriceCop, LineTotalCop"
+            + " FROM SaleLine WHERE SaleId = @SaleId ORDER BY LineNumber;";
+        var lines = await unit.Connection.QueryAsync<SaleTicketLineRow>(
+            linesSql, new { header.SaleId }, unit.Transaction);
+
+        return new TicketSaleData(
+            header.SaleNumber,
+            header.SoldAtUtcMs,
+            header.SoldAtOffsetMinutes,
+            header.CashierNameSnapshot,
+            header.SubtotalCop,
+            header.DiscountCop,
+            header.TotalCop,
+            header.PaymentMethod,
+            header.ReceivedCop,
+            header.ChangeCop,
+            lines.Select(line => new TicketLineData(
+                line.LineNumber, line.Name, line.UnitCode, line.QuantityMilli, line.UnitPriceCop, line.LineTotalCop))
+                .ToList());
+    }
+
+    private sealed class SaleTicketHeaderRow
+    {
+        public int SaleId { get; set; }
+
+        public long SaleNumber { get; set; }
+
+        public long SoldAtUtcMs { get; set; }
+
+        public int SoldAtOffsetMinutes { get; set; }
+
+        public string CashierNameSnapshot { get; set; } = string.Empty;
+
+        public long SubtotalCop { get; set; }
+
+        public long DiscountCop { get; set; }
+
+        public long TotalCop { get; set; }
+
+        public string PaymentMethod { get; set; } = string.Empty;
+
+        public long? ReceivedCop { get; set; }
+
+        public long? ChangeCop { get; set; }
+    }
+
+    private sealed class SaleTicketLineRow
+    {
+        public int LineNumber { get; set; }
+
+        public string Name { get; set; } = string.Empty;
+
+        public string UnitCode { get; set; } = string.Empty;
+
+        public long QuantityMilli { get; set; }
+
+        public long UnitPriceCop { get; set; }
+
+        public long LineTotalCop { get; set; }
+    }
 }

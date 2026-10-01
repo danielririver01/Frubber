@@ -1,5 +1,6 @@
 using System.IO;
 using FrubberPOS.Application.Authentication;
+using FrubberPOS.Application.Business;
 using FrubberPOS.Application.Cash;
 using FrubberPOS.Application.Licensing;
 using FrubberPOS.Application.Logging;
@@ -13,11 +14,13 @@ using FrubberPOS.Application.System;
 using FrubberPOS.Application.Trial;
 using FrubberPOS.Application.Users;
 using FrubberPOS.Desktop.Authentication;
+using FrubberPOS.Desktop.Common;
 using FrubberPOS.Desktop.ViewModels;
 using FrubberPOS.Infrastructure.Licensing;
 using FrubberPOS.Infrastructure.Logging;
 using FrubberPOS.Infrastructure.Migrations;
 using FrubberPOS.Infrastructure.Persistence;
+using FrubberPOS.Infrastructure.Persistence.Business;
 using FrubberPOS.Infrastructure.Persistence.Cash;
 using FrubberPOS.Infrastructure.Persistence.Licensing;
 using FrubberPOS.Infrastructure.Persistence.Sales;
@@ -62,6 +65,8 @@ public static class ServiceConfiguration
         services.AddSingleton<IProductRepository, DapperProductRepository>();
         services.AddSingleton<ICashSessionRepository, DapperCashSessionRepository>();
         services.AddSingleton<ISaleRepository, DapperSaleRepository>();
+        services.AddSingleton<IBusinessSettingRepository, DapperBusinessSettingRepository>();
+        services.AddSingleton<ITicketPrinter, WindowsTicketPrinter>();
         services.AddSingleton<ICurrentSession, CurrentSession>();
         services.AddTransient<AuthenticateUserUseCase>();
         services.AddTransient<ListActiveUsersUseCase>();
@@ -92,6 +97,7 @@ public static class ServiceConfiguration
         services.AddTransient<GetCashSessionSummaryUseCase>();
         services.AddTransient<SearchProductsForSaleUseCase>();
         services.AddTransient<FinalizeSaleUseCase>();
+        services.AddTransient<GetTicketForSaleUseCase>();
         services.AddTransient<LoginViewModel>();
         services.AddTransient<FirstStartViewModel>();
         services.AddTransient<LicenseActivationViewModel>();

@@ -98,14 +98,17 @@ public sealed class TpvViewModelCheckoutTests
             + " VALUES (1, 0, 1, 'Admin', 0);");
     }
 
-    private static (TpvViewModel vm, FakeNavigator nav) Build(ProductTestBed bed)
+    private static (TpvViewModel vm, FakeNavigator nav, FakeTicketPrinter printer) Build(ProductTestBed bed)
     {
         var nav = new FakeNavigator { NextQuantityMilli = 1_000 };
+        var printer = new FakeTicketPrinter();
         return (new TpvViewModel(
             new SearchProductsForSaleUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()),
             new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock),
             new GetOpenCashSessionUseCase(bed.Sessions, bed.Units, ProductTestBed.AdminSession()),
-            nav), nav);
+            new GetTicketForSaleUseCase(bed.Sales, bed.Settings, bed.Units),
+            printer,
+            nav), nav, printer);
     }
 
     [Fact]
@@ -115,7 +118,7 @@ public sealed class TpvViewModelCheckoutTests
         await new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()).ExecuteAsync(
             new CreateProductRequest("L1", "Leche", Domain.Products.ProductUnit.Unit, 4_200, 24_000), CancellationToken.None);
 
-        var (vm, nav) = Build(bed);
+        var (vm, nav, _) = Build(bed);
         await vm.SearchAsync();
         vm.SelectedResult = vm.Results.Single();
         await vm.AddSelectedAsync();
@@ -136,7 +139,7 @@ public sealed class TpvViewModelCheckoutTests
         await new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()).ExecuteAsync(
             new CreateProductRequest("L1", "Leche", Domain.Products.ProductUnit.Unit, 4_200, 24_000), CancellationToken.None);
 
-        var (vm, nav) = Build(bed);
+        var (vm, nav, _) = Build(bed);
         await OpenCashAsync(bed);
         await vm.RefreshCashStateAsync();
         await vm.SearchAsync();
@@ -157,7 +160,7 @@ public sealed class TpvViewModelCheckoutTests
         await new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()).ExecuteAsync(
             new CreateProductRequest("L1", "Leche", Domain.Products.ProductUnit.Unit, 4_200, 24_000), CancellationToken.None);
 
-        var (vm, nav) = Build(bed);
+        var (vm, nav, _) = Build(bed);
         await OpenCashAsync(bed);
         await vm.RefreshCashStateAsync();
         await vm.SearchAsync();

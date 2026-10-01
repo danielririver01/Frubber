@@ -12,14 +12,17 @@ namespace FrubberPOS.Tests.Sales;
 
 public sealed class TpvViewModelTests
 {
-    private static (TpvViewModel vm, FakeNavigator nav) Build(ProductTestBed bed)
+    private static (TpvViewModel vm, FakeNavigator nav, FakeTicketPrinter printer) Build(ProductTestBed bed)
     {
         var nav = new FakeNavigator { NextQuantityMilli = 1_000 };
+        var printer = new FakeTicketPrinter();
         return (new TpvViewModel(
             new SearchProductsForSaleUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()),
             new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock),
             new GetOpenCashSessionUseCase(bed.Sessions, bed.Units, ProductTestBed.AdminSession()),
-            nav), nav);
+            new GetTicketForSaleUseCase(bed.Sales, bed.Settings, bed.Units),
+            printer,
+            nav), nav, printer);
     }
 
     private static async Task SeedAdminUserAsync(ProductTestBed bed)
@@ -42,7 +45,7 @@ public sealed class TpvViewModelTests
         await new SetProductActiveStateUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession())
             .ExecuteAsync(new SetProductActiveStateRequest(inactive.Value.ProductId, false), CancellationToken.None);
 
-        var (vm, _) = Build(bed);
+        var (vm, _, _) = Build(bed);
         await vm.SearchAsync();
 
         Assert.Single(vm.Results);
@@ -56,7 +59,7 @@ public sealed class TpvViewModelTests
         await new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()).ExecuteAsync(
             new CreateProductRequest("L1", "Leche", Domain.Products.ProductUnit.Unit, 4_200, 0), CancellationToken.None);
 
-        var (vm, nav) = Build(bed);
+        var (vm, nav, _) = Build(bed);
         await vm.SearchAsync();
         vm.SelectedResult = vm.Results.Single();
 
@@ -75,7 +78,7 @@ public sealed class TpvViewModelTests
         await new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()).ExecuteAsync(
             new CreateProductRequest("M1", "Mango", Domain.Products.ProductUnit.Kg, 6_000, 0), CancellationToken.None);
 
-        var (vm, nav) = Build(bed);
+        var (vm, nav, _) = Build(bed);
         nav.NextQuantityMilli = 1_250;
         await vm.SearchAsync();
         vm.SelectedResult = vm.Results.Single();
@@ -95,7 +98,7 @@ public sealed class TpvViewModelTests
         await new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()).ExecuteAsync(
             new CreateProductRequest("L1", "Leche", Domain.Products.ProductUnit.Unit, 4_200, 0), CancellationToken.None);
 
-        var (vm, _) = Build(bed);
+        var (vm, _, _) = Build(bed);
         await vm.SearchAsync();
         vm.SelectedResult = vm.Results.Single();
 
@@ -113,7 +116,7 @@ public sealed class TpvViewModelTests
         await new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()).ExecuteAsync(
             new CreateProductRequest("M1", "Mango", Domain.Products.ProductUnit.Kg, 6_000, 0), CancellationToken.None);
 
-        var (vm, nav) = Build(bed);
+        var (vm, nav, _) = Build(bed);
         nav.NextQuantityMilli = 1_000;
         await vm.SearchAsync();
         vm.SelectedResult = vm.Results.Single();
@@ -134,7 +137,7 @@ public sealed class TpvViewModelTests
         await new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()).ExecuteAsync(
             new CreateProductRequest("L1", "Leche", Domain.Products.ProductUnit.Unit, 4_200, 0), CancellationToken.None);
 
-        var (vm, _) = Build(bed);
+        var (vm, _, _) = Build(bed);
         await vm.SearchAsync();
         vm.SelectedResult = vm.Results.Single();
         await vm.AddSelectedAsync();
@@ -150,7 +153,7 @@ public sealed class TpvViewModelTests
     public async Task ClearDraft_Empty_ActsDirectlyWithoutConfirm()
     {
         await using var bed = await ProductTestBed.CreateAsync();
-        var (vm, nav) = Build(bed);
+        var (vm, nav, _) = Build(bed);
 
         await vm.ClearDraftWithProtectionAsync();
 
@@ -165,7 +168,7 @@ public sealed class TpvViewModelTests
         await new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()).ExecuteAsync(
             new CreateProductRequest("L1", "Leche", Domain.Products.ProductUnit.Unit, 4_200, 0), CancellationToken.None);
 
-        var (vm, nav) = Build(bed);
+        var (vm, nav, _) = Build(bed);
         await vm.SearchAsync();
         vm.SelectedResult = vm.Results.Single();
         await vm.AddSelectedAsync();
@@ -191,7 +194,7 @@ public sealed class TpvViewModelTests
         await create.ExecuteAsync(new CreateProductRequest("M1", "Mango", Domain.Products.ProductUnit.Kg, 4_500, 0), CancellationToken.None);
         await create.ExecuteAsync(new CreateProductRequest("L1", "Leche", Domain.Products.ProductUnit.Unit, 4_200, 0), CancellationToken.None);
 
-        var (vm, _) = Build(bed);
+        var (vm, _, _) = Build(bed);
         vm.SearchText = "mango";
         await vm.SearchAsync();
 
@@ -209,7 +212,7 @@ public sealed class TpvViewModelTests
     public async Task RequestFocusSearch_FiresEvent()
     {
         await using var bed = await ProductTestBed.CreateAsync();
-        var (vm, _) = Build(bed);
+        var (vm, _, _) = Build(bed);
         var fired = 0;
         vm.FocusSearchRequested += (_, _) => fired++;
 
@@ -226,7 +229,7 @@ public sealed class TpvViewModelTests
         await new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()).ExecuteAsync(
             new CreateProductRequest("L1", "Leche", Domain.Products.ProductUnit.Unit, 4_200, 0), CancellationToken.None);
 
-        var (vm, _) = Build(bed);
+        var (vm, _, _) = Build(bed);
         await vm.RefreshCashStateAsync();
         await vm.SearchAsync();
         vm.SelectedResult = vm.Results.Single();
@@ -250,7 +253,7 @@ public sealed class TpvViewModelTests
         await new OpenCashSessionUseCase(bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock)
             .ExecuteAsync(new OpenCashSessionRequest(0), CancellationToken.None);
 
-        var (vm, _) = Build(bed);
+        var (vm, _, _) = Build(bed);
         await vm.RefreshCashStateAsync();
         await vm.SearchAsync();
         vm.SelectedResult = vm.Results.Single();
@@ -269,7 +272,7 @@ public sealed class TpvViewModelTests
         await new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()).ExecuteAsync(
             new CreateProductRequest("L1", "Leche", Domain.Products.ProductUnit.Unit, 4_200, 0), CancellationToken.None);
 
-        var (vm, _) = Build(bed);
+        var (vm, _, _) = Build(bed);
         await vm.SearchAsync();
         vm.SelectedResult = vm.Results.Single();
 
@@ -288,7 +291,7 @@ public sealed class TpvViewModelTests
         await new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()).ExecuteAsync(
             new CreateProductRequest("M1", "Mango", Domain.Products.ProductUnit.Kg, 6_000, 0), CancellationToken.None);
 
-        var (vm, nav) = Build(bed);
+        var (vm, nav, _) = Build(bed);
         nav.NextQuantityMilli = 1_250;
         await vm.SearchAsync();
         vm.SelectedResult = vm.Results.Single();

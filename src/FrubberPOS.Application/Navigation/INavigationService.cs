@@ -41,7 +41,26 @@ public interface INavigationService
 
     /// <summary>Checkout modal (P-UX-008, JHO-41). Confirmed = vender; otherwise canceled.</summary>
     CheckoutResultDto ShowCheckout(long subtotalCop, long pendingDiscountCop);
+
+    /// <summary>
+    /// Post-sale confirmation (P-UX §9.5, JHO-45): shows the saved sale and
+    /// offers the optional print. <c>true</c> = operator wants the ticket.
+    /// </summary>
+    bool ShowSaleSaved(SaleSavedSummary sale);
+
+    /// <summary>
+    /// Printer picker (JHO-45): lists the installed Windows printers,
+    /// preselecting the configured one. <c>null</c> = no printer / cancel
+    /// (printing stays optional per RN-IMP-005).
+    /// </summary>
+    string? AskPrinter(string? configuredPrinterName);
 }
 
 /// <summary>Checkout modal answer (JHO-41). Whole COP only.</summary>
 public sealed record CheckoutResultDto(bool Confirmed, string PaymentMethod, long ReceivedCop, long ChangeCop, long DiscountCop);
+
+/// <summary>
+/// Summary shown right after a sale is saved (JHO-45, P-UX §9.5).
+/// <c>ReceivedCop</c>/<c>ChangeCop</c> are present only for cash.
+/// </summary>
+public sealed record SaleSavedSummary(long SaleNumber, long TotalCop, string PaymentMethod, long? ReceivedCop, long? ChangeCop);

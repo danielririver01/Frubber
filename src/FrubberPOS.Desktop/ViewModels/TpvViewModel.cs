@@ -22,6 +22,10 @@ namespace FrubberPOS.Desktop.ViewModels;
 /// discount, F8 checkout, F9 confirms and Esc cancels (JHO-41).
 /// Checkout requires an open cash session with a persistent warning
 /// (P-UX-010, JHO-44); drafting, discounting and editing stay free.
+/// After a sale commits, the confirmation (P-UX §9.5) offers the optional
+/// ticket print (JHO-45): the ticket is built from the historical
+/// snapshots and a print failure never touches the saved sale (P-UX §9.6,
+/// RN-IMP-001/005).
 /// </summary>
 public sealed class TpvViewModel : INotifyPropertyChanged
 {
@@ -32,6 +36,8 @@ public sealed class TpvViewModel : INotifyPropertyChanged
     private readonly SearchProductsForSaleUseCase search;
     private readonly FinalizeSaleUseCase finalizeSale;
     private readonly GetOpenCashSessionUseCase getOpenCash;
+    private readonly GetTicketForSaleUseCase getTicketForSale;
+    private readonly ITicketPrinter ticketPrinter;
     private readonly INavigationService navigation;
     private readonly DraftSale draft = new();
     private readonly ObservableCollection<TpvSearchItemViewModel> results = [];
@@ -48,15 +54,21 @@ public sealed class TpvViewModel : INotifyPropertyChanged
         SearchProductsForSaleUseCase search,
         FinalizeSaleUseCase finalizeSale,
         GetOpenCashSessionUseCase getOpenCash,
+        GetTicketForSaleUseCase getTicketForSale,
+        ITicketPrinter ticketPrinter,
         INavigationService navigation)
     {
         ArgumentNullException.ThrowIfNull(search);
         ArgumentNullException.ThrowIfNull(finalizeSale);
         ArgumentNullException.ThrowIfNull(getOpenCash);
+        ArgumentNullException.ThrowIfNull(getTicketForSale);
+        ArgumentNullException.ThrowIfNull(ticketPrinter);
         ArgumentNullException.ThrowIfNull(navigation);
         this.search = search;
         this.finalizeSale = finalizeSale;
         this.getOpenCash = getOpenCash;
+        this.getTicketForSale = getTicketForSale;
+        this.ticketPrinter = ticketPrinter;
         this.navigation = navigation;
 
         SearchCommand = new AsyncCommand(_ => SearchAsync());
@@ -369,8 +381,52 @@ public sealed class TpvViewModel : INotifyPropertyChanged
         draft.Clear();
         SelectedLine = null;
         SyncLines();
+        await OfferTicketPrintingAsync(finalized.Value.SaleNumber, result, finalized.Value.TotalCop);
         await RefreshCashStateAsync();
     }
+
+    /// <summary>
+    /// Optional ticket printing after a committed sale (JHO-45, P-UX §9.5).
+    /// The ticket is composed from the historical data (never the draft)
+    /// and a build/print failure only reports "la venta quedó guardada"
+    /// (P-UX §9.6) — the cobro is never re-executed to retry (RN-IMP-005).
+    /// </summary>
+    private async Task OfferTicketPrintingAsync(long saleNumber, CheckoutResultDto checkout, long totalCop)
+    {
+        var saleNumberText = $"V-{saleNumber:D6}";
+        var wantsTicket = navigation.ShowSaleSaved(new SaleSavedSummary(
+            saleNumber,
+            totalCop,
+            checkout.PaymentMethod,
+            checkout.PaymentMethod == "CASH" ? checkout.ReceivedCop : null,
+            checkout.PaymentMethod == "CASH" ? checkout.ChangeCop : null));
+        if (!wantsTicket)
+        {
+            return;
+        }
+
+        var ticket = await getTicketForSale.ExecuteAsync(new GetTicketForSaleRequest(saleNumber), CancellationToken.None);
+        if (!ticket.IsSuccess)
+        {
+            ErrorMessage = PrintFailureText(saleNumberText);
+            return;
+        }
+
+        var printerName = navigation.AskPrinter(ticket.Value.ConfiguredPrinterName);
+        if (printerName is null)
+        {
+            return;
+        }
+
+        if (ticketPrinter.Print(ticket.Value, printerName) is not null)
+        {
+            ErrorMessage = PrintFailureText(saleNumberText);
+        }
+    }
+
+    /// <summary>P-UX §9.6: the print failure never blames the sale.</summary>
+    private static string PrintFailureText(string saleNumberText) =>
+        $"La venta {saleNumberText} quedó guardada, pero el ticket no pudo imprimirse.";
 
     private void SyncLines(long? selectProductId = null)
     {

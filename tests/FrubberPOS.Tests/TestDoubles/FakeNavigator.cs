@@ -34,9 +34,17 @@ public sealed class FakeNavigator : INavigationService
 
     public int ShowCheckoutCount { get; private set; }
 
+    public int ShowSaleSavedCount { get; private set; }
+
+    public int AskPrinterCount { get; private set; }
+
     public SignedInUser? LastShellUser { get; private set; }
 
     public ProductDto? LastEditedProduct { get; private set; }
+
+    public SaleSavedSummary? LastSaleSaved { get; private set; }
+
+    public string? LastConfiguredPrinterName { get; private set; }
 
     public bool NextEditorResult { get; set; }
 
@@ -47,6 +55,12 @@ public sealed class FakeNavigator : INavigationService
     public long? NextQuantityMilli { get; set; }
 
     public CheckoutResultDto? NextCheckout { get; set; }
+
+    /// <summary>Post-sale choice (JHO-45): true = print the ticket.</summary>
+    public bool NextSaleSavedPrintRequested { get; set; }
+
+    /// <summary>Printer picked in the picker; null = no printing.</summary>
+    public string? NextPrinterName { get; set; }
 
     public void ShowFirstStart() => FirstStartCount++;
 
@@ -105,5 +119,20 @@ public sealed class FakeNavigator : INavigationService
     {
         ShowCheckoutCount++;
         return NextCheckout ?? new CheckoutResultDto(false, "CASH", 0, 0, 0);
+    }
+
+    public bool ShowSaleSaved(SaleSavedSummary sale)
+    {
+        ArgumentNullException.ThrowIfNull(sale);
+        ShowSaleSavedCount++;
+        LastSaleSaved = sale;
+        return NextSaleSavedPrintRequested;
+    }
+
+    public string? AskPrinter(string? configuredPrinterName)
+    {
+        AskPrinterCount++;
+        LastConfiguredPrinterName = configuredPrinterName;
+        return NextPrinterName;
     }
 }

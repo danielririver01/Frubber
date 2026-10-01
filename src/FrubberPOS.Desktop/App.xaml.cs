@@ -250,6 +250,27 @@ public partial class App : System.Windows.Application, INavigationService
         return new CheckoutResultDto(true, result.IsCash ? "CASH" : "TRANSFER", result.ReceivedCop, result.ChangeCop, viewModel.DiscountCop);
     }
 
+    public bool ShowSaleSaved(SaleSavedSummary sale)
+    {
+        ArgumentNullException.ThrowIfNull(sale);
+        var window = new SaleSavedDialog(sale)
+        {
+            Owner = currentWindow
+        };
+        window.ShowDialog();
+        return window.PrintRequested;
+    }
+
+    public string? AskPrinter(string? configuredPrinterName)
+    {
+        var window = new PrintTicketDialog(
+            Common.WindowsTicketPrinter.InstalledPrinters(), configuredPrinterName)
+        {
+            Owner = currentWindow
+        };
+        return window.ShowDialog() == true ? window.SelectedPrinterName : null;
+    }
+
     private void OnDispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
     {
         try
