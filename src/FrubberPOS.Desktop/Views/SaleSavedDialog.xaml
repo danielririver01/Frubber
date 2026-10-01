@@ -17,7 +17,7 @@
                     AutomationProperties.Name="Imprimir ticket"/>
             <Button Content="Nueva venta" Click="OnNewSale" Padding="12,6"
                     FontWeight="Bold" IsDefault="True" IsCancel="True"
-                    Background="#15803D" Foreground="White" AutomationProperties.Name="Nueva venta"/>
+                    AutomationProperties.Name="Nueva venta"/>
         </StackPanel>
     </StackPanel>
 </Window>

@@ -70,7 +70,6 @@
                         <Button DockPanel.Dock="Right" Content="Cobrar (F8)"
                                 Command="{Binding OpenCheckoutCommand}"
                                 FontSize="16" FontWeight="Bold" Padding="24,8"
-                                Background="#15803D" Foreground="White"
                                 AutomationProperties.Name="Cobrar venta"/>
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <TextBlock Text="Subtotal:" FontWeight="Bold" VerticalAlignment="Center"/>

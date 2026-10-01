@@ -47,7 +47,7 @@
 
         <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
             <Button Content="Guardar" Command="{Binding SaveCommand}" Padding="16,6" FontWeight="Bold"
-                    Background="#15803D" Foreground="White" AutomationProperties.Name="Guardar configuración"/>
+                    AutomationProperties.Name="Guardar configuración"/>
             <TextBlock Text="{Binding StatusMessage}" Foreground="#15803D" VerticalAlignment="Center" Margin="12,0,0,0"/>
         </StackPanel>
         <TextBlock Text="{Binding ErrorMessage}" Foreground="#B91C1C" Margin="0,8,0,0" TextWrapping="Wrap"/>

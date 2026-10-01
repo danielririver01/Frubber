@@ -11,7 +11,7 @@
             <Button Content="Cancelar (Esc)" Click="OnCancel" Padding="12,6" Margin="0,0,8,0" IsCancel="True"
                     AutomationProperties.Name="Cancelar anulación"/>
             <Button Content="Anular venta" Click="OnConfirm" Padding="12,6" FontWeight="Bold"
-                    Background="#B91C1C" Foreground="White" AutomationProperties.Name="Confirmar anulación"/>
+                    Style="{DynamicResource DangerButton}" AutomationProperties.Name="Confirmar anulación"/>
         </StackPanel>
     </StackPanel>
 </Window>

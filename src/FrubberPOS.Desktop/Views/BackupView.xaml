@@ -10,7 +10,7 @@
                    Text="Crea una copia consistente de la base de datos en la ubicación que elija. La copia se escribe con el mecanismo de respaldo de SQLite y se publica de forma atómica. Restaurar un respaldo no se hace desde la aplicación."/>
         <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
             <Button Content="Crear respaldo..." Command="{Binding CreateBackupCommand}" Padding="16,6"
-                    FontWeight="Bold" Background="#15803D" Foreground="White"
+                    FontWeight="Bold"
                     AutomationProperties.Name="Crear respaldo"/>
             <ProgressBar IsIndeterminate="True" Width="140" Height="6" Margin="14,0,0,0"
                          VerticalAlignment="Center"

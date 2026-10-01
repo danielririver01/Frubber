@@ -3,16 +3,35 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Frubber POS" Height="600" Width="900" MinWidth="880" MinHeight="480"
         WindowState="Maximized" WindowStartupLocation="CenterScreen"
+        SizeChanged="OnSizeChanged"
         KeyDown="OnKeyDown">
     <DockPanel>
-        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="12,6">
-            <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" VerticalAlignment="Center"/>
-            <Button Content="Cerrar sesión" Command="{Binding SignOutCommand}" Margin="16,0,0,0" Padding="12,4"/>
-        </StackPanel>
-        <ListBox DockPanel.Dock="Left" Width="170" Margin="12,0,0,12"
-                 ItemsSource="{Binding MenuItems}" DisplayMemberPath="Title"
-                 SelectedItem="{Binding SelectedEntry}"
-                 AutomationProperties.Name="Menú principal"/>
+        <!-- Encabezado: usuario y acción de cierre de sesión. -->
+        <Border DockPanel.Dock="Top" Background="{DynamicResource SurfaceBrush}"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="16,8">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Cerrar sesión" Command="{Binding SignOutCommand}"
+                        Style="{DynamicResource SecondaryButton}"
+                        AutomationProperties.Name="Cerrar sesión"/>
+                <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" VerticalAlignment="Center"/>
+            </DockPanel>
+        </Border>
+
+        <!-- Barra lateral: se compacta antes de ocultar secciones (JHO-52). -->
+        <Border DockPanel.Dock="Left" Background="{DynamicResource SurfaceBrush}"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
+            <DockPanel>
+                <TextBlock x:Name="BrandText" DockPanel.Dock="Top" Text="Frubber POS"
+                           FontSize="18" FontWeight="Bold" Foreground="{DynamicResource PrimaryBrush}"
+                           Margin="12,14,12,10"/>
+                <ListBox x:Name="MenuList" DockPanel.Dock="Top" Width="180"
+                         ItemsSource="{Binding MenuItems}" DisplayMemberPath="Title"
+                         SelectedItem="{Binding SelectedEntry}"
+                         BorderThickness="0"
+                         AutomationProperties.Name="Menú principal"/>
+            </DockPanel>
+        </Border>
+
         <DockPanel Margin="24">
             <TextBlock DockPanel.Dock="Top" Text="{Binding PageTitle}" FontSize="24" FontWeight="Bold"/>
             <TextBlock DockPanel.Dock="Top" Text="{Binding PageDescription}" Margin="0,8,0,0">
