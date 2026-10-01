@@ -45,6 +45,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private string pageTitle = string.Empty;
     private string pageDescription = string.Empty;
     private object? currentPage;
+    private object? productsPage;
     private object? cashPage;
     private object? tpvPage;
     private object? historyPage;
@@ -166,7 +167,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         if (SelectedEntry?.Title == "Productos" && productsPageFactory is not null)
         {
             PageDescription = string.Empty;
-            CurrentPage ??= productsPageFactory();
+            CurrentPage = productsPage ??= productsPageFactory();
             return;
         }
 
