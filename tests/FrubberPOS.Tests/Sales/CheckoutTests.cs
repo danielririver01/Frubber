@@ -1,9 +1,12 @@
+using Dapper;
+using FrubberPOS.Application.Cash;
 using FrubberPOS.Application.Navigation;
 using FrubberPOS.Application.Products;
 using FrubberPOS.Application.Sales;
 using FrubberPOS.Desktop.ViewModels;
 using FrubberPOS.Tests.Products;
 using FrubberPOS.Tests.TestDoubles;
+using Microsoft.Data.Sqlite;
 
 namespace FrubberPOS.Tests.Sales;
 
@@ -82,11 +85,26 @@ public sealed class CheckoutViewModelTests
 
 public sealed class TpvViewModelCheckoutTests
 {
+    private static async Task OpenCashAsync(ProductTestBed bed)
+    {
+        await using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={bed.DbPath}");
+        await connection.OpenAsync();
+        await connection.ExecuteAsync(
+            "INSERT INTO \"User\" (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
+            + " VALUES (@UserId, 'Admin', 'ADMIN', 1, @Salt, @Hash, 1, 1);",
+            new { UserId = 1, Salt = new byte[16], Hash = new byte[32] });
+        await connection.ExecuteAsync(
+            "INSERT INTO CashSession (OpenedAtUtcMs, OpenedAtOffsetMinutes, OpenedByUserId, OpenedByNameSnapshot, OpeningBalanceCop)"
+            + " VALUES (1, 0, 1, 'Admin', 0);");
+    }
+
     private static (TpvViewModel vm, FakeNavigator nav) Build(ProductTestBed bed)
     {
         var nav = new FakeNavigator { NextQuantityMilli = 1_000 };
         return (new TpvViewModel(
-            new SearchProductsForSaleUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()), nav), nav);
+            new SearchProductsForSaleUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()),
+            new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock),
+            nav), nav);
     }
 
     [Fact]
@@ -118,6 +136,7 @@ public sealed class TpvViewModelCheckoutTests
             new CreateProductRequest("L1", "Leche", Domain.Products.ProductUnit.Unit, 4_200, 24_000), CancellationToken.None);
 
         var (vm, nav) = Build(bed);
+        await OpenCashAsync(bed);
         await vm.SearchAsync();
         vm.SelectedResult = vm.Results.Single();
         await vm.AddSelectedAsync();
@@ -126,7 +145,7 @@ public sealed class TpvViewModelCheckoutTests
         await vm.OpenCheckoutAsync();
 
         Assert.NotNull(vm.LastConfirmedCheckout);
-        Assert.Equal("TRANSFER", vm.LastConfirmedCheckout.PaymentMethod);
+        Assert.Equal("TRANSFER", vm.LastConfirmedCheckout!.PaymentMethod);
     }
 
     [Fact]

@@ -13,7 +13,9 @@ public sealed class TpvViewModelTests
     {
         var nav = new FakeNavigator { NextQuantityMilli = 1_000 };
         return (new TpvViewModel(
-            new SearchProductsForSaleUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()), nav), nav);
+            new SearchProductsForSaleUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()),
+            new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock),
+            nav), nav);
     }
 
     [Fact]

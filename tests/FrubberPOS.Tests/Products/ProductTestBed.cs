@@ -4,7 +4,9 @@ using FrubberPOS.Application.Persistence;
 using FrubberPOS.Domain.Users;
 using FrubberPOS.Infrastructure.Migrations;
 using FrubberPOS.Infrastructure.Persistence;
+using FrubberPOS.Infrastructure.Persistence.Cash;
 using FrubberPOS.Infrastructure.Persistence.Products;
+using FrubberPOS.Infrastructure.Persistence.Sales;
 using FrubberPOS.Tests.TestDoubles;
 using Microsoft.Data.Sqlite;
 
@@ -18,14 +20,31 @@ internal sealed class ProductTestBed : IAsyncDisposable
 {
     private readonly string path;
 
-    private ProductTestBed(string path, DapperProductRepository products, SqliteUnitOfWorkFactory units)
+    private ProductTestBed(
+        string path,
+        DapperProductRepository products,
+        DapperCashSessionRepository sessions,
+        DapperSaleRepository sales,
+        FakeClock clock,
+        SqliteUnitOfWorkFactory units)
     {
         this.path = path;
         Products = products;
+        Sessions = sessions;
+        Sales = sales;
+        Clock = clock;
         Units = units;
     }
 
     public DapperProductRepository Products { get; }
+
+    public string DbPath => path;
+
+    public DapperCashSessionRepository Sessions { get; }
+
+    public DapperSaleRepository Sales { get; }
+
+    public FakeClock Clock { get; }
 
     public SqliteUnitOfWorkFactory Units { get; }
 
@@ -55,7 +74,9 @@ internal sealed class ProductTestBed : IAsyncDisposable
         }
 
         var units = new SqliteUnitOfWorkFactory(new SqliteConnectionFactory(new DatabaseOptions(path)));
-        return new ProductTestBed(path, new DapperProductRepository(), units);
+        return new ProductTestBed(
+            path, new DapperProductRepository(), new DapperCashSessionRepository(), new DapperSaleRepository(),
+            new FakeClock(new DateTimeOffset(2026, 9, 30, 12, 0, 0, TimeSpan.FromHours(-5))), units);
     }
 
     /// <summary>

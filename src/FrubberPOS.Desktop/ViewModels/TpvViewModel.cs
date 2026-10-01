@@ -22,6 +22,7 @@ namespace FrubberPOS.Desktop.ViewModels;
 public sealed class TpvViewModel : INotifyPropertyChanged
 {
     private readonly SearchProductsForSaleUseCase search;
+    private readonly FinalizeSaleUseCase finalizeSale;
     private readonly INavigationService navigation;
     private readonly DraftSale draft = new();
     private readonly ObservableCollection<TpvSearchItemViewModel> results = [];
@@ -33,11 +34,13 @@ public sealed class TpvViewModel : INotifyPropertyChanged
     private TpvSearchItemViewModel? selectedResult;
     private DraftSaleLine? selectedLine;
 
-    public TpvViewModel(SearchProductsForSaleUseCase search, INavigationService navigation)
+    public TpvViewModel(SearchProductsForSaleUseCase search, FinalizeSaleUseCase finalizeSale, INavigationService navigation)
     {
         ArgumentNullException.ThrowIfNull(search);
+        ArgumentNullException.ThrowIfNull(finalizeSale);
         ArgumentNullException.ThrowIfNull(navigation);
         this.search = search;
+        this.finalizeSale = finalizeSale;
         this.navigation = navigation;
 
         SearchCommand = new AsyncCommand(_ => SearchAsync());
@@ -130,6 +133,8 @@ public sealed class TpvViewModel : INotifyPropertyChanged
     public AsyncCommand OpenCheckoutCommand { get; }
 
     public CheckoutResultDto? LastConfirmedCheckout { get; private set; }
+
+    public long? LastSaleNumber { get; private set; }
 
     public void RequestFocusSearch() => FocusSearchRequested?.Invoke(this, EventArgs.Empty);
 
@@ -266,36 +271,54 @@ public sealed class TpvViewModel : INotifyPropertyChanged
 
     public Task OpenCheckoutAsync() => HandleCheckoutAsync(finalize: true);
 
-    private Task HandleCheckoutAsync(bool finalize)
+    private async Task HandleCheckoutAsync(bool finalize)
     {
         if (draft.IsEmpty)
         {
-            return Task.CompletedTask;
+            ErrorMessage = "No hay productos en la venta.";
+            return;
         }
 
         var result = navigation.ShowCheckout(draft.SubtotalCop, draft.DiscountCop);
         if (result is null || !result.Confirmed)
         {
-            return Task.CompletedTask;
+            return;
         }
 
         var discounted = draft.SetDiscount(result.DiscountCop);
         if (!discounted.IsSuccess)
         {
             ErrorMessage = discounted.Error!.Message;
-            return Task.CompletedTask;
+            return;
         }
 
         ErrorMessage = string.Empty;
         SyncLines();
 
-        if (finalize)
+        if (!finalize)
         {
-            LastConfirmedCheckout = result;
-            // JHO-43 conecta la persistencia transaccional de la venta.
+            return;
         }
 
-        return Task.CompletedTask;
+        var finalized = await finalizeSale.ExecuteAsync(
+            new FinalizeSaleRequest(
+                draft.Lines.ToList(),
+                result.DiscountCop,
+                result.PaymentMethod,
+                result.PaymentMethod == "CASH" ? result.ReceivedCop : (long?)null),
+            CancellationToken.None);
+
+        if (!finalized.IsSuccess)
+        {
+            ErrorMessage = finalized.Error!.Message;
+            return;
+        }
+
+        LastConfirmedCheckout = result;
+        LastSaleNumber = finalized.Value.SaleNumber;
+        draft.Clear();
+        SelectedLine = null;
+        SyncLines();
     }
 
     private void SyncLines()

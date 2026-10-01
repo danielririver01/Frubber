@@ -20,6 +20,7 @@ using FrubberPOS.Infrastructure.Migrations;
 using FrubberPOS.Infrastructure.Persistence;
 using FrubberPOS.Infrastructure.Persistence.Cash;
 using FrubberPOS.Infrastructure.Persistence.Licensing;
+using FrubberPOS.Infrastructure.Persistence.Sales;
 using FrubberPOS.Infrastructure.Persistence.Products;
 using FrubberPOS.Infrastructure.Persistence.Trial;
 using FrubberPOS.Infrastructure.Persistence.Users;
@@ -60,6 +61,7 @@ public static class ServiceConfiguration
         services.AddSingleton<ITrialRepository, DapperTrialRepository>();
         services.AddSingleton<IProductRepository, DapperProductRepository>();
         services.AddSingleton<ICashSessionRepository, DapperCashSessionRepository>();
+        services.AddSingleton<ISaleRepository, DapperSaleRepository>();
         services.AddSingleton<ICurrentSession, CurrentSession>();
         services.AddTransient<AuthenticateUserUseCase>();
         services.AddTransient<ListActiveUsersUseCase>();
@@ -89,6 +91,7 @@ public static class ServiceConfiguration
         services.AddTransient<CloseCashSessionUseCase>();
         services.AddTransient<GetCashSessionSummaryUseCase>();
         services.AddTransient<SearchProductsForSaleUseCase>();
+        services.AddTransient<FinalizeSaleUseCase>();
         services.AddTransient<LoginViewModel>();
         services.AddTransient<FirstStartViewModel>();
         services.AddTransient<LicenseActivationViewModel>();
