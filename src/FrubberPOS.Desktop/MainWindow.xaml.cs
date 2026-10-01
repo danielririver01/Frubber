@@ -15,8 +15,8 @@ public partial class MainWindow : Window
     /// <summary>Bajo este ancho la barra lateral se compacta (JHO-52: se adapta antes de ocultar).</summary>
     private const double CompactWidthThreshold = 1000;
 
-    private const double SidebarExpandedWidth = 180;
-    private const double SidebarCompactWidth = 52;
+    private const double SidebarExpandedWidth = 200;
+    private const double SidebarCompactWidth = 64;
 
     private readonly MainViewModel viewModel;
 
@@ -32,11 +32,12 @@ public partial class MainWindow : Window
     private void OnSizeChanged(object sender, SizeChangedEventArgs e)
     {
         var compact = e.NewSize.Width < CompactWidthThreshold;
-        MenuList.Width = compact ? SidebarCompactWidth : SidebarExpandedWidth;
+        Sidebar.Width = compact ? SidebarCompactWidth : SidebarExpandedWidth;
 
         // En modo compacto queda el primer carácter de cada sección:
         // la información crítica (menú) sigue operable sin ocultarse.
         BrandText.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+        RoleBadge.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private void OnKeyDown(object sender, KeyEventArgs e)

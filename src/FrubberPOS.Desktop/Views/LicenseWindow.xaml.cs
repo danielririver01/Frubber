@@ -32,4 +32,14 @@ public partial class LicenseWindow : Window
             Clipboard.SetText(viewModel.MachineDisplayCode);
         }
     }
+
+    private void OnCloseWindow(object sender, RoutedEventArgs e) => Close();
+
+    private void OnDragMove(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (e.LeftButton == System.Windows.Input.MouseButtonState.Pressed)
+        {
+            DragMove();
+        }
+    }
 }

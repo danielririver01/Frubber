@@ -39,6 +39,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private readonly Func<object>? historyPageFactory;
     private readonly Func<object>? settingsPageFactory;
     private readonly Func<object>? backupPageFactory;
+    private readonly Func<CancellationToken, Task<bool>>? cashOpenProbe;
 
     private MenuEntry? selectedEntry;
     private string pageTitle = string.Empty;
@@ -49,8 +50,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private object? historyPage;
     private object? settingsPage;
     private object? backupPage;
+    private bool cashPillVisible;
 
-    public MainViewModel(SignedInUser user, SignOutUseCase signOut, INavigationService navigation, Func<object>? productsPageFactory = null, Func<object>? cashPageFactory = null, Func<object>? tpvPageFactory = null, Func<object>? historyPageFactory = null, Func<object>? settingsPageFactory = null, Func<object>? backupPageFactory = null)
+    public MainViewModel(SignedInUser user, SignOutUseCase signOut, INavigationService navigation, Func<object>? productsPageFactory = null, Func<object>? cashPageFactory = null, Func<object>? tpvPageFactory = null, Func<object>? historyPageFactory = null, Func<object>? settingsPageFactory = null, Func<object>? backupPageFactory = null, string? licenseBadgeText = null, Func<CancellationToken, Task<bool>>? cashOpenProbe = null)
     {
         ArgumentNullException.ThrowIfNull(user);
         ArgumentNullException.ThrowIfNull(signOut);
@@ -63,9 +65,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
         this.historyPageFactory = historyPageFactory;
         this.settingsPageFactory = settingsPageFactory;
         this.backupPageFactory = backupPageFactory;
+        this.cashOpenProbe = cashOpenProbe;
 
         DisplayName = user.DisplayName;
         IsAdmin = user.Role == UserRole.Admin;
+        RoleBadgeText = IsAdmin ? "ADMIN" : "CAJERO";
+        UserInitials = ComputeInitials(user.DisplayName);
+        LicenseBadgeText = licenseBadgeText;
 
         MenuItems = new ObservableCollection<MenuEntry>(
             AllEntries.Where(e => !e.AdminOnly || IsAdmin));
@@ -81,6 +87,24 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public string DisplayName { get; }
 
     public bool IsAdmin { get; }
+
+    /// <summary>Badge de rol en la barra lateral (diseño aprobado fig. 1).</summary>
+    public string RoleBadgeText { get; }
+
+    /// <summary>Iniciales del avatar circular del encabezado.</summary>
+    public string UserInitials { get; }
+
+    /// <summary>Texto de la pastilla de licencia del encabezado; null la oculta.</summary>
+    public string? LicenseBadgeText { get; }
+
+    public bool LicenseBadgeVisible => !string.IsNullOrEmpty(LicenseBadgeText);
+
+    /// <summary>Pastilla "Caja abierta" del encabezado: se refresca al navegar.</summary>
+    public bool CashPillVisible
+    {
+        get => cashPillVisible;
+        private set => SetProperty(ref cashPillVisible, value);
+    }
 
     public ObservableCollection<MenuEntry> MenuItems { get; }
 
@@ -127,6 +151,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private void ShowSelected()
     {
+        _ = RefreshBadgesAsync(); // la pastilla de caja refleja el estado al navegar
+
         if (SelectedEntry?.Title == "Licencia")
         {
             PageTitle = "Licencia";
@@ -181,6 +207,24 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         CurrentPage = null;
         PageDescription = SelectedEntry is null ? string.Empty : "Módulo en construcción.";
+    }
+
+    /// <summary>Relee si hay caja abierta para la pastilla del encabezado.</summary>
+    public async Task RefreshBadgesAsync()
+    {
+        if (cashOpenProbe is null)
+        {
+            return;
+        }
+
+        CashPillVisible = await cashOpenProbe(CancellationToken.None);
+    }
+
+    private static string ComputeInitials(string displayName)
+    {
+        var words = displayName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var initials = string.Concat(words.Take(2).Select(w => char.ToUpperInvariant(w[0])));
+        return initials.Length == 0 ? "?" : initials;
     }
 
     private bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? name = null)

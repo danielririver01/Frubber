@@ -5,47 +5,95 @@
         WindowState="Maximized" WindowStartupLocation="CenterScreen"
         SizeChanged="OnSizeChanged"
         KeyDown="OnKeyDown">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </Window.Resources>
     <DockPanel>
-        <!-- Encabezado: usuario y acción de cierre de sesión. -->
-        <Border DockPanel.Dock="Top" Background="{DynamicResource SurfaceBrush}"
-                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="16,8">
+        <!-- ===== Barra lateral tipo tarjeta (fig. 1) ===== -->
+        <Border x:Name="Sidebar" DockPanel.Dock="Left" Width="200"
+                Style="{DynamicResource Card}" CornerRadius="0" BorderThickness="0,0,1,0"
+                Padding="0">
             <DockPanel>
-                <Button DockPanel.Dock="Right" Content="Cerrar sesión" Command="{Binding SignOutCommand}"
-                        Style="{DynamicResource SecondaryButton}"
-                        AutomationProperties.Name="Cerrar sesión"/>
-                <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" VerticalAlignment="Center"/>
-            </DockPanel>
-        </Border>
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="16,18,16,14">
+                    <Border Width="32" Height="32" CornerRadius="999" Background="{DynamicResource PrimaryBrush}">
+                        <TextBlock Text="F" Foreground="White" FontWeight="Bold" FontSize="16"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <StackPanel x:Name="BrandText" Margin="10,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="Frubber" FontSize="16" FontWeight="Bold"/>
+                        <TextBlock Text="POS" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource PrimaryBrush}"/>
+                    </StackPanel>
+                </StackPanel>
 
-        <!-- Barra lateral: se compacta antes de ocultar secciones (JHO-52). -->
-        <Border DockPanel.Dock="Left" Background="{DynamicResource SurfaceBrush}"
-                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
-            <DockPanel>
-                <TextBlock x:Name="BrandText" DockPanel.Dock="Top" Text="Frubber POS"
-                           FontSize="18" FontWeight="Bold" Foreground="{DynamicResource PrimaryBrush}"
-                           Margin="12,14,12,10"/>
-                <ListBox x:Name="MenuList" DockPanel.Dock="Top" Width="180"
+                <DockPanel DockPanel.Dock="Bottom" Margin="12,0,12,14">
+                    <Button DockPanel.Dock="Bottom" Content="Cerrar sesión" Command="{Binding SignOutCommand}"
+                            Style="{DynamicResource SecondaryButton}" HorizontalContentAlignment="Left"
+                            AutomationProperties.Name="Cerrar sesión"/>
+                    <Border x:Name="RoleBadge" Style="{DynamicResource PillMint}" DockPanel.Dock="Bottom"
+                            Padding="12,4" Margin="0,0,0,10">
+                        <TextBlock Text="{Binding RoleBadgeText}" Style="{DynamicResource PillText}"
+                                   AutomationProperties.Name="Rol del usuario"/>
+                    </Border>
+                </DockPanel>
+
+                <ListBox x:Name="MenuList"
                          ItemsSource="{Binding MenuItems}" DisplayMemberPath="Title"
                          SelectedItem="{Binding SelectedEntry}"
-                         BorderThickness="0"
+                         Margin="8,0,8,0"
                          AutomationProperties.Name="Menú principal"/>
             </DockPanel>
         </Border>
 
-        <DockPanel Margin="24">
-            <TextBlock DockPanel.Dock="Top" Text="{Binding PageTitle}" FontSize="24" FontWeight="Bold"/>
-            <TextBlock DockPanel.Dock="Top" Text="{Binding PageDescription}" Margin="0,8,0,0">
-                <TextBlock.Style>
-                    <Style TargetType="TextBlock">
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding PageDescription}" Value="">
-                                <Setter Property="Visibility" Value="Collapsed"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </TextBlock.Style>
-            </TextBlock>
-            <ContentControl DockPanel.Dock="Top" Content="{Binding CurrentPage}" Margin="0,12,0,0"/>
+        <!-- ===== Contenido ===== -->
+        <DockPanel Background="{DynamicResource AppBackground}">
+            <!-- Encabezado: título + pastillas de estado + chip de usuario -->
+            <Border DockPanel.Dock="Top" Background="{DynamicResource SurfaceBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0" Padding="24,12">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Style="{DynamicResource PillMint}" Margin="4,0"
+                                Visibility="{Binding CashPillVisible, Converter={StaticResource BoolToVis}}"
+                                AutomationProperties.Name="Estado de caja">
+                            <TextBlock Text="Caja abierta" Style="{DynamicResource PillText}"/>
+                        </Border>
+                        <Border Style="{DynamicResource PillMint}" Margin="4,0"
+                                Visibility="{Binding LicenseBadgeVisible, Converter={StaticResource BoolToVis}}"
+                                AutomationProperties.Name="Estado de licencia">
+                            <TextBlock Text="{Binding LicenseBadgeText}" Style="{DynamicResource PillText}"/>
+                        </Border>
+                        <StackPanel Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center">
+                            <Border Style="{DynamicResource AvatarCircle}" Width="34" Height="34">
+                                <TextBlock Text="{Binding UserInitials}" Foreground="{DynamicResource PrimaryBrush}"
+                                           FontWeight="Bold" FontSize="13"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Margin="8,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13"/>
+                                <TextBlock Text="{Binding RoleBadgeText}" FontSize="11"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                    <TextBlock Text="{Binding PageTitle}" Style="{DynamicResource PageTitle}" VerticalAlignment="Center"/>
+                </DockPanel>
+            </Border>
+
+            <DockPanel Margin="24">
+                <TextBlock DockPanel.Dock="Top" Text="{Binding PageDescription}"
+                           Margin="0,0,0,0">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource PageSubtitle}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding PageDescription}" Value="">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                <ContentControl DockPanel.Dock="Top" Content="{Binding CurrentPage}" Margin="0,12,0,0"/>
+            </DockPanel>
         </DockPanel>
     </DockPanel>
 </Window>

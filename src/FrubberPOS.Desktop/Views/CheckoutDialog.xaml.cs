@@ -31,4 +31,12 @@ public partial class CheckoutDialog : Window
         DialogResult = false;
         Close();
     }
+
+    private void OnDragMove(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (e.LeftButton == System.Windows.Input.MouseButtonState.Pressed)
+        {
+            DragMove();
+        }
+    }
 }

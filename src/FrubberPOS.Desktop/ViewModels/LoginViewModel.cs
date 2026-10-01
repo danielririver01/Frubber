@@ -65,9 +65,15 @@ public sealed class LoginViewModel : INotifyPropertyChanged
             if (SetProperty(ref selectedUser, value))
             {
                 Pin = string.Empty;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SelectedUserLabel)));
             }
         }
     }
+
+    /// <summary>Subtítulo del pad: "Nombre · Rol" o la invitación a elegir.</summary>
+    public string SelectedUserLabel => SelectedUser is null
+        ? "Seleccione un usuario"
+        : $"{SelectedUser.DisplayName} · {(SelectedUser.Role == Domain.Users.UserRole.Admin ? "Administrador" : "Cajero")}";
 
     public string Pin
     {
@@ -92,8 +98,17 @@ public sealed class LoginViewModel : INotifyPropertyChanged
     public string TrialLine
     {
         get => trialLine;
-        private set => SetProperty(ref trialLine, value);
+        private set
+        {
+            if (SetProperty(ref trialLine, value))
+            {
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HasTrialLine)));
+            }
+        }
     }
+
+    /// <summary>La insignia de prueba solo aparece con texto (diseño fig. 2).</summary>
+    public bool HasTrialLine => !string.IsNullOrEmpty(TrialLine);
 
     public ICommand LoadCommand { get; }
 

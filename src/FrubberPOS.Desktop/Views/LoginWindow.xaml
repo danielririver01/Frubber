@@ -2,53 +2,114 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:FrubberPOS.Desktop.Views"
-        Title="Frubber POS — Iniciar sesión" Height="540" Width="720" MinWidth="640" MinHeight="480"
+        Title="Frubber POS — Iniciar sesión" Height="600" Width="860" MinWidth="760" MinHeight="540"
         WindowStartupLocation="CenterScreen" Loaded="OnLoaded" PreviewKeyDown="OnPreviewKeyDown">
     <Window.Resources>
         <local:UserRoleConverter x:Key="RoleConverter"/>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
     </Window.Resources>
-    <Grid Margin="24">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
 
-        <StackPanel Grid.Column="0" Margin="0,0,12,0">
-            <TextBlock Text="¿Quién va a ingresar?" FontSize="20" FontWeight="Bold"/>
-            <TextBlock Text="Seleccione su usuario:" Margin="0,4,0,8"/>
-            <ListBox x:Name="UsersList" ItemsSource="{Binding Users}" SelectedItem="{Binding SelectedUser}" Height="320">
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <StackPanel Margin="4">
-                            <TextBlock Text="{Binding DisplayName}" FontWeight="Bold"/>
-                            <TextBlock Text="{Binding Role, Converter={StaticResource RoleConverter}}" FontSize="13" Foreground="#5F6B66"/>
-                        </StackPanel>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
-        </StackPanel>
+    <!-- Fondo con blobs menta (fig. 2) -->
+    <Grid Background="{DynamicResource AppBackground}">
+        <Ellipse Fill="{DynamicResource MintBrush}" Opacity="0.9"
+                 Width="380" Height="380" HorizontalAlignment="Right" VerticalAlignment="Top"
+                 Margin="0,-160,-160,0"/>
+        <Ellipse Fill="{DynamicResource MintBrush}" Opacity="0.9"
+                 Width="320" Height="320" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                 Margin="-140,0,0,-140"/>
 
-        <StackPanel Grid.Column="1" Margin="12,0,0,0">
-            <TextBlock Text="Ingresa tu PIN" FontSize="20" FontWeight="Bold"/>
-            <TextBlock Text="{Binding SelectedUser.DisplayName}" Margin="0,4,0,8"/>
-            <TextBlock Text="{Binding PinMask}" FontSize="28" Margin="0,8,0,8"/>
-            <UniformGrid Columns="3" Rows="4">
-                <Button Content="1" Command="{Binding EnterDigitCommand}" CommandParameter="1"/>
-                <Button Content="2" Command="{Binding EnterDigitCommand}" CommandParameter="2"/>
-                <Button Content="3" Command="{Binding EnterDigitCommand}" CommandParameter="3"/>
-                <Button Content="4" Command="{Binding EnterDigitCommand}" CommandParameter="4"/>
-                <Button Content="5" Command="{Binding EnterDigitCommand}" CommandParameter="5"/>
-                <Button Content="6" Command="{Binding EnterDigitCommand}" CommandParameter="6"/>
-                <Button Content="7" Command="{Binding EnterDigitCommand}" CommandParameter="7"/>
-                <Button Content="8" Command="{Binding EnterDigitCommand}" CommandParameter="8"/>
-                <Button Content="9" Command="{Binding EnterDigitCommand}" CommandParameter="9"/>
-                <Button Content="←" Command="{Binding BackspaceCommand}"/>
-                <Button Content="0" Command="{Binding EnterDigitCommand}" CommandParameter="0"/>
-                <Button Content="Entrar" Command="{Binding LoginCommand}"/>
-            </UniformGrid>
-            <TextBlock Text="{Binding ErrorMessage}" Foreground="#B91C1C" Margin="0,8,0,0" TextWrapping="Wrap"/>
-            <TextBlock Text="{Binding TrialLine}" Margin="0,8,0,0" TextWrapping="Wrap" Foreground="#5F6B66"/>
-            <Button Content="Activar licencia" Command="{Binding ShowLicenseCommand}" Margin="0,12,0,0" HorizontalAlignment="Left" Padding="12,4"/>
-        </StackPanel>
+        <!-- Insignia de prueba (arriba a la derecha) -->
+        <Border Style="{DynamicResource PillMint}" HorizontalAlignment="Right" VerticalAlignment="Top"
+                Margin="0,20,24,0"
+                Visibility="{Binding HasTrialLine, Converter={StaticResource BoolToVis}, FallbackValue=Collapsed}">
+            <TextBlock Text="{Binding TrialLine}" Style="{DynamicResource PillText}" FontSize="13"
+                       AutomationProperties.Name="Estado de la prueba"/>
+        </Border>
+
+        <Border Style="{DynamicResource Card}" CornerRadius="16" Padding="32,28"
+                Width="640" VerticalAlignment="Center" HorizontalAlignment="Center">
+            <Border.Effect>
+                <DropShadowEffect Color="#0F172A" Opacity="0.16" BlurRadius="30" ShadowDepth="8"/>
+            </Border.Effect>
+            <StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,18">
+                    <Border Width="34" Height="34" CornerRadius="999" Background="{DynamicResource PrimaryBrush}">
+                        <TextBlock Text="F" Foreground="White" FontWeight="Bold" FontSize="16"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Text="Frubber POS" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"
+                               Margin="10,0,0,0"/>
+                </StackPanel>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="24"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Usuarios -->
+                    <StackPanel>
+                        <TextBlock Text="¿Quién va a ingresar?" FontSize="20" FontWeight="Bold"/>
+                        <TextBlock Text="Seleccione su usuario" Style="{DynamicResource PageSubtitle}"
+                                   Margin="0,2,0,10"/>
+                        <ListBox x:Name="UsersList" ItemsSource="{Binding Users}"
+                                 SelectedItem="{Binding SelectedUser}" MaxHeight="300"
+                                 AutomationProperties.Name="Lista de usuarios">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Style="{DynamicResource AvatarCircle}" Width="36" Height="36">
+                                            <TextBlock Text="{Binding Initials}" FontWeight="Bold" FontSize="13"
+                                                       Foreground="{DynamicResource PrimaryBrush}"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding Role, Converter={StaticResource RoleConverter}}"
+                                                       FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </StackPanel>
+
+                    <!-- PIN -->
+                    <StackPanel Grid.Column="2" MinWidth="240">
+                        <TextBlock Text="Ingresa tu PIN" FontSize="20" FontWeight="Bold"/>
+                        <TextBlock Text="{Binding SelectedUserLabel}" Style="{DynamicResource PageSubtitle}"
+                                   Margin="0,2,0,10"/>
+                        <TextBlock Text="{Binding PinMask}" FontSize="26" TextAlignment="Center"
+                                   Margin="0,0,0,10" AutomationProperties.Name="PIN ingresado"/>
+                        <UniformGrid Columns="3">
+                            <Button Content="1" Style="{DynamicResource PadButton}" Command="{Binding EnterDigitCommand}" CommandParameter="1"/>
+                            <Button Content="2" Style="{DynamicResource PadButton}" Command="{Binding EnterDigitCommand}" CommandParameter="2"/>
+                            <Button Content="3" Style="{DynamicResource PadButton}" Command="{Binding EnterDigitCommand}" CommandParameter="3"/>
+                            <Button Content="4" Style="{DynamicResource PadButton}" Command="{Binding EnterDigitCommand}" CommandParameter="4"/>
+                            <Button Content="5" Style="{DynamicResource PadButton}" Command="{Binding EnterDigitCommand}" CommandParameter="5"/>
+                            <Button Content="6" Style="{DynamicResource PadButton}" Command="{Binding EnterDigitCommand}" CommandParameter="6"/>
+                            <Button Content="7" Style="{DynamicResource PadButton}" Command="{Binding EnterDigitCommand}" CommandParameter="7"/>
+                            <Button Content="8" Style="{DynamicResource PadButton}" Command="{Binding EnterDigitCommand}" CommandParameter="8"/>
+                            <Button Content="9" Style="{DynamicResource PadButton}" Command="{Binding EnterDigitCommand}" CommandParameter="9"/>
+                            <Button Content="←" Style="{DynamicResource PadButton}" Command="{Binding BackspaceCommand}"
+                                    AutomationProperties.Name="Borrar dígito"/>
+                            <Button Content="0" Style="{DynamicResource PadButton}" Command="{Binding EnterDigitCommand}" CommandParameter="0"/>
+                            <Button Content="Entrar" Style="{DynamicResource PadButton}" Command="{Binding LoginCommand}"
+                                    Background="{DynamicResource PrimaryBrush}" Foreground="White"
+                                    AutomationProperties.Name="Entrar"/>
+                        </UniformGrid>
+                        <TextBlock Text="{Binding ErrorMessage}" Style="{DynamicResource ErrorText}"
+                                   Margin="4,10,0,0"/>
+                        <TextBlock Text="Use las flechas para cambiar de usuario · Enter para continuar"
+                                   Style="{DynamicResource PageSubtitle}" TextWrapping="Wrap"
+                                   TextAlignment="Center" Margin="4,10,4,0"/>
+                        <Button Content="Activar licencia" Command="{Binding ShowLicenseCommand}"
+                                Style="{DynamicResource SecondaryButton}" MinHeight="36" FontSize="13"
+                                Margin="4,10,4,0"/>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>

@@ -87,4 +87,24 @@ public sealed class ThemeTests
         Assert.Contains("FocusVisualStyle", text, StringComparison.Ordinal);
         Assert.Contains("StrokeDashArray", text, StringComparison.Ordinal); // foco visible discontinuo
     }
+
+    [Fact]
+    public void HighFidelityTokens_ExistWithApprovedRadiiAndActions()
+    {
+        var text = File.ReadAllText(ThemePath);
+
+        // Cards radio 12, radio 8 en botones/píldoras internas, pastillas, acciones TPV 44–48 (§4.4).
+        Assert.Contains("CornerRadius\" Value=\"12\"", text, StringComparison.Ordinal);
+        Assert.Contains("CornerRadius=\"8\"", text, StringComparison.Ordinal);
+        Assert.Contains("x:Key=\"PillMint\"", text, StringComparison.Ordinal);
+        Assert.Contains("x:Key=\"KpiCard\"", text, StringComparison.Ordinal);
+        Assert.Contains("x:Key=\"AvatarCircle\"", text, StringComparison.Ordinal);
+        Assert.Contains("x:Key=\"DialogCard\"", text, StringComparison.Ordinal);
+        Assert.Contains("MinHeight\" Value=\"48", text, StringComparison.Ordinal); // BigPrimaryButton / PadButton
+        // Texto TOTAL grande: el TPV usa 28 DIPs seminegrita (§4.3).
+        var tpv = File.ReadAllText(Path.Combine(
+            AppContext.BaseDirectory, "..", "..", "..", "..", "..",
+            "src", "FrubberPOS.Desktop", "Views", "TpvView.xaml"));
+        Assert.Contains("FontSize=\"28\"", tpv, StringComparison.Ordinal);
+    }
 }

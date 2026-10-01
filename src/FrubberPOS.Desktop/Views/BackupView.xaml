@@ -4,7 +4,8 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
     </UserControl.Resources>
-    <StackPanel MaxWidth="560" HorizontalAlignment="Left">
+    <Border Style="{DynamicResource Card}" MaxWidth="560" HorizontalAlignment="Left">
+        <StackPanel>
         <TextBlock Text="Respaldo de la base de datos" FontSize="18" FontWeight="Bold" Margin="0,0,10,0"/>
         <TextBlock TextWrapping="Wrap" Foreground="#374151"
                    Text="Crea una copia consistente de la base de datos en la ubicación que elija. La copia se escribe con el mecanismo de respaldo de SQLite y se publica de forma atómica. Restaurar un respaldo no se hace desde la aplicación."/>
@@ -16,7 +17,8 @@
                          VerticalAlignment="Center"
                          Visibility="{Binding Busy, Converter={StaticResource BoolToVis}}"/>
         </StackPanel>
-        <TextBlock Text="{Binding StatusMessage}" Foreground="#15803D" Margin="0,12,0,0" TextWrapping="Wrap"/>
-        <TextBlock Text="{Binding ErrorMessage}" Foreground="#B91C1C" Margin="0,8,0,0" TextWrapping="Wrap"/>
-    </StackPanel>
+        <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource SuccessBrush}" FontWeight="SemiBold" Margin="0,12,0,0" TextWrapping="Wrap"/>
+        <TextBlock Text="{Binding ErrorMessage}" Style="{DynamicResource ErrorText}" Margin="0,8,0,0"/>
+        </StackPanel>
+    </Border>
 </UserControl>

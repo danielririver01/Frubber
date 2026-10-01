@@ -1,83 +1,106 @@
 <Window x:Class="FrubberPOS.Desktop.Views.SaleDetailDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Frubber POS — Detalle de venta" MinHeight="460" Width="560"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        Width="560" SizeToContent="Height" MaxHeight="680"
         WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
-        SizeToContent="Height">
+        MouseLeftButtonDown="OnDragMove">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
     </Window.Resources>
-    <StackPanel Margin="24">
-        <DockPanel>
-            <TextBlock DockPanel.Dock="Right" Text="{Binding StatusText}" Foreground="{Binding StatusBrush}"
-                       FontSize="20" FontWeight="Bold" VerticalAlignment="Center"
-                       AutomationProperties.Name="Estado de la venta"/>
-            <TextBlock Text="{Binding SaleNumberText}" FontSize="22" FontWeight="Bold"
-                       AutomationProperties.Name="Número de venta"/>
-        </DockPanel>
+    <Border Style="{DynamicResource DialogCard}" Margin="16">
+        <StackPanel>
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="✕" Click="OnClose"
+                        Style="{DynamicResource SecondaryButton}" MinHeight="32" MinWidth="32" Padding="4"
+                        AutomationProperties.Name="Cerrar detalle"/>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding SaleNumberText}" FontSize="22" FontWeight="Bold"
+                               VerticalAlignment="Center" AutomationProperties.Name="Número de venta"/>
+                    <Border Style="{DynamicResource PillMint}" Margin="10,0,0,0">
+                        <TextBlock Text="{Binding StatusText}" Foreground="{Binding StatusBrush}"
+                                   FontWeight="Bold" FontSize="12"
+                                   AutomationProperties.Name="Estado de la venta"/>
+                    </Border>
+                </StackPanel>
+            </DockPanel>
 
-        <TextBlock Text="{Binding MomentText}" Margin="0,4,0,0" AutomationProperties.Name="Fecha y hora"/>
-        <TextBlock Text="{Binding CashSessionText}" Margin="0,0,0,0" AutomationProperties.Name="Caja"/>
-        <TextBlock Text="{Binding CashierText}" Margin="0,0,0,0" AutomationProperties.Name="Cajero"/>
-        <TextBlock Text="{Binding PaymentText}" Margin="0,4,0,0" AutomationProperties.Name="Medio de pago"/>
-        <TextBlock Text="{Binding CashDetailText}" AutomationProperties.Name="Recibido y cambio"/>
-        <TextBlock Text="{Binding VoidInfoText}" Foreground="#B91C1C" Margin="0,6,0,0"
-                   Visibility="{Binding VoidInfoVisible, Converter={StaticResource BoolToVis}}"
-                   AutomationProperties.Name="Datos de la anulación"/>
+            <TextBlock Text="{Binding MomentText}" Style="{DynamicResource PageSubtitle}" Margin="0,6,0,0"
+                       AutomationProperties.Name="Fecha y hora"/>
+            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                <TextBlock Text="{Binding CashSessionText}" Style="{DynamicResource PageSubtitle}"
+                           AutomationProperties.Name="Caja"/>
+                <TextBlock Text="  ·  " Style="{DynamicResource PageSubtitle}"/>
+                <TextBlock Text="{Binding CashierText}" Style="{DynamicResource PageSubtitle}"
+                           AutomationProperties.Name="Cajero"/>
+                <TextBlock Text="  ·  " Style="{DynamicResource PageSubtitle}"/>
+                <TextBlock Text="{Binding PaymentText}" Style="{DynamicResource PageSubtitle}"
+                           AutomationProperties.Name="Medio de pago"/>
+            </StackPanel>
+            <TextBlock Text="{Binding CashDetailText}" Style="{DynamicResource PageSubtitle}" Margin="0,2,0,0"
+                       AutomationProperties.Name="Recibido y cambio"/>
 
-        <DataGrid ItemsSource="{Binding Lines}" AutoGenerateColumns="False" IsReadOnly="True"
-                  CanUserAddRows="False" HeadersVisibility="Column" RowHeight="28"
-                  MaxHeight="260" Margin="0,12,0,0" GridLinesVisibility="Horizontal"
-                  AutomationProperties.Name="Líneas históricas">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="N°" Binding="{Binding LineNumber}" Width="40"/>
-                <DataGridTextColumn Header="PLU" Binding="{Binding Plu}" Width="70"/>
-                <DataGridTextColumn Header="Producto" Binding="{Binding Name}" Width="*"/>
-                <DataGridTextColumn Header="Cantidad" Binding="{Binding QuantityText}" Width="90"/>
-                <DataGridTextColumn Header="Precio" Binding="{Binding PriceText}" Width="90">
-                    <DataGridTextColumn.ElementStyle>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="HorizontalAlignment" Value="Right"/>
-                        </Style>
-                    </DataGridTextColumn.ElementStyle>
-                </DataGridTextColumn>
-                <DataGridTextColumn Header="Importe" Binding="{Binding TotalText}" Width="90">
-                    <DataGridTextColumn.ElementStyle>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="HorizontalAlignment" Value="Right"/>
-                        </Style>
-                    </DataGridTextColumn.ElementStyle>
-                </DataGridTextColumn>
-            </DataGrid.Columns>
-        </DataGrid>
+            <Border Background="{DynamicResource ErrorSoftBrush}" CornerRadius="8" Padding="12,8" Margin="0,8,0,0"
+                    Visibility="{Binding VoidInfoVisible, Converter={StaticResource BoolToVis}}"
+                    AutomationProperties.Name="Datos de la anulación">
+                <TextBlock Text="{Binding VoidInfoText}" Foreground="{DynamicResource ErrorBrush}" FontWeight="SemiBold"/>
+            </Border>
 
-        <Grid Margin="0,10,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <TextBlock Text="Subtotal" VerticalAlignment="Center"/>
-            <TextBlock Grid.Column="1" Text="{Binding SubtotalText}" Margin="6,0,18,0" AutomationProperties.Name="Subtotal"/>
-            <TextBlock Grid.Column="2" Text="Descuento" VerticalAlignment="Center"/>
-            <TextBlock Grid.Column="3" Text="{Binding DiscountText}" Margin="6,0,0,0" AutomationProperties.Name="Descuento"/>
-        </Grid>
-        <DockPanel Margin="0,6,0,0">
-            <TextBlock Text="TOTAL" FontSize="18" FontWeight="Bold"/>
-            <TextBlock DockPanel.Dock="Right" Text="{Binding TotalText}" FontSize="18" FontWeight="Bold"
-                       HorizontalAlignment="Right" AutomationProperties.Name="Total"/>
-        </DockPanel>
+            <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10"
+                    Margin="0,12,0,0" MaxHeight="240">
+                <DataGrid ItemsSource="{Binding Lines}" AutoGenerateColumns="False" IsReadOnly="True"
+                          CanUserAddRows="False" HeadersVisibility="Column"
+                          AutomationProperties.Name="Líneas históricas">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="#" Binding="{Binding LineNumber}" Width="44"/>
+                        <DataGridTextColumn Header="PLU" Binding="{Binding Plu}" Width="70"/>
+                        <DataGridTextColumn Header="Producto" Binding="{Binding Name}" Width="*"/>
+                        <DataGridTextColumn Header="Cantidad" Binding="{Binding QuantityText}" Width="100"/>
+                        <DataGridTextColumn Header="Precio" Binding="{Binding PriceText}" Width="90">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Importe" Binding="{Binding TotalText}" Width="90">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Border>
 
-        <TextBlock Text="{Binding ErrorMessage}" Foreground="#B91C1C" Margin="0,8,0,0" TextWrapping="Wrap"/>
+            <DockPanel Margin="0,10,0,0">
+                <TextBlock Text="Subtotal" Style="{DynamicResource PageSubtitle}" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding SubtotalText}" FontWeight="SemiBold" Margin="8,0,18,0" VerticalAlignment="Center"
+                           AutomationProperties.Name="Subtotal"/>
+                <TextBlock Text="Descuento" Style="{DynamicResource PageSubtitle}" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding DiscountText}" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"
+                           AutomationProperties.Name="Descuento"/>
+            </DockPanel>
+            <DockPanel Margin="0,6,0,0">
+                <Border DockPanel.Dock="Right" Background="{DynamicResource MintBrush}" CornerRadius="8" Padding="12,6">
+                    <TextBlock Text="{Binding TotalText}" FontSize="20" FontWeight="Bold"
+                               Foreground="{DynamicResource PrimaryBrush}" AutomationProperties.Name="Total"/>
+                </Border>
+                <TextBlock Text="TOTAL" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+            </DockPanel>
 
-        <DockPanel Margin="0,14,0,0">
-            <Button Content="Anular venta" Command="{Binding VoidCommand}" Padding="14,6"
-                    Foreground="#B91C1C" FontWeight="Bold"
-                    Visibility="{Binding VoidButtonVisible, Converter={StaticResource BoolToVis}}"
-                    AutomationProperties.Name="Anular venta"/>
-            <Button DockPanel.Dock="Right" Content="Cerrar" Click="OnClose" Padding="14,6" IsCancel="True"
-                    HorizontalAlignment="Right" AutomationProperties.Name="Cerrar detalle"/>
-        </DockPanel>
-    </StackPanel>
+            <TextBlock Text="{Binding ErrorMessage}" Style="{DynamicResource ErrorText}" Margin="0,8,0,0"/>
+
+            <DockPanel Margin="0,14,0,0">
+                <Button DockPanel.Dock="Right" Content="Cerrar" Click="OnClose" IsCancel="True"
+                        Style="{DynamicResource SecondaryButton}" MinWidth="100"
+                        AutomationProperties.Name="Cerrar detalle"/>
+                <Button Content="Anular venta" Command="{Binding VoidCommand}"
+                        Style="{DynamicResource DangerButton}" HorizontalAlignment="Left"
+                        Visibility="{Binding VoidButtonVisible, Converter={StaticResource BoolToVis}}"
+                        AutomationProperties.Name="Anular venta"/>
+            </DockPanel>
+        </StackPanel>
+    </Border>
 </Window>

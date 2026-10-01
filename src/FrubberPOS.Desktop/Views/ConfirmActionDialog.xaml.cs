@@ -40,4 +40,12 @@ public partial class ConfirmActionDialog : Window
             e.Handled = true;
         }
     }
+
+    private void OnDragMove(object sender, MouseButtonEventArgs e)
+    {
+        if (e.LeftButton == MouseButtonState.Pressed)
+        {
+            DragMove();
+        }
+    }
 }

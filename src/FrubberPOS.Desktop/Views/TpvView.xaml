@@ -5,26 +5,27 @@
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
     </UserControl.Resources>
     <DockPanel>
-        <!-- Buscador arriba (P-UX-002): F2 enfoca -->
-        <Border DockPanel.Dock="Top" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6"
-                Padding="8" Margin="0,0,0,8">
+        <!-- Buscador en tarjeta con hint F2 (P-UX-002) -->
+        <Border DockPanel.Dock="Top" Style="{DynamicResource Card}" Padding="8" Margin="0,0,0,10">
             <DockPanel>
-                <Border DockPanel.Dock="Right" VerticalAlignment="Center" CornerRadius="3"
-                        BorderBrush="#D1D5DB" BorderThickness="1" Margin="8,0,0,0">
-                    <TextBlock Text="F2" Foreground="#6B7280" Padding="5,1"/>
+                <Border DockPanel.Dock="Right" Style="{DynamicResource PillMint}" Padding="8,2"
+                        VerticalAlignment="Center" Margin="8,0,0,0">
+                    <TextBlock Text="F2" Style="{DynamicResource PillText}"/>
                 </Border>
                 <TextBox x:Name="SearchBox" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                         FontSize="14" Padding="6,3" AutomationProperties.Name="Buscar producto"
-                         ToolTip="Buscar por PLU o nombre (F2)" />
+                         AutomationProperties.Name="Buscar producto"
+                         ToolTip="Buscar por PLU o nombre (F2)"/>
             </DockPanel>
         </Border>
 
         <!-- Aviso persistente sin caja (P-UX-010, JHO-44): solo bloquea cobrar -->
-        <Border DockPanel.Dock="Top" Background="#FFF7E6" BorderBrush="#F59E0B" BorderThickness="1"
-                CornerRadius="6" Padding="8,6" Margin="0,0,0,8"
+        <Border DockPanel.Dock="Top" Background="{DynamicResource WarnSoftBrush}"
+                BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1"
+                CornerRadius="8" Padding="12,8" Margin="0,0,0,10"
                 Visibility="{Binding CashWarningVisible, Converter={StaticResource BoolToVis}}"
                 AutomationProperties.Name="Aviso de caja cerrada">
-            <TextBlock Text="{Binding CashWarningText}" Foreground="#92400E" TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding CashWarningText}" Foreground="{DynamicResource WarningBrush}"
+                       FontWeight="SemiBold" TextWrapping="Wrap"/>
         </Border>
 
         <Grid>
@@ -33,70 +34,116 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- Resultados (arriba) -->
-            <DataGrid Grid.Row="0" ItemsSource="{Binding Results}" SelectedItem="{Binding SelectedResult}"
-                      AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
-                      HeadersVisibility="Column" GridLinesVisibility="Horizontal" CanUserAddRows="False"
-                      RowHeight="28" Margin="0,0,0,8"
-                      AutomationProperties.Name="Resultados de búsqueda">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="PLU" Binding="{Binding Plu}" Width="90"/>
-                    <DataGridTextColumn Header="Producto" Binding="{Binding Name}" Width="*"/>
-                    <DataGridTextColumn Header="Unidad" Binding="{Binding UnitCode}" Width="90"/>
-                    <DataGridTextColumn Header="Precio" Binding="{Binding PriceText}" Width="110"/>
-                    <DataGridTextColumn Header="Existencia" Binding="{Binding StockText}" Width="120"/>
-                </DataGrid.Columns>
-            </DataGrid>
+            <!-- Resultados -->
+            <Border Grid.Row="0" Style="{DynamicResource Card}" Padding="0,0,0,8" Margin="0,0,0,10">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="Resultados" FontWeight="SemiBold"
+                               FontSize="15" Margin="16,12,16,8"/>
+                    <DataGrid ItemsSource="{Binding Results}" SelectedItem="{Binding SelectedResult}"
+                              AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
+                              HeadersVisibility="Column" CanUserAddRows="False"
+                              AutomationProperties.Name="Resultados de búsqueda">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="PLU" Binding="{Binding Plu}" Width="90"/>
+                            <DataGridTextColumn Header="Producto" Binding="{Binding Name}" Width="*"/>
+                            <DataGridTextColumn Header="Unidad" Binding="{Binding UnitCode}" Width="90"/>
+                            <DataGridTextColumn Header="Precio" Binding="{Binding PriceText}" Width="110">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Existencia" Binding="{Binding StockText}" Width="120">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </Border>
 
-            <!-- Venta en preparación (abajo) -->
-            <DockPanel Grid.Row="1">
-                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,4">
-                    <TextBlock Text="Venta en preparación" FontWeight="Bold" VerticalAlignment="Center"/>
-                    <Button Content="Agregar" Command="{Binding AddSelectedCommand}" Padding="10,3"
-                            Margin="12,0,0,0" ToolTip="Agregar producto seleccionado (Enter)"/>
-                    <Button Content="Editar cantidad (F4)" Command="{Binding EditQuantityCommand}"
-                            Padding="10,3" Margin="8,0,0,0"/>
-                    <Button Content="Quitar (Supr)" Command="{Binding RemoveLineCommand}"
-                            Padding="10,3" Margin="8,0,0,0"/>
-                    <Button Content="Descuento (F6)" Command="{Binding OpenDiscountCommand}"
-                            Padding="10,3" Margin="8,0,0,0"/>
-                    <Button Content="Limpiar" Command="{Binding ClearDraftCommand}" Padding="10,3" Margin="8,0,0,0"/>
-                </StackPanel>
+            <!-- Venta en preparación -->
+            <Border Grid.Row="1" Style="{DynamicResource Card}" Padding="0">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="16,12,16,10">
+                        <TextBlock Text="Venta en preparación" FontWeight="SemiBold" FontSize="15"
+                                   VerticalAlignment="Center"/>
+                        <Button Content="Limpiar" Command="{Binding ClearDraftCommand}"
+                                Style="{DynamicResource SecondaryButton}" MinHeight="32" FontSize="13"
+                                Padding="12,4" Margin="0,0,8,0"/>
+                        <Button Content="Cantidad F4" Command="{Binding EditQuantityCommand}"
+                                Style="{DynamicResource SecondaryButton}" MinHeight="32" FontSize="13"
+                                Padding="12,4" Margin="0,0,8,0" ToolTip="Editar cantidad (F4)"/>
+                        <Button Content="Quitar Supr" Command="{Binding RemoveLineCommand}"
+                                Style="{DynamicResource SecondaryButton}" MinHeight="32" FontSize="13"
+                                Padding="12,4" ToolTip="Quitar línea (Supr)"/>
+                        <Button Content="Descuento (F6)" Command="{Binding OpenDiscountCommand}"
+                                Style="{DynamicResource SecondaryButton}" MinHeight="32" FontSize="13"
+                                Padding="12,4" Margin="8,0,0,0"/>
+                        <Button Content="Agregar (Enter)" Command="{Binding AddSelectedCommand}"
+                                Style="{DynamicResource SecondaryButton}" MinHeight="32" FontSize="13"
+                                Padding="12,4" Margin="8,0,0,0" HorizontalAlignment="Right"/>
+                    </StackPanel>
 
-                <!-- Totales + Cobrar siempre visibles (P-UX-006/010, JHO-44) -->
-                <Border DockPanel.Dock="Bottom" Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1"
-                        CornerRadius="6" Padding="10,8" Margin="0,8,0,0">
-                    <DockPanel>
-                        <Button DockPanel.Dock="Right" Content="Cobrar (F8)"
-                                Command="{Binding OpenCheckoutCommand}"
-                                FontSize="16" FontWeight="Bold" Padding="24,8"
-                                AutomationProperties.Name="Cobrar venta"/>
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="Subtotal:" FontWeight="Bold" VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding SubtotalText}" Margin="8,0,24,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="Descuento:" FontWeight="Bold" VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding DiscountText}" Margin="8,0,24,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="Total:" FontWeight="Bold" FontSize="18" VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding TotalText}" FontWeight="Bold" FontSize="18" Margin="8,0,0,0"
-                                       VerticalAlignment="Center" AutomationProperties.Name="Total de la venta"/>
-                        </StackPanel>
-                    </DockPanel>
-                </Border>
+                    <!-- Banda de totales + Cobrar grande, siempre visible (P-UX-006/010) -->
+                    <Border DockPanel.Dock="Bottom" Background="{DynamicResource SurfaceBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0"
+                            Padding="16,12">
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Content="Cobrar  F8"
+                                    Command="{Binding OpenCheckoutCommand}"
+                                    Style="{DynamicResource BigPrimaryButton}"
+                                    AutomationProperties.Name="Cobrar venta"/>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <StackPanel Margin="0,0,24,0">
+                                    <TextBlock Text="Subtotal" Style="{DynamicResource PageSubtitle}"/>
+                                    <TextBlock Text="{Binding SubtotalText}" FontWeight="SemiBold" FontSize="15"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,24,0">
+                                    <TextBlock Text="Descuento" Style="{DynamicResource PageSubtitle}"/>
+                                    <TextBlock Text="{Binding DiscountText}" FontWeight="SemiBold" FontSize="15"/>
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="TOTAL" Style="{DynamicResource PageSubtitle}" FontWeight="Bold"/>
+                                    <TextBlock Text="{Binding TotalText}" FontWeight="Bold" FontSize="28"
+                                               AutomationProperties.Name="Total de la venta"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
 
-                <!-- §8.6: número, producto, cantidad con unidad, precio, importe -->
-                <DataGrid ItemsSource="{Binding Lines}" SelectedItem="{Binding SelectedLine}"
-                          AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
-                          HeadersVisibility="Column" GridLinesVisibility="Horizontal" CanUserAddRows="False"
-                          RowHeight="24" AutomationProperties.Name="Líneas de la venta">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="N°" Binding="{Binding Number}" Width="48"/>
-                        <DataGridTextColumn Header="Producto" Binding="{Binding Name}" Width="*"/>
-                        <DataGridTextColumn Header="Cantidad" Binding="{Binding QuantityText}" Width="130"/>
-                        <DataGridTextColumn Header="Precio" Binding="{Binding PriceText}" Width="110"/>
-                        <DataGridTextColumn Header="Importe" Binding="{Binding TotalText}" Width="120"/>
-                    </DataGrid.Columns>
-                </DataGrid>
-            </DockPanel>
+                    <!-- §8.6: número, producto, cantidad con unidad, precio, importe -->
+                    <DataGrid ItemsSource="{Binding Lines}" SelectedItem="{Binding SelectedLine}"
+                              AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
+                              HeadersVisibility="Column" CanUserAddRows="False"
+                              Margin="8,0,8,8"
+                              AutomationProperties.Name="Líneas de la venta">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="#" Binding="{Binding Number}" Width="48"/>
+                            <DataGridTextColumn Header="Producto" Binding="{Binding Name}" Width="*"/>
+                            <DataGridTextColumn Header="Cantidad" Binding="{Binding QuantityText}" Width="130"/>
+                            <DataGridTextColumn Header="Precio" Binding="{Binding PriceText}" Width="110">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Importe" Binding="{Binding TotalText}" Width="120">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </Border>
         </Grid>
     </DockPanel>
 </UserControl>

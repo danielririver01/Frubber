@@ -28,6 +28,8 @@ public partial class App : System.Windows.Application, INavigationService
     private SingleInstanceGuard? instanceGuard;
     private ServiceProvider? provider;
     private Window? currentWindow;
+    private bool trialIsLicensed;
+    private int trialDaysLeft = -1;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -74,6 +76,9 @@ public partial class App : System.Windows.Application, INavigationService
                 Shutdown();
                 return;
             }
+
+            trialIsLicensed = trial.Value.IsLicensed;
+            trialDaysLeft = trial.Value.DaysLeft;
 
             if (trial.Value.IsBlocked)
             {
@@ -159,7 +164,11 @@ public partial class App : System.Windows.Application, INavigationService
         window.ShowDialog();
     }
 
-    public void ShowShell(SignedInUser user) =>
+    public void ShowShell(SignedInUser user)
+    {
+        var licenseBadge = trialIsLicensed
+            ? "Licencia vitalicia"
+            : trialDaysLeft is >= 0 ? $"Prueba · {trialDaysLeft} días" : null;
         SwapWindow(new MainWindow(new MainViewModel(
             user,
             Resolve<SignOutUseCase>(),
@@ -169,7 +178,15 @@ public partial class App : System.Windows.Application, INavigationService
             () => new TpvView(Resolve<TpvViewModel>()),
             () => new SalesHistoryView(Resolve<SalesHistoryViewModel>()),
             () => new BusinessSettingsView(Resolve<BusinessSettingsViewModel>()),
-            () => new BackupView(Resolve<BackupViewModel>()))));
+            () => new BackupView(Resolve<BackupViewModel>()),
+            licenseBadge,
+            async cancellationToken =>
+            {
+                var open = await provider!.GetRequiredService<Application.Cash.GetOpenCashSessionUseCase>()
+                    .ExecuteAsync(new Application.Cash.GetOpenCashSessionRequest(), cancellationToken);
+                return open.IsSuccess && open.Value.Session is not null;
+            })));
+    }
 
     public bool ShowProductEditor(ProductDto? existing)
     {

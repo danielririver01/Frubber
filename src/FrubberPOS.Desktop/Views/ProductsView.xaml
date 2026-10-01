@@ -11,10 +11,10 @@
     </UserControl.Resources>
     <DockPanel>
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,10">
-            <Button Content="Editar" Command="{Binding EditCommand}" Padding="12,5" Margin="0,0,8,0"/>
-            <Button Content="Ajustar stock" Command="{Binding AdjustStockCommand}" Padding="12,5" Margin="0,0,8,0"/>
-            <Button Content="Activar/Desactivar" Command="{Binding ToggleActiveCommand}" Padding="12,5" Margin="0,0,8,0"/>
-            <Button Content="Eliminar" Command="{Binding DeleteCommand}" Padding="12,5" Margin="0,0,8,0"/>
+            <Button Content="Editar" Command="{Binding EditCommand}" Style="{DynamicResource SecondaryButton}" MinHeight="36" FontSize="13" Margin="0,0,8,0"/>
+            <Button Content="Ajustar stock" Command="{Binding AdjustStockCommand}" Style="{DynamicResource SecondaryButton}" MinHeight="36" FontSize="13" Margin="0,0,8,0"/>
+            <Button Content="Activar/Desactivar" Command="{Binding ToggleActiveCommand}" Style="{DynamicResource SecondaryButton}" MinHeight="36" FontSize="13" Margin="0,0,8,0"/>
+            <Button Content="Eliminar" Command="{Binding DeleteCommand}" Style="{DynamicResource SecondaryButton}" MinHeight="36" FontSize="13" Margin="0,0,8,0"/>
             <RadioButton Style="{StaticResource FilterChip}" Content="Todos"
                          IsChecked="{Binding IsFilterTodos, Mode=OneWay}" Checked="OnFilterTodos"
                          AutomationProperties.Name="Mostrar todos los productos"/>
@@ -24,57 +24,66 @@
             <RadioButton Style="{StaticResource FilterChip}" Content="Inactivos"
                          IsChecked="{Binding IsFilterInactivos, Mode=OneWay}" Checked="OnFilterInactivos"
                          AutomationProperties.Name="Mostrar solo productos inactivos"/>
-            <Button Content="Nuevo producto" Command="{Binding NewCommand}" Padding="14,5"
-                    FontWeight="Bold" HorizontalAlignment="Right"/>
+            <Button Content="+ Nuevo producto" Command="{Binding NewCommand}" Padding="16,6"
+                    FontWeight="Bold" HorizontalAlignment="Right"
+                    AutomationProperties.Name="Nuevo producto"/>
         </StackPanel>
 
-        <TextBlock DockPanel.Dock="Bottom" Text="{Binding ErrorMessage}" Foreground="#B91C1C"
-                   Margin="0,6,0,0" TextWrapping="Wrap"/>
+        <TextBlock DockPanel.Dock="Bottom" Text="{Binding ErrorMessage}" Style="{DynamicResource ErrorText}"
+                   Margin="0,6,0,0"/>
 
-        <Border DockPanel.Dock="Top" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6"
-                Padding="8" Margin="0,0,0,8">
+        <Border DockPanel.Dock="Top" Style="{DynamicResource Card}" Padding="8" Margin="0,0,0,10">
             <DockPanel>
                 <Border DockPanel.Dock="Right" VerticalAlignment="Center"
-                        BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="3" Margin="8,0,0,0">
-                    <TextBlock Text="F2" Foreground="#6B7280" Padding="5,1"/>
+                        Style="{DynamicResource PillMint}" Padding="8,2" Margin="8,0,0,0">
+                    <TextBlock Text="F2" Style="{DynamicResource PillText}"/>
                 </Border>
                 <TextBox x:Name="SearchBox" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                         FontSize="14" Padding="6,3" AutomationProperties.Name="Buscar por PLU o nombre"
+                         AutomationProperties.Name="Buscar por PLU o nombre"
                          ToolTip="Buscar por PLU o nombre (F2)"/>
             </DockPanel>
         </Border>
 
-        <DataGrid ItemsSource="{Binding Products}" SelectedItem="{Binding SelectedProduct}"
-                  AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
-                  HeadersVisibility="Column" GridLinesVisibility="Horizontal"
-                  CanUserAddRows="False" RowHeight="28"
-                  AutomationProperties.Name="Tabla de productos">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="PLU" Binding="{Binding Plu}" Width="90"/>
-                <DataGridTextColumn Header="Producto" Binding="{Binding Name}" Width="*"/>
-                <DataGridTextColumn Header="Unidad" Binding="{Binding UnitText}" Width="80"/>
-                <DataGridTextColumn Header="Precio" Binding="{Binding PriceText}" Width="110"/>
-                <DataGridTemplateColumn Header="Existencia" Width="*">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding StockText}"
-                                       AutomationProperties.Name="{Binding StockA11yText}">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsNegativeStock}" Value="True">
-                                                <Setter Property="Foreground" Value="#B91C1C"/>
-                                                <Setter Property="FontWeight" Value="Bold"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Estado" Binding="{Binding StateText}" Width="90"/>
-            </DataGrid.Columns>
-        </DataGrid>
+        <Border Style="{DynamicResource Card}" Padding="0,0,0,8">
+            <DataGrid ItemsSource="{Binding Products}" SelectedItem="{Binding SelectedProduct}"
+                      AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
+                      HeadersVisibility="Column"
+                      CanUserAddRows="False"
+                      AutomationProperties.Name="Tabla de productos">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="PLU" Binding="{Binding Plu}" Width="90"/>
+                    <DataGridTextColumn Header="Producto" Binding="{Binding Name}" Width="*"/>
+                    <DataGridTextColumn Header="Unidad" Binding="{Binding UnitText}" Width="80"/>
+                    <DataGridTextColumn Header="Precio" Binding="{Binding PriceText}" Width="110">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTemplateColumn Header="Existencia" Width="*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding StockText}"
+                                           AutomationProperties.Name="{Binding StockA11yText}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsNegativeStock}" Value="True">
+                                                    <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="Estado" Binding="{Binding StateText}" Width="100"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
     </DockPanel>
 </UserControl>
