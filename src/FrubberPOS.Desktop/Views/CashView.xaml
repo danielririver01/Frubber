@@ -68,6 +68,11 @@
                     <DockPanel Margin="0,0,0,10">
                         <TextBlock Text="Saldo inicial:" Width="150" Style="{DynamicResource PageSubtitle}"/>
                         <TextBlock Text="{Binding SessionOpeningBalanceDisplay}" FontWeight="SemiBold"/>
+                        <Button Content="Corregir saldo" Command="{Binding CorrectBalanceCommand}" Margin="10,0,0,0"
+                                Padding="10,2" MinHeight="28" FontSize="12" Style="{DynamicResource SecondaryButton}"
+                                Visibility="{Binding ShowCorrectBalance, Converter={StaticResource BoolToVis}}"
+                                ToolTip="Solo antes de la primera venta (JHO-61)"
+                                AutomationProperties.Name="Corregir saldo inicial"/>
                     </DockPanel>
                     <Separator Margin="0,4" Background="{DynamicResource BorderBrush}"/>
                     <DockPanel Margin="0,10,0,0">
@@ -109,6 +114,7 @@
             </StackPanel>
         </Border>
 
+        <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource SuccessBrush}" FontWeight="SemiBold" Margin="0,10,0,0"/>
         <TextBlock Text="{Binding ErrorMessage}" Style="{DynamicResource ErrorText}" Margin="0,10,0,0"/>
     </StackPanel>
 </UserControl>

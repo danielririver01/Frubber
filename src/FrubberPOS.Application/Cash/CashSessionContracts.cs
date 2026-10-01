@@ -53,6 +53,12 @@ public interface ICashSessionRepository
     /// from the row. <c>null</c> when the id is unknown.
     /// </summary>
     Task<CashSessionSummaryDto?> FindSummaryAsync(IUnitOfWork unit, int cashSessionId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Corrects the opening balance of the open session (JHO-61).
+    /// <c>false</c> when the session closed meanwhile.
+    /// </summary>
+    Task<bool> CorrectOpeningBalanceAsync(IUnitOfWork unit, int cashSessionId, long openingBalanceCop, CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -92,3 +98,7 @@ public sealed record CloseCashSessionResponse;
 public sealed record GetCashSessionSummaryRequest(int CashSessionId);
 
 public sealed record GetCashSessionSummaryResponse(CashSessionSummaryDto Summary);
+
+public sealed record CorrectOpeningBalanceRequest(long NewBalanceCop);
+
+public sealed record CorrectOpeningBalanceResponse(long OpeningBalanceCop);

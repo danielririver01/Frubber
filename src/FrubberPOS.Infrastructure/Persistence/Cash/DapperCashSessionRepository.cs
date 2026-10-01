@@ -112,6 +112,18 @@ public sealed class DapperCashSessionRepository : ICashSessionRepository
         return affected > 0;
     }
 
+    public async Task<bool> CorrectOpeningBalanceAsync(IUnitOfWork unit, int cashSessionId, long openingBalanceCop, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(unit);
+
+        // Only while the same session is still open (JHO-61).
+        const string sql = "UPDATE CashSession SET OpeningBalanceCop = @Balance"
+            + " WHERE CashSessionId = @Id AND ClosedAtUtcMs IS NULL;";
+        var affected = await unit.Connection.ExecuteAsync(
+            sql, new { Balance = openingBalanceCop, Id = cashSessionId }, unit.Transaction);
+        return affected > 0;
+    }
+
     public async Task<CashSessionSummaryDto?> FindSummaryAsync(IUnitOfWork unit, int cashSessionId, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(unit);

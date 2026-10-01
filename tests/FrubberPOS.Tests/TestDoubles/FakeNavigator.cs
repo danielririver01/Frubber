@@ -94,6 +94,11 @@ public sealed class FakeNavigator : INavigationService
 
     public bool NextPinResetSaved { get; set; }
 
+    public int AskOpeningBalanceCorrectionCount { get; private set; }
+
+    /// <summary>Saldo corregido devuelto por el diálogo; null = cancelado.</summary>
+    public long? NextOpeningBalanceCorrection { get; set; }
+
     /// <summary>
     /// One-shot hook fired inside <see cref="ShowCheckout"/>: simulates a
     /// re-entrant Enter/click while the dialog is open (JHO-39).
@@ -225,5 +230,11 @@ public sealed class FakeNavigator : INavigationService
         ArgumentNullException.ThrowIfNull(user);
         ConfirmUserDeletionCount++;
         return NextConfirmResult;
+    }
+
+    public long? AskOpeningBalanceCorrection(long currentBalanceCop)
+    {
+        AskOpeningBalanceCorrectionCount++;
+        return NextOpeningBalanceCorrection;
     }
 }

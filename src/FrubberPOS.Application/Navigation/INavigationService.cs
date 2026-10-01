@@ -85,6 +85,12 @@ public interface INavigationService
 
     /// <summary>Delete confirmation: names the user and the consequence (JHO-50).</summary>
     bool ConfirmUserDeletion(UserDetailDto user);
+
+    /// <summary>
+    /// Opening-balance correction dialog (JHO-61): shows the current value,
+    /// returns the corrected whole-COP amount; <c>null</c> = canceled.
+    /// </summary>
+    long? AskOpeningBalanceCorrection(long currentBalanceCop);
 }
 
 /// <summary>Checkout modal answer (JHO-41). Whole COP only.</summary>

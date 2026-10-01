@@ -17,6 +17,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Migrations/001_Initial.sql" />
     <EmbeddedResource Include="Migrations/002_Trial.sql" />
+    <EmbeddedResource Include="Migrations/003_OpeningBalanceCorrection.sql" />
   </ItemGroup>
 
   <PropertyGroup>

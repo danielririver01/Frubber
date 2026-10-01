@@ -11,10 +11,13 @@ public sealed class CashViewModelTests
     private static (CashViewModel vm, FakeNavigator nav) Build(CashTestBed bed)
     {
         var nav = new FakeNavigator();
+        var session = CashTestBed.AdminSession();
         var vm = new CashViewModel(
             new GetOpenCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession()),
             new OpenCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock),
             new CloseCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock),
+            new CorrectOpeningBalanceUseCase(bed.Sessions, bed.Units, session),
+            session,
             nav);
         return (vm, nav);
     }

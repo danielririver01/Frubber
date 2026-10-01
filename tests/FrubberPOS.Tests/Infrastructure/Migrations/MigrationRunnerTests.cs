@@ -22,7 +22,7 @@ public sealed class MigrationRunnerTests
             var result = await runner.MigrateAsync(ConnectionString(path), CancellationToken.None);
 
             Assert.True(result.IsSuccess);
-            Assert.Equal(2, result.Value);
+            Assert.Equal(3, result.Value);
 
             await using var connection = new SqliteConnection(ConnectionString(path));
             await connection.OpenAsync();
@@ -36,6 +36,10 @@ public sealed class MigrationRunnerTests
             var trial = await ReadRecordAsync(connection, 2);
             Assert.Equal(2, trial.Version);
             Assert.Equal("002_Trial.sql", trial.Name);
+
+            var openingBalance = await ReadRecordAsync(connection, 3);
+            Assert.Equal(3, openingBalance.Version);
+            Assert.Equal("003_OpeningBalanceCorrection.sql", openingBalance.Name);
 
             Assert.True(await TableExistsAsync(connection, "Product"));
             Assert.True(await TableExistsAsync(connection, "Sale"));
@@ -59,7 +63,7 @@ public sealed class MigrationRunnerTests
         try
         {
             var runner = new MigrationRunner();
-            Assert.Equal(2, (await runner.MigrateAsync(ConnectionString(path), CancellationToken.None)).Value);
+            Assert.Equal(3, (await runner.MigrateAsync(ConnectionString(path), CancellationToken.None)).Value);
 
             var before = await RowCountAsync(path, "SchemaMigration");
             var second = await runner.MigrateAsync(ConnectionString(path), CancellationToken.None);
@@ -90,12 +94,12 @@ public sealed class MigrationRunnerTests
                 .MigrateAsync(ConnectionString(path), CancellationToken.None);
 
             Assert.True(second.IsSuccess);
-            Assert.Equal(1, second.Value);
+            Assert.Equal(2, second.Value); // 002_Trial + 003_OpeningBalanceCorrection
 
             await using var connection = new SqliteConnection(ConnectionString(path));
             await connection.OpenAsync();
             Assert.True(await TableExistsAsync(connection, "TrialState"));
-            Assert.Equal(2, await RowCountAsync(path, "SchemaMigration"));
+            Assert.Equal(3, await RowCountAsync(path, "SchemaMigration"));
         }
         finally
         {

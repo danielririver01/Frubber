@@ -10,6 +10,7 @@ public static class MigrationCatalog
     public static IReadOnlyList<KnownMigration> Default { get; } =
     [
         new KnownMigration(1, "001_Initial.sql", MigrationScripts.GetInitialScript()),
-        new KnownMigration(2, "002_Trial.sql", MigrationScripts.GetTrialScript())
+        new KnownMigration(2, "002_Trial.sql", MigrationScripts.GetTrialScript()),
+        new KnownMigration(3, "003_OpeningBalanceCorrection.sql", MigrationScripts.GetOpeningBalanceCorrectionScript())
     ];
 }

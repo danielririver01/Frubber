@@ -380,6 +380,15 @@ public partial class App : System.Windows.Application, INavigationService
         return dialog.ShowDialog() == true;
     }
 
+    public long? AskOpeningBalanceCorrection(long currentBalanceCop)
+    {
+        var dialog = new CorrectOpeningBalanceDialog(currentBalanceCop)
+        {
+            Owner = currentWindow
+        };
+        return dialog.ShowDialog() == true ? dialog.CorrectedCop : null;
+    }
+
     private void OnDispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
     {
         try

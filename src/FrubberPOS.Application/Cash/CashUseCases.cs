@@ -152,6 +152,71 @@ public sealed class GetOpenCashSessionUseCase : IUseCase<GetOpenCashSessionReque
 }
 
 /// <summary>
+/// Opening-balance correction (JHO-61), regla acordada con el dueño
+/// (2026-10-01): solo ADMIN, solo mientras la caja siga abierta y SIN
+/// ventas registradas — si ya vendió, el camino es cerrar y reabrir.
+/// Un WRITE IMMEDIATE evita corregir una caja ya cerrada.
+/// </summary>
+public sealed class CorrectOpeningBalanceUseCase : IUseCase<CorrectOpeningBalanceRequest, CorrectOpeningBalanceResponse>
+{
+    private readonly ICashSessionRepository sessions;
+    private readonly IUnitOfWorkFactory units;
+    private readonly ICurrentSession session;
+
+    public CorrectOpeningBalanceUseCase(ICashSessionRepository sessions, IUnitOfWorkFactory units, ICurrentSession session)
+    {
+        ArgumentNullException.ThrowIfNull(sessions);
+        ArgumentNullException.ThrowIfNull(units);
+        ArgumentNullException.ThrowIfNull(session);
+        this.sessions = sessions;
+        this.units = units;
+        this.session = session;
+    }
+
+    public async Task<Result<CorrectOpeningBalanceResponse>> ExecuteAsync(CorrectOpeningBalanceRequest request, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var denied = Authorization.RequireAdmin(session);
+        if (denied is not null)
+        {
+            return Result<CorrectOpeningBalanceResponse>.Failure(denied);
+        }
+
+        if (request.NewBalanceCop < 0)
+        {
+            return Result<CorrectOpeningBalanceResponse>.Failure(new Error(
+                ErrorCode.Validation, "El saldo inicial no puede ser negativo.", "OpeningBalanceCop"));
+        }
+
+        await using var unit = await units.CreateAsync(UnitOfWorkMode.WriteImmediate, cancellationToken);
+
+        var open = await sessions.FindOpenAsync(unit, cancellationToken);
+        if (open is null)
+        {
+            return Result<CorrectOpeningBalanceResponse>.Failure(new Error(
+                ErrorCode.Conflict, "No hay una caja abierta para corregir."));
+        }
+
+        if (open.SaleCount > 0)
+        {
+            return Result<CorrectOpeningBalanceResponse>.Failure(new Error(
+                ErrorCode.Conflict, "La caja ya tiene ventas registradas. Ciérrela y abra una nueva con el saldo correcto."));
+        }
+
+        var corrected = await sessions.CorrectOpeningBalanceAsync(unit, open.CashSessionId, request.NewBalanceCop, cancellationToken);
+        if (!corrected)
+        {
+            return Result<CorrectOpeningBalanceResponse>.Failure(new Error(
+                ErrorCode.Conflict, "La caja ya no está abierta."));
+        }
+
+        await unit.CommitAsync(cancellationToken);
+        return Result<CorrectOpeningBalanceResponse>.Success(new CorrectOpeningBalanceResponse(request.NewBalanceCop));
+    }
+}
+
+/// <summary>
 /// Closes the open cash session (JHO-38, RN-CAJ-003/008): no counted cash,
 /// no shortage/overage, no reason — totals freeze at close time
 /// (RN-CAJ-010). Closing nothing open, or a session that was already

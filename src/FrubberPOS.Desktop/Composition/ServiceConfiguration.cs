@@ -99,6 +99,7 @@ public static class ServiceConfiguration
         services.AddTransient<OpenCashSessionUseCase>();
         services.AddTransient<GetOpenCashSessionUseCase>();
         services.AddTransient<CloseCashSessionUseCase>();
+        services.AddTransient<CorrectOpeningBalanceUseCase>();
         services.AddTransient<GetCashSessionSummaryUseCase>();
         services.AddTransient<SearchProductsForSaleUseCase>();
         services.AddTransient<FinalizeSaleUseCase>();
