@@ -66,6 +66,7 @@ public static class ServiceConfiguration
         services.AddSingleton<ICashSessionRepository, DapperCashSessionRepository>();
         services.AddSingleton<ISaleRepository, DapperSaleRepository>();
         services.AddSingleton<ISaleHistoryRepository, DapperSaleHistoryRepository>();
+        services.AddSingleton<ISaleVoidRepository, DapperSaleVoidRepository>();
         services.AddSingleton<IBusinessSettingRepository, DapperBusinessSettingRepository>();
         services.AddSingleton<ITicketPrinter, WindowsTicketPrinter>();
         services.AddSingleton<ICurrentSession, CurrentSession>();
@@ -101,6 +102,7 @@ public static class ServiceConfiguration
         services.AddTransient<GetTicketForSaleUseCase>();
         services.AddTransient<SearchSalesHistoryUseCase>();
         services.AddTransient<GetSaleDetailUseCase>();
+        services.AddTransient<VoidSaleUseCase>();
         services.AddTransient<LoginViewModel>();
         services.AddTransient<FirstStartViewModel>();
         services.AddTransient<LicenseActivationViewModel>();

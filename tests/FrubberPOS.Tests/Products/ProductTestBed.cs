@@ -27,6 +27,7 @@ internal sealed class ProductTestBed : IAsyncDisposable
         DapperCashSessionRepository sessions,
         DapperSaleRepository sales,
         DapperSaleHistoryRepository history,
+        DapperSaleVoidRepository voids,
         DapperBusinessSettingRepository settings,
         FakeClock clock,
         SqliteUnitOfWorkFactory units)
@@ -36,6 +37,7 @@ internal sealed class ProductTestBed : IAsyncDisposable
         Sessions = sessions;
         Sales = sales;
         History = history;
+        Voids = voids;
         Settings = settings;
         Clock = clock;
         Units = units;
@@ -50,6 +52,8 @@ internal sealed class ProductTestBed : IAsyncDisposable
     public DapperSaleRepository Sales { get; }
 
     public DapperSaleHistoryRepository History { get; }
+
+    public DapperSaleVoidRepository Voids { get; }
 
     public DapperBusinessSettingRepository Settings { get; }
 
@@ -85,7 +89,7 @@ internal sealed class ProductTestBed : IAsyncDisposable
         var units = new SqliteUnitOfWorkFactory(new SqliteConnectionFactory(new DatabaseOptions(path)));
         return new ProductTestBed(
             path, new DapperProductRepository(), new DapperCashSessionRepository(), new DapperSaleRepository(),
-            new DapperSaleHistoryRepository(), new DapperBusinessSettingRepository(),
+            new DapperSaleHistoryRepository(), new DapperSaleVoidRepository(), new DapperBusinessSettingRepository(),
             new FakeClock(new DateTimeOffset(2026, 9, 30, 12, 0, 0, TimeSpan.FromHours(-5))), units);
     }
 
