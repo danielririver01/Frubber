@@ -167,7 +167,8 @@ public partial class App : System.Windows.Application, INavigationService
             () => new ProductsView(Resolve<ProductsViewModel>()),
             () => new CashView(Resolve<CashViewModel>()),
             () => new TpvView(Resolve<TpvViewModel>()),
-            () => new SalesHistoryView(Resolve<SalesHistoryViewModel>()))));
+            () => new SalesHistoryView(Resolve<SalesHistoryViewModel>()),
+            () => new BusinessSettingsView(Resolve<BusinessSettingsViewModel>()))));
 
     public bool ShowProductEditor(ProductDto? existing)
     {

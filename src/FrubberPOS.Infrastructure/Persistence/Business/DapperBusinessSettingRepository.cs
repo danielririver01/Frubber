@@ -24,6 +24,20 @@ public sealed class DapperBusinessSettingRepository : IBusinessSettingRepository
                 row.BusinessName, row.TaxIdentifier, row.Phone, row.Address, row.TicketFooterMessage, row.PrinterName);
     }
 
+    /// <summary>Overwrites the single row (JHO-51); null fields mean "no configurado".</summary>
+    public async Task UpdateAsync(IUnitOfWork unit, BusinessSettingSnapshot settings, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(unit);
+        ArgumentNullException.ThrowIfNull(settings);
+
+        const string sql = "UPDATE BusinessSetting SET"
+            + " BusinessName = @BusinessName, TaxIdentifier = @TaxIdentifier, Phone = @Phone,"
+            + " Address = @Address, TicketFooterMessage = @TicketFooterMessage, PrinterName = @PrinterName"
+            + " WHERE BusinessSettingId = 1;";
+        await unit.Connection.ExecuteAsync(
+            new CommandDefinition(sql, settings, unit.Transaction, cancellationToken: cancellationToken));
+    }
+
     private sealed class BusinessSettingRow
     {
         public string? BusinessName { get; set; }

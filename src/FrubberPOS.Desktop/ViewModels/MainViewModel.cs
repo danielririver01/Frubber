@@ -37,6 +37,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private readonly Func<object>? cashPageFactory;
     private readonly Func<object>? tpvPageFactory;
     private readonly Func<object>? historyPageFactory;
+    private readonly Func<object>? settingsPageFactory;
 
     private MenuEntry? selectedEntry;
     private string pageTitle = string.Empty;
@@ -45,8 +46,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private object? cashPage;
     private object? tpvPage;
     private object? historyPage;
+    private object? settingsPage;
 
-    public MainViewModel(SignedInUser user, SignOutUseCase signOut, INavigationService navigation, Func<object>? productsPageFactory = null, Func<object>? cashPageFactory = null, Func<object>? tpvPageFactory = null, Func<object>? historyPageFactory = null)
+    public MainViewModel(SignedInUser user, SignOutUseCase signOut, INavigationService navigation, Func<object>? productsPageFactory = null, Func<object>? cashPageFactory = null, Func<object>? tpvPageFactory = null, Func<object>? historyPageFactory = null, Func<object>? settingsPageFactory = null)
     {
         ArgumentNullException.ThrowIfNull(user);
         ArgumentNullException.ThrowIfNull(signOut);
@@ -57,6 +59,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         this.cashPageFactory = cashPageFactory;
         this.tpvPageFactory = tpvPageFactory;
         this.historyPageFactory = historyPageFactory;
+        this.settingsPageFactory = settingsPageFactory;
 
         DisplayName = user.DisplayName;
         IsAdmin = user.Role == UserRole.Admin;
@@ -156,6 +159,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             PageDescription = string.Empty;
             CurrentPage = historyPage ??= historyPageFactory();
+            return;
+        }
+
+        if (SelectedEntry?.Title == "Configuración" && settingsPageFactory is not null)
+        {
+            PageDescription = string.Empty;
+            CurrentPage = settingsPage ??= settingsPageFactory();
             return;
         }
 

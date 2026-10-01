@@ -17,9 +17,12 @@ public sealed record BusinessSettingSnapshot(
     string? TicketFooterMessage,
     string? PrinterName);
 
-/// <summary>Business settings read port (JHO-45). Single-row table.</summary>
+/// <summary>Business settings port (JHO-45/51). Single-row table.</summary>
 public interface IBusinessSettingRepository
 {
     /// <summary>The single settings row; <c>null</c> only when missing.</summary>
     Task<BusinessSettingSnapshot?> GetAsync(IUnitOfWork unit, CancellationToken cancellationToken);
+
+    /// <summary>Overwrites the single row (JHO-51); null fields mean "no configurado".</summary>
+    Task UpdateAsync(IUnitOfWork unit, BusinessSettingSnapshot settings, CancellationToken cancellationToken);
 }

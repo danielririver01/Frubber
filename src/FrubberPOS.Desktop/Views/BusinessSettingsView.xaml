@@ -1,0 +1,55 @@
+<UserControl x:Class="FrubberPOS.Desktop.Views.BusinessSettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel MaxWidth="560" HorizontalAlignment="Left">
+        <TextBlock Text="Datos del negocio" FontSize="18" FontWeight="Bold" Margin="0,0,0,10"/>
+
+        <DockPanel Margin="0,0,0,2">
+            <TextBlock Text="Nombre del negocio" DockPanel.Dock="Left"/>
+            <TextBlock DockPanel.Dock="Right" Text="{Binding BusinessNameHintText}" Foreground="#B45309"/>
+        </DockPanel>
+        <TextBox Text="{Binding BusinessNameText, UpdateSourceTrigger=PropertyChanged}" Padding="6,4"
+                 MaxLength="120" AutomationProperties.Name="Nombre del negocio"/>
+
+        <DockPanel Margin="0,8,0,2">
+            <TextBlock Text="NIT o identificación" DockPanel.Dock="Left"/>
+            <TextBlock DockPanel.Dock="Right" Text="{Binding TaxIdentifierHintText}" Foreground="#B45309"/>
+        </DockPanel>
+        <TextBox Text="{Binding TaxIdentifierText, UpdateSourceTrigger=PropertyChanged}" Padding="6,4"
+                 MaxLength="32" AutomationProperties.Name="NIT o identificación"/>
+
+        <DockPanel Margin="0,8,0,2">
+            <TextBlock Text="Teléfono" DockPanel.Dock="Left"/>
+            <TextBlock DockPanel.Dock="Right" Text="{Binding PhoneHintText}" Foreground="#B45309"/>
+        </DockPanel>
+        <TextBox Text="{Binding PhoneText, UpdateSourceTrigger=PropertyChanged}" Padding="6,4"
+                 MaxLength="30" AutomationProperties.Name="Teléfono"/>
+
+        <DockPanel Margin="0,8,0,2">
+            <TextBlock Text="Dirección" DockPanel.Dock="Left"/>
+            <TextBlock DockPanel.Dock="Right" Text="{Binding AddressHintText}" Foreground="#B45309"/>
+        </DockPanel>
+        <TextBox Text="{Binding AddressText, UpdateSourceTrigger=PropertyChanged}" Padding="6,4"
+                 MaxLength="200" AutomationProperties.Name="Dirección"/>
+
+        <DockPanel Margin="0,8,0,2">
+            <TextBlock Text="Mensaje final del ticket" DockPanel.Dock="Left"/>
+            <TextBlock DockPanel.Dock="Right" Text="{Binding FooterHintText}" Foreground="#B45309"/>
+        </DockPanel>
+        <TextBox Text="{Binding FooterText, UpdateSourceTrigger=PropertyChanged}" Padding="6,4"
+                 MaxLength="250" AutomationProperties.Name="Mensaje final del ticket"/>
+
+        <TextBlock Text="Impresora predeterminada" FontSize="18" FontWeight="Bold" Margin="0,20,0,6"/>
+        <ComboBox ItemsSource="{Binding PrinterOptions}" SelectedItem="{Binding SelectedPrinterOption}"
+                  Padding="6,4" AutomationProperties.Name="Impresora predeterminada"/>
+        <TextBlock Text="Un campo vacío se guarda como no configurado. No se piden anchos ni comandos del dispositivo."
+                   Foreground="#6B7280" TextWrapping="Wrap" Margin="0,6,0,0"/>
+
+        <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+            <Button Content="Guardar" Command="{Binding SaveCommand}" Padding="16,6" FontWeight="Bold"
+                    Background="#15803D" Foreground="White" AutomationProperties.Name="Guardar configuración"/>
+            <TextBlock Text="{Binding StatusMessage}" Foreground="#15803D" VerticalAlignment="Center" Margin="12,0,0,0"/>
+        </StackPanel>
+        <TextBlock Text="{Binding ErrorMessage}" Foreground="#B91C1C" Margin="0,8,0,0" TextWrapping="Wrap"/>
+    </StackPanel>
+</UserControl>

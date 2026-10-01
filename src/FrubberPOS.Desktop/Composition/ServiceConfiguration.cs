@@ -103,6 +103,8 @@ public static class ServiceConfiguration
         services.AddTransient<SearchSalesHistoryUseCase>();
         services.AddTransient<GetSaleDetailUseCase>();
         services.AddTransient<VoidSaleUseCase>();
+        services.AddTransient<GetBusinessSettingsUseCase>();
+        services.AddTransient<UpdateBusinessSettingsUseCase>();
         services.AddTransient<LoginViewModel>();
         services.AddTransient<FirstStartViewModel>();
         services.AddTransient<LicenseActivationViewModel>();
@@ -116,6 +118,7 @@ public static class ServiceConfiguration
         services.AddTransient<CashViewModel>();
         services.AddTransient<SalesHistoryViewModel>();
         services.AddTransient<SaleDetailViewModel>();
+        services.AddTransient<BusinessSettingsViewModel>();
 
         return services;
     }
