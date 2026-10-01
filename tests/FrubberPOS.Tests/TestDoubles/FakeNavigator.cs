@@ -62,6 +62,12 @@ public sealed class FakeNavigator : INavigationService
     /// <summary>Printer picked in the picker; null = no printing.</summary>
     public string? NextPrinterName { get; set; }
 
+    /// <summary>
+    /// One-shot hook fired inside <see cref="ShowCheckout"/>: simulates a
+    /// re-entrant Enter/click while the dialog is open (JHO-39).
+    /// </summary>
+    public Action? OnShowCheckout { get; set; }
+
     public void ShowFirstStart() => FirstStartCount++;
 
     public void ShowLogin() => LoginCount++;
@@ -118,6 +124,12 @@ public sealed class FakeNavigator : INavigationService
     public CheckoutResultDto ShowCheckout(long subtotalCop, long pendingDiscountCop)
     {
         ShowCheckoutCount++;
+        if (OnShowCheckout is { } hook)
+        {
+            OnShowCheckout = null; // one-shot: re-entry must not recurse
+            hook();
+        }
+
         return NextCheckout ?? new CheckoutResultDto(false, "CASH", 0, 0, 0);
     }
 

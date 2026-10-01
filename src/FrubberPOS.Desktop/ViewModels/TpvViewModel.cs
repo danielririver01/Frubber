@@ -49,6 +49,7 @@ public sealed class TpvViewModel : INotifyPropertyChanged
     private TpvSearchItemViewModel? selectedResult;
     private TpvLineItemViewModel? selectedLine;
     private bool? cashOpen;
+    private bool submitting;
 
     public TpvViewModel(
         SearchProductsForSaleUseCase search,
@@ -326,6 +327,14 @@ public sealed class TpvViewModel : INotifyPropertyChanged
 
     private async Task HandleCheckoutAsync(bool finalize)
     {
+        // Double-submit guard (JHO-39): a second Enter/click while the
+        // checkout flow is in flight never reaches the dialog or the
+        // finalization — the sale is created at most once (RN-VEN-002).
+        if (submitting)
+        {
+            return;
+        }
+
         if (draft.IsEmpty)
         {
             ErrorMessage = "No hay productos en la venta.";
@@ -341,6 +350,19 @@ public sealed class TpvViewModel : INotifyPropertyChanged
             return;
         }
 
+        submitting = true;
+        try
+        {
+            await RunCheckoutAsync(finalize);
+        }
+        finally
+        {
+            submitting = false;
+        }
+    }
+
+    private async Task RunCheckoutAsync(bool finalize)
+    {
         var result = navigation.ShowCheckout(draft.SubtotalCop, draft.DiscountCop);
         if (result is null || !result.Confirmed)
         {
