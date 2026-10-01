@@ -34,7 +34,24 @@ public sealed class DraftSale
 
     public bool IsEmpty => lines.Count == 0;
 
+    public long DiscountCop { get; private set; }
+
     public long SubtotalCop => lines.Sum(l => l.LineTotalCop);
+
+    public long TotalCop => SubtotalCop - DiscountCop;
+
+    /// <summary>Descuento general en COP entero, entre 0 y el subtotal (JHO-41, RN-VEN).</summary>
+    public Result SetDiscount(long discountCop)
+    {
+        if (discountCop < 0 || discountCop > SubtotalCop)
+        {
+            return Result.Failure(new Error(
+                ErrorCode.Validation, "El descuento debe ser un valor entre cero y el subtotal.", "DiscountCop"));
+        }
+
+        DiscountCop = discountCop;
+        return Result.Success();
+    }
 
     /// <summary>
     /// Adds (or accumulates) a product line. The product must be active
@@ -102,8 +119,19 @@ public sealed class DraftSale
     }
 
     /// <summary>Drops a line if present. No error when missing (idempotent clear).</summary>
-    public void RemoveLine(int productId) => lines.RemoveAll(l => l.ProductId == productId);
+    public void RemoveLine(int productId)
+    {
+        lines.RemoveAll(l => l.ProductId == productId);
+        if (DiscountCop > SubtotalCop)
+        {
+            DiscountCop = SubtotalCop;
+        }
+    }
 
     /// <summary>Clears the draft. Caller decides when confirmation applies (P-UX-013).</summary>
-    public void Clear() => lines.Clear();
+    public void Clear()
+    {
+        lines.Clear();
+        DiscountCop = 0;
+    }
 }

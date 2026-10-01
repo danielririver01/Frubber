@@ -18,14 +18,6 @@ public sealed class FakeNavigator : INavigationService
 
     public int LicenseCount { get; private set; }
 
-    public SignedInUser? LastShellUser { get; private set; }
-
-    public void ShowFirstStart() => FirstStartCount++;
-
-    public void ShowLogin() => LoginCount++;
-
-    public void ShowLicense() => LicenseCount++;
-
     public int ProductEditorCount { get; private set; }
 
     public int AdjustStockCount { get; private set; }
@@ -34,6 +26,16 @@ public sealed class FakeNavigator : INavigationService
 
     public int ConfirmDeletionCount { get; private set; }
 
+    public int ConfirmCashClosureCount { get; private set; }
+
+    public int ConfirmDiscardDraftCount { get; private set; }
+
+    public int AskQuantityCount { get; private set; }
+
+    public int ShowCheckoutCount { get; private set; }
+
+    public SignedInUser? LastShellUser { get; private set; }
+
     public ProductDto? LastEditedProduct { get; private set; }
 
     public bool NextEditorResult { get; set; }
@@ -41,6 +43,23 @@ public sealed class FakeNavigator : INavigationService
     public bool NextAdjustResult { get; set; }
 
     public bool NextConfirmResult { get; set; } = true;
+
+    public long? NextQuantityMilli { get; set; }
+
+    public CheckoutResultDto? NextCheckout { get; set; }
+
+    public void ShowFirstStart() => FirstStartCount++;
+
+    public void ShowLogin() => LoginCount++;
+
+    public void ShowLicense() => LicenseCount++;
+
+    public void ShowShell(SignedInUser user)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        ShellCount++;
+        LastShellUser = user;
+    }
 
     public bool ShowProductEditor(ProductDto? existing)
     {
@@ -69,8 +88,6 @@ public sealed class FakeNavigator : INavigationService
         return NextConfirmResult;
     }
 
-    public int ConfirmCashClosureCount { get; private set; }
-
     public bool ConfirmDiscardDraft()
     {
         ConfirmDiscardDraftCount++;
@@ -84,16 +101,9 @@ public sealed class FakeNavigator : INavigationService
         return NextQuantityMilli;
     }
 
-    public int ConfirmDiscardDraftCount { get; private set; }
-
-    public int AskQuantityCount { get; private set; }
-
-    public long? NextQuantityMilli { get; set; }
-
-    public void ShowShell(SignedInUser user)
+    public CheckoutResultDto ShowCheckout(long subtotalCop, long pendingDiscountCop)
     {
-        ArgumentNullException.ThrowIfNull(user);
-        ShellCount++;
-        LastShellUser = user;
+        ShowCheckoutCount++;
+        return NextCheckout ?? new CheckoutResultDto(false, "CASH", 0, 0, 0);
     }
 }

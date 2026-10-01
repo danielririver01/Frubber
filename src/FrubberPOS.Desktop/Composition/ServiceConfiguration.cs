@@ -96,6 +96,8 @@ public static class ServiceConfiguration
         services.AddTransient<AdjustStockViewModel>();
         services.AddTransient<ProductsViewModel>();
         services.AddTransient<ProductEditorViewModel>();
+        services.AddTransient<QuantityDialogViewModel>();
+        services.AddTransient<CheckoutViewModel>();
         services.AddTransient<TpvViewModel>();
         services.AddTransient<CashViewModel>();
 

@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using FrubberPOS.Application.Common;
 using FrubberPOS.Application.Navigation;
 using FrubberPOS.Application.Products;
 using FrubberPOS.Application.Sales;
@@ -14,6 +13,11 @@ namespace FrubberPOS.Desktop.ViewModels;
 /// P-UX-002/003/006). F2 focuses the search (wire in the view); a
 /// canceled or superseded search never overwrites fresher results
 /// (token-based staleness guard). Only active products surface.
+/// Quantities: UNIT adds one unit; KG/LB open the dialog (P-UX-009).
+/// Repeat accumulates in one line; F4 edits, Supr removes, and an empty
+/// clear is direct while a non-empty one asks "¿Descartar esta venta?"
+/// (Esc never discards, P-UX-013). F6 opens discount, F8 checkout,
+/// F9 confirms and Esc cancels (JHO-41). Finalization lands in JHO-43.
 /// </summary>
 public sealed class TpvViewModel : INotifyPropertyChanged
 {
@@ -28,7 +32,6 @@ public sealed class TpvViewModel : INotifyPropertyChanged
     private CancellationTokenSource? searchCts;
     private TpvSearchItemViewModel? selectedResult;
     private DraftSaleLine? selectedLine;
-    private int selectedLineIndex = -1;
 
     public TpvViewModel(SearchProductsForSaleUseCase search, INavigationService navigation)
     {
@@ -42,15 +45,14 @@ public sealed class TpvViewModel : INotifyPropertyChanged
         EditQuantityCommand = new AsyncCommand(_ => EditQuantityAsync(), () => SelectedLine is not null);
         RemoveLineCommand = new AsyncCommand(_ => RemoveSelectedLine(), () => SelectedLine is not null);
         ClearDraftCommand = new AsyncCommand(_ => ClearDraftWithProtectionAsync());
+        OpenDiscountCommand = new AsyncCommand(_ => OpenDiscountAsync(), () => !draft.IsEmpty);
+        OpenCheckoutCommand = new AsyncCommand(_ => OpenCheckoutAsync(), () => !draft.IsEmpty);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
     /// <summary>Fired to ask the view to focus + select the search box (F2).</summary>
     public event EventHandler? FocusSearchRequested;
-
-    /// <summary>Fired to ask the view to focus the quantity edit (F4).</summary>
-    public event EventHandler? FocusQuantityRequested;
 
     public DraftSale Draft => draft;
 
@@ -101,25 +103,33 @@ public sealed class TpvViewModel : INotifyPropertyChanged
         }
     }
 
-    public int SelectedLineIndex
-    {
-        get => selectedLineIndex;
-        set => SetProperty(ref selectedLineIndex, value);
-    }
-
-    public AsyncCommand EditQuantityCommand { get; }
-
-    public AsyncCommand RemoveLineCommand { get; }
-
     public long SubtotalCop => draft.SubtotalCop;
 
     public string SubtotalText => MoneyText.FormatCop(draft.SubtotalCop);
+
+    public long DiscountCop => draft.DiscountCop;
+
+    public string DiscountText => MoneyText.FormatCop(draft.DiscountCop);
+
+    public long TotalCop => draft.TotalCop;
+
+    public string TotalText => MoneyText.FormatCop(draft.TotalCop);
 
     public AsyncCommand SearchCommand { get; }
 
     public AsyncCommand AddSelectedCommand { get; }
 
+    public AsyncCommand EditQuantityCommand { get; }
+
+    public AsyncCommand RemoveLineCommand { get; }
+
     public AsyncCommand ClearDraftCommand { get; }
+
+    public AsyncCommand OpenDiscountCommand { get; }
+
+    public AsyncCommand OpenCheckoutCommand { get; }
+
+    public CheckoutResultDto? LastConfirmedCheckout { get; private set; }
 
     public void RequestFocusSearch() => FocusSearchRequested?.Invoke(this, EventArgs.Empty);
 
@@ -135,8 +145,6 @@ public sealed class TpvViewModel : INotifyPropertyChanged
             var result = await search.ExecuteAsync(
                 new SearchForSaleRequest(SearchText), cts!.Token);
 
-            // Una búsqueda cancelada o reemplazada no sobrescribe resultados
-            // más recientes (criterio JHO-40).
             if (!ReferenceEquals(cts, searchCts) || cts.IsCancellationRequested)
             {
                 return;
@@ -157,7 +165,7 @@ public sealed class TpvViewModel : INotifyPropertyChanged
         }
         catch (OperationCanceledException)
         {
-            // Búsqueda cancelada: no tocar los resultados actuales.
+            // Superseded search: leave current results untouched.
         }
     }
 
@@ -169,11 +177,9 @@ public sealed class TpvViewModel : INotifyPropertyChanged
             return Task.CompletedTask;
         }
 
-        // P-UX-009: UNIT incorpora una unidad de inmediato; KG/LB abren el
-        // diálogo de cantidad (hasta 3 decimales).
         var quantity = item.Source.Unit == Domain.Products.ProductUnit.Unit
             ? 1_000L
-            : AskQuantity(item.Source);
+            : navigation.AskQuantity(item.Source);
         if (quantity is null)
         {
             return Task.CompletedTask;
@@ -191,7 +197,6 @@ public sealed class TpvViewModel : INotifyPropertyChanged
         return Task.CompletedTask;
     }
 
-    /// <summary>F4: edita la cantidad de la línea seleccionada (diálogo).</summary>
     public Task EditQuantityAsync()
     {
         var line = SelectedLine;
@@ -200,7 +205,7 @@ public sealed class TpvViewModel : INotifyPropertyChanged
             return Task.CompletedTask;
         }
 
-        var quantity = AskQuantity(new ProductDto(
+        var quantity = navigation.AskQuantity(new ProductDto(
             line.ProductId, line.Plu, line.Name, line.Unit, line.UnitPriceCop, 0, true, true));
         if (quantity is null)
         {
@@ -219,7 +224,6 @@ public sealed class TpvViewModel : INotifyPropertyChanged
         return Task.CompletedTask;
     }
 
-    /// <summary>Supr: quita la línea seleccionada.</summary>
     public Task RemoveSelectedLine()
     {
         var line = SelectedLine;
@@ -235,10 +239,6 @@ public sealed class TpvViewModel : INotifyPropertyChanged
         return Task.CompletedTask;
     }
 
-    /// <summary>
-    /// Limpiar: vacío actúa directo; con líneas pregunta primero
-    /// (P-UX-013). Esc nunca descarta: la protección está aquí.
-    /// </summary>
     public Task ClearDraftWithProtectionAsync()
     {
         if (draft.IsEmpty)
@@ -262,7 +262,41 @@ public sealed class TpvViewModel : INotifyPropertyChanged
         return Task.CompletedTask;
     }
 
-    private long? AskQuantity(ProductDto product) => navigation.AskQuantity(product);
+    public Task OpenDiscountAsync() => HandleCheckoutAsync(finalize: false);
+
+    public Task OpenCheckoutAsync() => HandleCheckoutAsync(finalize: true);
+
+    private Task HandleCheckoutAsync(bool finalize)
+    {
+        if (draft.IsEmpty)
+        {
+            return Task.CompletedTask;
+        }
+
+        var result = navigation.ShowCheckout(draft.SubtotalCop, draft.DiscountCop);
+        if (result is null || !result.Confirmed)
+        {
+            return Task.CompletedTask;
+        }
+
+        var discounted = draft.SetDiscount(result.DiscountCop);
+        if (!discounted.IsSuccess)
+        {
+            ErrorMessage = discounted.Error!.Message;
+            return Task.CompletedTask;
+        }
+
+        ErrorMessage = string.Empty;
+        SyncLines();
+
+        if (finalize)
+        {
+            LastConfirmedCheckout = result;
+            // JHO-43 conecta la persistencia transaccional de la venta.
+        }
+
+        return Task.CompletedTask;
+    }
 
     private void SyncLines()
     {
@@ -274,6 +308,11 @@ public sealed class TpvViewModel : INotifyPropertyChanged
 
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SubtotalText)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SubtotalCop)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DiscountText)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TotalText)));
+        ClearDraftCommand.RaiseCanExecuteChanged();
+        OpenDiscountCommand.RaiseCanExecuteChanged();
+        OpenCheckoutCommand.RaiseCanExecuteChanged();
     }
 
     private bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? name = null)
@@ -288,8 +327,6 @@ public sealed class TpvViewModel : INotifyPropertyChanged
         return true;
     }
 }
-
-public sealed record QuantityDialogResult(bool Confirmed, long QuantityMilli);
 
 /// <summary>Row of the TPV search result list (JHO-40): PLU, name, unit, price, stock.</summary>
 public sealed record TpvSearchItemViewModel(

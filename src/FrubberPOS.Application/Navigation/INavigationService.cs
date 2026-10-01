@@ -38,4 +38,10 @@ public interface INavigationService
 
     /// <summary>Quantity dialog for the product (P-UX-009). <c>null</c> = canceled.</summary>
     long? AskQuantity(ProductDto product);
+
+    /// <summary>Checkout modal (P-UX-008, JHO-41). Confirmed = vender; otherwise canceled.</summary>
+    CheckoutResultDto ShowCheckout(long subtotalCop, long pendingDiscountCop);
 }
+
+/// <summary>Checkout modal answer (JHO-41). Whole COP only.</summary>
+public sealed record CheckoutResultDto(bool Confirmed, string PaymentMethod, long ReceivedCop, long ChangeCop, long DiscountCop);

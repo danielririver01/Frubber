@@ -234,6 +234,22 @@ public partial class App : System.Windows.Application, INavigationService
         return window.ShowDialog() == true ? viewModel.ParsedMilli : null;
     }
 
+    public CheckoutResultDto ShowCheckout(long subtotalCop, long pendingDiscountCop)
+    {
+        var viewModel = Resolve<CheckoutViewModel>();
+        var window = new CheckoutDialog(viewModel, subtotalCop, pendingDiscountCop)
+        {
+            Owner = currentWindow
+        };
+        if (window.ShowDialog() != true)
+        {
+            return new CheckoutResultDto(false, "CASH", 0, 0, 0);
+        }
+
+        var result = viewModel.Result;
+        return new CheckoutResultDto(true, result.IsCash ? "CASH" : "TRANSFER", result.ReceivedCop, result.ChangeCop, viewModel.DiscountCop);
+    }
+
     private void OnDispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
     {
         try
