@@ -59,23 +59,30 @@
                                    Margin="0,2,0,10"/>
                         <ListBox x:Name="UsersList" ItemsSource="{Binding Users}"
                                  SelectedItem="{Binding SelectedUser}" MaxHeight="300"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 HorizontalContentAlignment="Stretch"
                                  AutomationProperties.Name="Lista de usuarios">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <DockPanel MinWidth="200">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
                                         <Border Style="{DynamicResource AvatarCircle}" Width="36" Height="36">
                                             <TextBlock Text="{Binding Initials}" FontWeight="Bold" FontSize="13"
                                                        Foreground="{DynamicResource PrimaryBrush}"
                                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         </Border>
-                                        <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
+                                        <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
                                             <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold"/>
                                             <TextBlock Text="{Binding Role, Converter={StaticResource RoleConverter}}"
                                                        FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
                                         </StackPanel>
                                         <!-- Check visible al seleccionar (el color no es el único canal) -->
-                                        <TextBlock DockPanel.Dock="Right" Text="✓" FontWeight="Bold" FontSize="16"
-                                                   Foreground="{DynamicResource PrimaryBrush}" HorizontalAlignment="Right"
+                                        <TextBlock Grid.Column="2" Text="✓" FontWeight="Bold" FontSize="16"
+                                                   Foreground="{DynamicResource PrimaryBrush}"
                                                    VerticalAlignment="Center">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">
@@ -89,7 +96,7 @@
                                                 </Style>
                                             </TextBlock.Style>
                                         </TextBlock>
-                                    </DockPanel>
+                                    </Grid>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
