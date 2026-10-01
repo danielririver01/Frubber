@@ -1,10 +1,12 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using FrubberPOS.Application.Cash;
 using FrubberPOS.Application.Navigation;
 using FrubberPOS.Application.Products;
 using FrubberPOS.Application.Sales;
 using FrubberPOS.Desktop.Common;
+using QtyFormat = FrubberPOS.Desktop.Common.QuantityText;
 
 namespace FrubberPOS.Desktop.ViewModels;
 
@@ -14,33 +16,47 @@ namespace FrubberPOS.Desktop.ViewModels;
 /// canceled or superseded search never overwrites fresher results
 /// (token-based staleness guard). Only active products surface.
 /// Quantities: UNIT adds one unit; KG/LB open the dialog (P-UX-009).
-/// Repeat accumulates in one line; F4 edits, Supr removes, and an empty
-/// clear is direct while a non-empty one asks "¿Descartar esta venta?"
-/// (Esc never discards, P-UX-013). F6 opens discount, F8 checkout,
-/// F9 confirms and Esc cancels (JHO-41). Finalization lands in JHO-43.
+/// Repeat accumulates in one line (re-selected, §8.5); F4 edits, Supr
+/// removes, and an empty clear is direct while a non-empty one asks
+/// "¿Descartar esta venta?" (Esc never discards, P-UX-013). F6 opens
+/// discount, F8 checkout, F9 confirms and Esc cancels (JHO-41).
+/// Checkout requires an open cash session with a persistent warning
+/// (P-UX-010, JHO-44); drafting, discounting and editing stay free.
 /// </summary>
 public sealed class TpvViewModel : INotifyPropertyChanged
 {
+    /// <summary>Persistent P-UX-010 notice while no cash session is open.</summary>
+    public const string NoCashWarningText =
+        "Sin caja abierta: puede preparar la venta, pero no podrá cobrarla. Presione F10 para abrir la caja.";
+
     private readonly SearchProductsForSaleUseCase search;
     private readonly FinalizeSaleUseCase finalizeSale;
+    private readonly GetOpenCashSessionUseCase getOpenCash;
     private readonly INavigationService navigation;
     private readonly DraftSale draft = new();
     private readonly ObservableCollection<TpvSearchItemViewModel> results = [];
-    private readonly ObservableCollection<DraftSaleLine> lines = [];
+    private readonly ObservableCollection<TpvLineItemViewModel> lines = [];
 
     private string searchText = string.Empty;
     private string errorMessage = string.Empty;
     private CancellationTokenSource? searchCts;
     private TpvSearchItemViewModel? selectedResult;
-    private DraftSaleLine? selectedLine;
+    private TpvLineItemViewModel? selectedLine;
+    private bool? cashOpen;
 
-    public TpvViewModel(SearchProductsForSaleUseCase search, FinalizeSaleUseCase finalizeSale, INavigationService navigation)
+    public TpvViewModel(
+        SearchProductsForSaleUseCase search,
+        FinalizeSaleUseCase finalizeSale,
+        GetOpenCashSessionUseCase getOpenCash,
+        INavigationService navigation)
     {
         ArgumentNullException.ThrowIfNull(search);
         ArgumentNullException.ThrowIfNull(finalizeSale);
+        ArgumentNullException.ThrowIfNull(getOpenCash);
         ArgumentNullException.ThrowIfNull(navigation);
         this.search = search;
         this.finalizeSale = finalizeSale;
+        this.getOpenCash = getOpenCash;
         this.navigation = navigation;
 
         SearchCommand = new AsyncCommand(_ => SearchAsync());
@@ -49,7 +65,7 @@ public sealed class TpvViewModel : INotifyPropertyChanged
         RemoveLineCommand = new AsyncCommand(_ => RemoveSelectedLine(), () => SelectedLine is not null);
         ClearDraftCommand = new AsyncCommand(_ => ClearDraftWithProtectionAsync());
         OpenDiscountCommand = new AsyncCommand(_ => OpenDiscountAsync(), () => !draft.IsEmpty);
-        OpenCheckoutCommand = new AsyncCommand(_ => OpenCheckoutAsync(), () => !draft.IsEmpty);
+        OpenCheckoutCommand = new AsyncCommand(_ => OpenCheckoutAsync(), () => !draft.IsEmpty && IsCashOpen);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -61,7 +77,7 @@ public sealed class TpvViewModel : INotifyPropertyChanged
 
     public ObservableCollection<TpvSearchItemViewModel> Results => results;
 
-    public ObservableCollection<DraftSaleLine> Lines => lines;
+    public ObservableCollection<TpvLineItemViewModel> Lines => lines;
 
     public string SearchText
     {
@@ -81,6 +97,14 @@ public sealed class TpvViewModel : INotifyPropertyChanged
         private set => SetProperty(ref errorMessage, value);
     }
 
+    /// <summary>True only after a refresh confirmed an open session; null before the first check.</summary>
+    public bool IsCashOpen => cashOpen == true;
+
+    /// <summary>P-UX-010: persistent warning while no cash session is open.</summary>
+    public bool CashWarningVisible => cashOpen == false;
+
+    public string CashWarningText => cashOpen == false ? NoCashWarningText : string.Empty;
+
     public TpvSearchItemViewModel? SelectedResult
     {
         get => selectedResult;
@@ -93,7 +117,7 @@ public sealed class TpvViewModel : INotifyPropertyChanged
         }
     }
 
-    public DraftSaleLine? SelectedLine
+    public TpvLineItemViewModel? SelectedLine
     {
         get => selectedLine;
         set
@@ -137,6 +161,20 @@ public sealed class TpvViewModel : INotifyPropertyChanged
     public long? LastSaleNumber { get; private set; }
 
     public void RequestFocusSearch() => FocusSearchRequested?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>
+    /// Re-reads the open cash session (P-UX-010, JHO-44) and refreshes the
+    /// checkout gate + warning. Called on every view load and after a sale.
+    /// </summary>
+    public async Task RefreshCashStateAsync()
+    {
+        var result = await getOpenCash.ExecuteAsync(new GetOpenCashSessionRequest(), CancellationToken.None);
+        cashOpen = result.IsSuccess && result.Value.Session is not null;
+        OnPropertyChanged(nameof(IsCashOpen));
+        OnPropertyChanged(nameof(CashWarningVisible));
+        OnPropertyChanged(nameof(CashWarningText));
+        OpenCheckoutCommand.RaiseCanExecuteChanged();
+    }
 
     public async Task SearchAsync()
     {
@@ -198,18 +236,21 @@ public sealed class TpvViewModel : INotifyPropertyChanged
         }
 
         ErrorMessage = string.Empty;
-        SyncLines();
+
+        // §8.5: the table re-selects the line just added/accumulated.
+        SyncLines(item.Source.ProductId);
         return Task.CompletedTask;
     }
 
     public Task EditQuantityAsync()
     {
-        var line = SelectedLine;
-        if (line is null)
+        var selected = SelectedLine;
+        if (selected is null)
         {
             return Task.CompletedTask;
         }
 
+        var line = selected.Line;
         var quantity = navigation.AskQuantity(new ProductDto(
             line.ProductId, line.Plu, line.Name, line.Unit, line.UnitPriceCop, 0, true, true));
         if (quantity is null)
@@ -225,19 +266,19 @@ public sealed class TpvViewModel : INotifyPropertyChanged
         }
 
         ErrorMessage = string.Empty;
-        SyncLines();
+        SyncLines(line.ProductId);
         return Task.CompletedTask;
     }
 
     public Task RemoveSelectedLine()
     {
-        var line = SelectedLine;
-        if (line is null)
+        var selected = SelectedLine;
+        if (selected is null)
         {
             return Task.CompletedTask;
         }
 
-        draft.RemoveLine(line.ProductId);
+        draft.RemoveLine(selected.Line.ProductId);
         SelectedLine = null;
         ErrorMessage = string.Empty;
         SyncLines();
@@ -276,6 +317,15 @@ public sealed class TpvViewModel : INotifyPropertyChanged
         if (draft.IsEmpty)
         {
             ErrorMessage = "No hay productos en la venta.";
+            return;
+        }
+
+        // P-UX-010: only finalization is blocked without an open cash
+        // session; discounting stays available. Command gate is the
+        // primary guard — this protects direct calls too.
+        if (finalize && !IsCashOpen)
+        {
+            ErrorMessage = NoCashWarningText;
             return;
         }
 
@@ -319,16 +369,25 @@ public sealed class TpvViewModel : INotifyPropertyChanged
         draft.Clear();
         SelectedLine = null;
         SyncLines();
+        await RefreshCashStateAsync();
     }
 
-    private void SyncLines()
+    private void SyncLines(long? selectProductId = null)
     {
         lines.Clear();
+        var number = 0;
+        TpvLineItemViewModel? toSelect = null;
         foreach (var line in draft.Lines)
         {
-            lines.Add(line);
+            var item = new TpvLineItemViewModel(++number, line);
+            lines.Add(item);
+            if (selectProductId is not null && line.ProductId == selectProductId.Value)
+            {
+                toSelect = item;
+            }
         }
 
+        SelectedLine = toSelect;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SubtotalText)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SubtotalCop)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DiscountText)));
@@ -337,6 +396,9 @@ public sealed class TpvViewModel : INotifyPropertyChanged
         OpenDiscountCommand.RaiseCanExecuteChanged();
         OpenCheckoutCommand.RaiseCanExecuteChanged();
     }
+
+    private void OnPropertyChanged([CallerMemberName] string? name = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
     private bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? name = null)
     {
@@ -372,4 +434,27 @@ public sealed record TpvSearchItemViewModel(
             MoneyText.FormatCop(dto.PriceCop),
             QuantityText.Format(dto.StockMilli, unit) + " " + dto.UnitCode);
     }
+}
+
+/// <summary>
+/// Draft-line row for the TPV table (§8.6, JHO-44): line number, product,
+/// quantity formatted with its unit, unit price and line total — all text,
+/// never raw thousandths (ADR-009 shows money already formatted).
+/// </summary>
+public sealed record TpvLineItemViewModel(int Number, DraftSaleLine Line)
+{
+    public long ProductId => Line.ProductId;
+
+    public long QuantityMilli => Line.QuantityMilli;
+
+    public long LineTotalCop => Line.LineTotalCop;
+
+    public string Name => Line.Name;
+
+    public string QuantityText =>
+        QtyFormat.Format(Line.QuantityMilli, Line.Unit) + " " + Domain.Products.ProductUnits.ToCode(Line.Unit);
+
+    public string PriceText => MoneyText.FormatCop(Line.UnitPriceCop);
+
+    public string TotalText => MoneyText.FormatCop(Line.LineTotalCop);
 }

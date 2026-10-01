@@ -1,9 +1,12 @@
+using Dapper;
+using FrubberPOS.Application.Cash;
 using FrubberPOS.Application.Common;
 using FrubberPOS.Application.Products;
 using FrubberPOS.Application.Sales;
 using FrubberPOS.Desktop.ViewModels;
 using FrubberPOS.Tests.Products;
 using FrubberPOS.Tests.TestDoubles;
+using Microsoft.Data.Sqlite;
 
 namespace FrubberPOS.Tests.Sales;
 
@@ -15,7 +18,18 @@ public sealed class TpvViewModelTests
         return (new TpvViewModel(
             new SearchProductsForSaleUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()),
             new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock),
+            new GetOpenCashSessionUseCase(bed.Sessions, bed.Units, ProductTestBed.AdminSession()),
             nav), nav);
+    }
+
+    private static async Task SeedAdminUserAsync(ProductTestBed bed)
+    {
+        await using var connection = new SqliteConnection($"Data Source={bed.DbPath}");
+        await connection.OpenAsync();
+        await connection.ExecuteAsync(
+            "INSERT INTO \"User\" (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
+            + " VALUES (1, 'Admin', 'ADMIN', 1, @Salt, @Hash, 1, 1);",
+            new { Salt = new byte[16], Hash = new byte[32] });
     }
 
     [Fact]
@@ -203,5 +217,87 @@ public sealed class TpvViewModelTests
 
         Assert.Equal(1, fired);
         await vm.SearchAsync();
+    }
+
+    [Fact]
+    public async Task RefreshCash_NoOpenSession_ShowsWarningAndBlocksOnlyCheckout()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        await new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()).ExecuteAsync(
+            new CreateProductRequest("L1", "Leche", Domain.Products.ProductUnit.Unit, 4_200, 0), CancellationToken.None);
+
+        var (vm, _) = Build(bed);
+        await vm.RefreshCashStateAsync();
+        await vm.SearchAsync();
+        vm.SelectedResult = vm.Results.Single();
+        await vm.AddSelectedAsync();
+
+        Assert.False(vm.IsCashOpen);
+        Assert.True(vm.CashWarningVisible);
+        Assert.Contains("Sin caja abierta", vm.CashWarningText);
+        Assert.False(vm.OpenCheckoutCommand.CanExecute(null));
+        Assert.Single(vm.Lines); // preparar no se bloquea (P-UX-010)
+        Assert.True(vm.OpenDiscountCommand.CanExecute(null)); // descuento libre
+    }
+
+    [Fact]
+    public async Task RefreshCash_OpenSession_HidesWarningAndEnablesCheckout()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        await new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()).ExecuteAsync(
+            new CreateProductRequest("L1", "Leche", Domain.Products.ProductUnit.Unit, 4_200, 0), CancellationToken.None);
+        await SeedAdminUserAsync(bed);
+        await new OpenCashSessionUseCase(bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock)
+            .ExecuteAsync(new OpenCashSessionRequest(0), CancellationToken.None);
+
+        var (vm, _) = Build(bed);
+        await vm.RefreshCashStateAsync();
+        await vm.SearchAsync();
+        vm.SelectedResult = vm.Results.Single();
+        await vm.AddSelectedAsync();
+
+        Assert.True(vm.IsCashOpen);
+        Assert.False(vm.CashWarningVisible);
+        Assert.Equal(string.Empty, vm.CashWarningText);
+        Assert.True(vm.OpenCheckoutCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task AddSameProductTwice_SelectsAccumulatedLine()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        await new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()).ExecuteAsync(
+            new CreateProductRequest("L1", "Leche", Domain.Products.ProductUnit.Unit, 4_200, 0), CancellationToken.None);
+
+        var (vm, _) = Build(bed);
+        await vm.SearchAsync();
+        vm.SelectedResult = vm.Results.Single();
+
+        await vm.AddSelectedAsync();
+        await vm.AddSelectedAsync();
+
+        Assert.NotNull(vm.SelectedLine); // §8.5 re-selecciona la línea acumulada
+        Assert.Equal(1, vm.SelectedLine!.Number);
+        Assert.Equal(2_000, vm.SelectedLine.QuantityMilli);
+    }
+
+    [Fact]
+    public async Task Lines_ExposeFormattedColumns()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        await new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()).ExecuteAsync(
+            new CreateProductRequest("M1", "Mango", Domain.Products.ProductUnit.Kg, 6_000, 0), CancellationToken.None);
+
+        var (vm, nav) = Build(bed);
+        nav.NextQuantityMilli = 1_250;
+        await vm.SearchAsync();
+        vm.SelectedResult = vm.Results.Single();
+        await vm.AddSelectedAsync();
+
+        var line = Assert.Single(vm.Lines);
+        Assert.Equal(1, line.Number);
+        Assert.Equal("1.25 KG", line.QuantityText); // §8.6 cantidad con unidad (ceros finales recortados)
+        Assert.Equal("$ 6.000", line.PriceText);
+        Assert.Equal("$ 7.500", line.TotalText);
     }
 }

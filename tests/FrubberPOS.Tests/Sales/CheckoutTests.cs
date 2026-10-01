@@ -104,6 +104,7 @@ public sealed class TpvViewModelCheckoutTests
         return (new TpvViewModel(
             new SearchProductsForSaleUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()),
             new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock),
+            new GetOpenCashSessionUseCase(bed.Sessions, bed.Units, ProductTestBed.AdminSession()),
             nav), nav);
     }
 
@@ -137,6 +138,7 @@ public sealed class TpvViewModelCheckoutTests
 
         var (vm, nav) = Build(bed);
         await OpenCashAsync(bed);
+        await vm.RefreshCashStateAsync();
         await vm.SearchAsync();
         vm.SelectedResult = vm.Results.Single();
         await vm.AddSelectedAsync();
@@ -156,6 +158,8 @@ public sealed class TpvViewModelCheckoutTests
             new CreateProductRequest("L1", "Leche", Domain.Products.ProductUnit.Unit, 4_200, 24_000), CancellationToken.None);
 
         var (vm, nav) = Build(bed);
+        await OpenCashAsync(bed);
+        await vm.RefreshCashStateAsync();
         await vm.SearchAsync();
         vm.SelectedResult = vm.Results.Single();
         await vm.AddSelectedAsync();

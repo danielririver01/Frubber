@@ -3,10 +3,17 @@ using FrubberPOS.Desktop.ViewModels;
 
 namespace FrubberPOS.Desktop.Views;
 
-/// <summary>TPV draft sale (JHO-40): F2 focuses the search (P-UX-011).</summary>
+/// <summary>
+/// TPV draft sale (JHO-40, JHO-44): F2 focuses the search, F4 edits the
+/// selected quantity, Supr removes it, F6 opens the discount, F8 opens
+/// checkout (P-UX-011); Enter in the search box adds the first result.
+/// Cash state refreshes on every load so the P-UX-010 warning stays true
+/// after visiting the cash screen (F10).
+/// </summary>
 public partial class TpvView : System.Windows.Controls.UserControl
 {
     private readonly TpvViewModel viewModel;
+    private bool loadedOnce;
 
     public TpvView(TpvViewModel viewModel)
     {
@@ -44,12 +51,47 @@ public partial class TpvView : System.Windows.Controls.UserControl
             return;
         }
 
+        // Supr removes the selected line, but never while typing a search.
+        if (e.Key == Key.Delete && !SearchBox.IsKeyboardFocusWithin)
+        {
+            viewModel.RemoveLineCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.F4)
+        {
+            viewModel.EditQuantityCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.F6)
+        {
+            viewModel.OpenDiscountCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.F8)
+        {
+            viewModel.OpenCheckoutCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
         base.OnPreviewKeyDown(e);
     }
 
     private async void OnLoaded(object sender, System.Windows.RoutedEventArgs e)
     {
-        Loaded -= OnLoaded;
+        await viewModel.RefreshCashStateAsync();
+        if (loadedOnce)
+        {
+            return;
+        }
+
+        loadedOnce = true;
         await viewModel.SearchAsync();
         SearchBox.Focus();
     }

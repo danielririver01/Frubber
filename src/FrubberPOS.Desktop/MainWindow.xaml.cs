@@ -25,13 +25,18 @@ public partial class MainWindow : Window
 
     private void OnKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.F10)
+        // F10 can arrive as a system key (WM_SYSKEYDOWN), so accept both forms.
+        var isF10 = e.Key == Key.F10 || (e.Key == Key.System && e.SystemKey == Key.F10);
+        if (!isF10)
         {
-            var caja = viewModel.MenuItems.FirstOrDefault(m => m.Title == "Caja");
-            if (caja is not null)
-            {
-                viewModel.SelectedEntry = caja;
-            }
+            return;
+        }
+
+        var caja = viewModel.MenuItems.FirstOrDefault(m => m.Title == "Caja");
+        if (caja is not null)
+        {
+            viewModel.SelectedEntry = caja;
+            e.Handled = true;
         }
     }
 }
