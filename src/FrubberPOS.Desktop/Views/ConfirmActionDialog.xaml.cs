@@ -4,18 +4,20 @@ using System.Windows.Input;
 namespace FrubberPOS.Desktop.Views;
 
 /// <summary>
-/// Void confirmation (JHO-46, P-UX §13.4, RN-HIS-010): advierte el
-/// reintegro de inventario y no pide motivo. F9 confirma; Esc cancela.
+/// Destructive-action confirmation (JHO-50, P-UX-012/013): the button
+/// names the action and the message names the object and consequence —
+/// never a bare "Sí". F9 confirms, Esc cancels.
 /// </summary>
-public partial class ConfirmVoidDialog : Window
+public partial class ConfirmActionDialog : Window
 {
-    public ConfirmVoidDialog(long saleNumber)
+    public ConfirmActionDialog(string title, string message, string confirmActionText)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(confirmActionText);
         InitializeComponent();
-        MessageText.Text =
-            $"¿Anular la venta V-{saleNumber:D6}? Se reintegrará el inventario vendido"
-            + " y la venta quedará marcada como anulada en el historial."
-            + " Esta acción no se puede deshacer. (F9 confirma)";
+        Title = $"Frubber POS — {title}";
+        TitleText.Text = title;
+        MessageText.Text = message;
+        ConfirmButton.Content = confirmActionText;
     }
 
     private void OnConfirm(object sender, RoutedEventArgs e)

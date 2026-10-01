@@ -195,35 +195,38 @@ public partial class App : System.Windows.Application, INavigationService
     public bool ConfirmProductDeletion(ProductDto product)
     {
         ArgumentNullException.ThrowIfNull(product);
-        var answer = MessageBox.Show(
-            currentWindow,
-            $"¿Eliminar «{product.Name}» ({product.Plu})? Esta acción no se puede deshacer.",
-            "Frubber POS — Eliminar producto",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Warning);
-        return answer == MessageBoxResult.Yes;
+        var dialog = new ConfirmActionDialog(
+            "Eliminar producto",
+            $"¿Eliminar «{product.Name}» ({product.Plu})? El producto se quitará del catálogo y esta acción no se puede deshacer. (F9 confirma)",
+            "Eliminar producto")
+        {
+            Owner = currentWindow
+        };
+        return dialog.ShowDialog() == true;
     }
 
     public bool ConfirmCashClosure()
     {
-        var answer = MessageBox.Show(
-            currentWindow,
-            "¿Cerrar la caja? Esta acción es irreversible y conservará el resumen histórico.",
-            "Frubber POS — Cerrar caja",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Warning);
-        return answer == MessageBoxResult.Yes;
+        var dialog = new ConfirmActionDialog(
+            "Cerrar caja",
+            "¿Cerrar la caja? El cierre es irreversible y conservará el resumen histórico de la sesión. (F9 confirma)",
+            "Cerrar caja")
+        {
+            Owner = currentWindow
+        };
+        return dialog.ShowDialog() == true;
     }
 
     public bool ConfirmDiscardDraft()
     {
-        var answer = MessageBox.Show(
-            currentWindow,
-            "¿Descartar esta venta?",
-            "Frubber POS — Venta en preparación",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Warning);
-        return answer == MessageBoxResult.Yes;
+        var dialog = new ConfirmActionDialog(
+            "Descartar venta",
+            "¿Descartar esta venta? Se perderán las líneas en preparación. (F9 confirma)",
+            "Descartar venta")
+        {
+            Owner = currentWindow
+        };
+        return dialog.ShowDialog() == true;
     }
 
     public long? AskQuantity(ProductDto product)
@@ -287,11 +290,15 @@ public partial class App : System.Windows.Application, INavigationService
 
     public bool ConfirmSaleVoid(long saleNumber)
     {
-        var window = new ConfirmVoidDialog(saleNumber)
+        var dialog = new ConfirmActionDialog(
+            "Anular venta",
+            $"¿Anular la venta V-{saleNumber:D6}? Se reintegrará el inventario vendido y la venta quedará"
+                + " marcada como anulada en el historial. Esta acción no se puede deshacer. (F9 confirma)",
+            "Anular venta")
         {
             Owner = currentWindow
         };
-        return window.ShowDialog() == true;
+        return dialog.ShowDialog() == true;
     }
 
     public string? AskBackupDestination()
