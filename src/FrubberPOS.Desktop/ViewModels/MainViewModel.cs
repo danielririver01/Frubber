@@ -53,7 +53,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private object? backupPage;
     private bool cashPillVisible;
 
-    public MainViewModel(SignedInUser user, SignOutUseCase signOut, INavigationService navigation, Func<object>? productsPageFactory = null, Func<object>? cashPageFactory = null, Func<object>? tpvPageFactory = null, Func<object>? historyPageFactory = null, Func<object>? settingsPageFactory = null, Func<object>? backupPageFactory = null, string? licenseBadgeText = null, Func<CancellationToken, Task<bool>>? cashOpenProbe = null)
+    public MainViewModel(SignedInUser user, SignOutUseCase signOut, INavigationService navigation, Func<object>? productsPageFactory = null, Func<object>? cashPageFactory = null, Func<object>? tpvPageFactory = null, Func<object>? historyPageFactory = null, Func<object>? settingsPageFactory = null, Func<object>? backupPageFactory = null, string? licenseBadgeText = null, Func<CancellationToken, Task<bool>>? cashOpenProbe = null, bool isLicensed = false)
     {
         ArgumentNullException.ThrowIfNull(user);
         ArgumentNullException.ThrowIfNull(signOut);
@@ -75,7 +75,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
         LicenseBadgeText = licenseBadgeText;
 
         MenuItems = new ObservableCollection<MenuEntry>(
-            AllEntries.Where(e => !e.AdminOnly || IsAdmin));
+            AllEntries.Where(e => !e.AdminOnly || IsAdmin)
+                      // Con licencia vitalicia activa el menú Licencia sobra (fig. 1: solo aparece si hay algo que gestionar).
+                      .Where(e => e.Title != "Licencia" || !isLicensed));
 
         NavigateCommand = new RelayCommand(() => ShowSelected());
         SignOutCommand = new AsyncCommand(_ => SignOutAsync());

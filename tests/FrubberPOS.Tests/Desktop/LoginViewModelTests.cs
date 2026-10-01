@@ -1,3 +1,4 @@
+using Dapper;
 using FrubberPOS.Application.Authentication;
 using FrubberPOS.Application.Licensing;
 using FrubberPOS.Application.Trial;
@@ -91,7 +92,7 @@ public sealed class LoginViewModelTests
             viewModel.EnterDigit(digit);
         }
 
-        await viewModel.LoginAsync();
+        await WaitForAsync(() => !string.IsNullOrEmpty(viewModel.ErrorMessage));
 
         Assert.Equal("Usuario o PIN inválidos.", viewModel.ErrorMessage);
         Assert.Equal(string.Empty, viewModel.Pin);
@@ -100,7 +101,7 @@ public sealed class LoginViewModelTests
     }
 
     [Fact]
-    public async Task CorrectPin_NavigatesToShell()
+    public async Task CorrectPin_EntersAutomaticallyOnFourthDigit()
     {
         await using var bed = await AuthenticationTestBed.CreateAsync();
         var navigator = new FakeNavigator();
@@ -113,10 +114,10 @@ public sealed class LoginViewModelTests
             viewModel.EnterDigit(digit);
         }
 
-        await viewModel.LoginAsync();
+        // Sin Enter ni botón: el cuarto dígito intenta entrar directo.
+        await WaitForAsync(() => navigator.ShellCount == 1);
 
         Assert.Equal(string.Empty, viewModel.ErrorMessage);
-        Assert.Equal(1, navigator.ShellCount);
         Assert.Equal(2, navigator.LastShellUser!.UserId);
     }
 
@@ -154,6 +155,37 @@ public sealed class LoginViewModelTests
         await viewModel.LoadTrialAsync();
 
         Assert.Equal("Versión de prueba — quedan 30 días.", viewModel.TrialLine);
+    }
+
+    [Fact]
+    public async Task SingleActiveUser_IsPreselected()
+    {
+        await using var bed = await AuthenticationTestBed.CreateAsync();
+        // Dejar un solo usuario activo (escenario "primer administrador").
+        await using (var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={bed.DbPath}"))
+        {
+            await connection.OpenAsync();
+            await connection.ExecuteAsync("UPDATE \"User\" SET IsActive = 0 WHERE UserId IN (2, 3);");
+        }
+
+        var viewModel = Build(bed, new FakeNavigator());
+        await viewModel.LoadUsersAsync();
+
+        Assert.Single(viewModel.Users);
+        Assert.NotNull(viewModel.SelectedUser);
+        Assert.Equal(1, viewModel.SelectedUser!.UserId);
+        Assert.Equal("Admin · Administrador", viewModel.SelectedUserLabel);
+    }
+
+    private static async Task WaitForAsync(Func<bool> condition)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+        while (!condition() && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(20);
+        }
+
+        Assert.True(condition(), "La condición no se cumplió en 5 segundos.");
     }
 
     private static LoginViewModel Build(AuthenticationTestBed bed, FakeNavigator navigator) =>

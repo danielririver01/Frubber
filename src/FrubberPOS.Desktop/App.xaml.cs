@@ -185,7 +185,8 @@ public partial class App : System.Windows.Application, INavigationService
                 var open = await provider!.GetRequiredService<Application.Cash.GetOpenCashSessionUseCase>()
                     .ExecuteAsync(new Application.Cash.GetOpenCashSessionRequest(), cancellationToken);
                 return open.IsSuccess && open.Value.Session is not null;
-            })));
+            },
+            trialIsLicensed)));
     }
 
     public bool ShowProductEditor(ProductDto? existing)

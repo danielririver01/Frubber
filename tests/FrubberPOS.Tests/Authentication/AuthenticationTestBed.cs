@@ -46,6 +46,8 @@ internal sealed class AuthenticationTestBed : IAsyncDisposable
 
     public SqliteUnitOfWorkFactory Units { get; }
 
+    public string DbPath => path;
+
     /// <summary>
     /// Fresh admin-signed session for admin-only use cases. Never touches
     /// <see cref="Session"/> (login tests need it unsigned).

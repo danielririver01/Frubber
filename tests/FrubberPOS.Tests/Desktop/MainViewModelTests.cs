@@ -84,6 +84,22 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
+    public void LicensedAdmin_MenuHidesLicenseEntry()
+    {
+        var navigator = new FakeNavigator();
+        var viewModel = new MainViewModel(
+            new SignedInUser(1, "Admin", UserRole.Admin),
+            new SignOutUseCase(new FakeCurrentSession()),
+            navigator,
+            licenseBadgeText: "Licencia vitalicia",
+            isLicensed: true);
+
+        Assert.DoesNotContain(viewModel.MenuItems, m => m.Title == "Licencia");
+        Assert.Equal("Licencia vitalicia", viewModel.LicenseBadgeText);
+        Assert.True(viewModel.LicenseBadgeVisible);
+    }
+
+    [Fact]
     public async Task SignOut_ClearsSessionAndShowsLogin()
     {
         var session = new FakeCurrentSession();

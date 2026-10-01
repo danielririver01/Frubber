@@ -136,6 +136,12 @@ public sealed class LoginViewModel : INotifyPropertyChanged
             Users.Add(user);
         }
 
+        // UX: con un solo usuario la selección sobra — queda preseleccionado.
+        if (Users.Count == 1)
+        {
+            SelectedUser = Users[0];
+        }
+
         ErrorMessage = string.Empty;
     }
 
@@ -165,6 +171,13 @@ public sealed class LoginViewModel : INotifyPropertyChanged
         }
 
         Pin += digit;
+
+        // UX: al completar los 4 dígitos se intenta entrar directo,
+        // sin exigir Enter (un PIN correcto y uno incorrecto se resuelven igual).
+        if (Pin.Length == PinLength && LoginCommand.CanExecute(null))
+        {
+            LoginCommand.Execute(null);
+        }
     }
 
     public void Backspace()
