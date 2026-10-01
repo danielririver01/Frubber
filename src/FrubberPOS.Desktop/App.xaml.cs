@@ -165,7 +165,8 @@ public partial class App : System.Windows.Application, INavigationService
             Resolve<SignOutUseCase>(),
             this,
             () => new ProductsView(Resolve<ProductsViewModel>()),
-            () => new CashView(Resolve<CashViewModel>()))));
+            () => new CashView(Resolve<CashViewModel>()),
+            () => new TpvView(Resolve<TpvViewModel>()))));
 
     public bool ShowProductEditor(ProductDto? existing)
     {

@@ -6,6 +6,7 @@ using FrubberPOS.Application.Logging;
 using FrubberPOS.Application.Navigation;
 using FrubberPOS.Application.Persistence;
 using FrubberPOS.Application.Products;
+using FrubberPOS.Application.Sales;
 using FrubberPOS.Application.Security;
 using FrubberPOS.Application.Startup;
 using FrubberPOS.Application.System;
@@ -87,6 +88,7 @@ public static class ServiceConfiguration
         services.AddTransient<GetOpenCashSessionUseCase>();
         services.AddTransient<CloseCashSessionUseCase>();
         services.AddTransient<GetCashSessionSummaryUseCase>();
+        services.AddTransient<SearchProductsForSaleUseCase>();
         services.AddTransient<LoginViewModel>();
         services.AddTransient<FirstStartViewModel>();
         services.AddTransient<LicenseActivationViewModel>();
@@ -94,6 +96,7 @@ public static class ServiceConfiguration
         services.AddTransient<AdjustStockViewModel>();
         services.AddTransient<ProductsViewModel>();
         services.AddTransient<ProductEditorViewModel>();
+        services.AddTransient<TpvViewModel>();
         services.AddTransient<CashViewModel>();
 
         return services;
