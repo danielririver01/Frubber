@@ -100,6 +100,7 @@ public static class ServiceConfiguration
         services.AddTransient<FinalizeSaleUseCase>();
         services.AddTransient<GetTicketForSaleUseCase>();
         services.AddTransient<SearchSalesHistoryUseCase>();
+        services.AddTransient<GetSaleDetailUseCase>();
         services.AddTransient<LoginViewModel>();
         services.AddTransient<FirstStartViewModel>();
         services.AddTransient<LicenseActivationViewModel>();

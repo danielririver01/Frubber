@@ -21,7 +21,43 @@ public sealed record SaleHistoryPage(
     IReadOnlyList<SaleHistoryItemDto> Items,
     int TotalCount);
 
-/// <summary>Sale history read port (JHO-47). Read-only queries only.</summary>
+/// <summary>
+/// One historical detail line (RN-HIS-002): PLU, name, unit, quantity,
+/// price and amount frozen at sale time — never the current catalog.
+/// </summary>
+public sealed record SaleDetailLineDto(
+    int LineNumber,
+    string Plu,
+    string Name,
+    string UnitCode,
+    long QuantityMilli,
+    long UnitPriceCop,
+    long LineTotalCop);
+
+/// <summary>
+/// Full sale detail as it happened (JHO-48, RN-HIS-001/002): financial
+/// header, cash session, cashier, lines and payment. Voided sales carry
+/// the administrator and the void moment. Read-only by construction.
+/// </summary>
+public sealed record SaleDetailDto(
+    long SaleNumber,
+    int CashSessionId,
+    string CashierName,
+    long SoldAtUtcMs,
+    int SoldAtOffsetMinutes,
+    long SubtotalCop,
+    long DiscountCop,
+    long TotalCop,
+    string PaymentMethod,
+    long? ReceivedCop,
+    long? ChangeCop,
+    string Status,
+    long? VoidedAtUtcMs,
+    int? VoidedAtOffsetMinutes,
+    string? VoidedByAdminName,
+    IReadOnlyList<SaleDetailLineDto> Lines);
+
+/// <summary>Sale history read port (JHO-47/48). Read-only queries only.</summary>
 public interface ISaleHistoryRepository
 {
     /// <summary>
@@ -34,4 +70,7 @@ public interface ISaleHistoryRepository
         int skip,
         int take,
         CancellationToken cancellationToken);
+
+    /// <summary>Full historical detail; <c>null</c> when the number is unknown.</summary>
+    Task<SaleDetailDto?> FindDetailAsync(IUnitOfWork unit, long saleNumber, CancellationToken cancellationToken);
 }
