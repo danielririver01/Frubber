@@ -218,6 +218,10 @@ public sealed class TpvViewModel : INotifyPropertyChanged
             {
                 results.Add(TpvSearchItemViewModel.From(item));
             }
+
+            // JHO-60: la pantalla abre con todo el catálogo activo (consulta
+            // vacía = todo) y el primer resultado listo para Enter.
+            SelectedResult = results.FirstOrDefault();
         }
         catch (OperationCanceledException)
         {

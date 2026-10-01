@@ -54,6 +54,21 @@ public sealed class SalesHistoryViewModelTests
     }
 
     [Fact]
+    public async Task Initialize_LoadsTodayWithoutPressingBuscar()
+    {
+        await using var bed = await BedWithSalesAsync(2);
+        var (vm, _) = Build(bed);
+        // Sin tocar Desde/Hasta ni Buscar: la página autocarga (JHO-60).
+        vm.FromText = "30/09/2026";
+        vm.ToText = "30/09/2026";
+
+        await vm.InitializeAsync();
+
+        Assert.Equal(2, vm.Items.Count);
+        Assert.Equal(string.Empty, vm.ErrorMessage);
+    }
+
+    [Fact]
     public async Task InvalidDates_ShowMessageAndDoNotSearch()
     {
         await using var bed = await ProductTestBed.CreateAsync();

@@ -11,11 +11,23 @@ namespace FrubberPOS.Desktop.Views;
 /// </summary>
 public partial class SalesHistoryView : UserControl
 {
+    private bool loadedOnce;
+
     public SalesHistoryView(SalesHistoryViewModel viewModel)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
         DataContext = viewModel;
         InitializeComponent();
+        Loaded += async (_, _) =>
+        {
+            if (loadedOnce)
+            {
+                return;
+            }
+
+            loadedOnce = true;
+            await viewModel.InitializeAsync(); // JHO-60: carga al entrar
+        };
     }
 
     private SalesHistoryViewModel ViewModel => (SalesHistoryViewModel)DataContext;

@@ -36,6 +36,24 @@ public sealed class TpvViewModelTests
     }
 
     [Fact]
+    public async Task EmptySearch_ListsAllActive_AndPreselectsFirst()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        var create = new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession());
+        await create.ExecuteAsync(new CreateProductRequest("M1", "Mango", Domain.Products.ProductUnit.Kg, 4_500, 0), CancellationToken.None);
+        await create.ExecuteAsync(new CreateProductRequest("L1", "Leche", Domain.Products.ProductUnit.Unit, 4_200, 24_000), CancellationToken.None);
+
+        var (vm, _, _) = Build(bed);
+
+        // JHO-60: sin escribir nada, el TPV muestra todo el catálogo activo.
+        Assert.Equal(string.Empty, vm.SearchText);
+        await vm.SearchAsync();
+
+        Assert.Equal(2, vm.Results.Count);
+        Assert.NotNull(vm.SelectedResult); // listo para Enter
+    }
+
+    [Fact]
     public async Task Search_PopulatesResultsWithActiveOnly()
     {
         await using var bed = await ProductTestBed.CreateAsync();

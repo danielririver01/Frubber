@@ -99,6 +99,8 @@ public sealed class SalesHistoryViewModel : INotifyPropertyChanged
 
     public AsyncCommand OpenDetailCommand { get; }
 
+    /// <summary>JHO-60: la página carga el rango por defecto (hoy) sin pulsar Buscar.</summary>
+    public Task InitializeAsync() => SearchAsync(1);
     public async Task SearchAsync(int targetPage = 1)
     {
         if (!TryParseDate(FromText, out var from) || !TryParseDate(ToText, out var to))
