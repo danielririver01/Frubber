@@ -5,14 +5,17 @@
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
     </UserControl.Resources>
     <DockPanel>
-        <!-- Buscador en tarjeta con hint F2 (P-UX-002) -->
-        <Border DockPanel.Dock="Top" Style="{DynamicResource Card}" Padding="8" Margin="0,0,0,10">
+        <!-- Buscador: 42px, lupa a la izquierda, chip F2 a la derecha (DESIGN.md §1) -->
+        <Border DockPanel.Dock="Top" Style="{DynamicResource Card}" Padding="4" Margin="0,0,0,10">
             <DockPanel>
-                <Border DockPanel.Dock="Right" Style="{DynamicResource PillMint}" Padding="8,2"
-                        VerticalAlignment="Center" Margin="8,0,0,0">
-                    <TextBlock Text="F2" Style="{DynamicResource PillText}"/>
+                <TextBlock DockPanel.Dock="Left" Text="⌕" FontSize="16"
+                           Foreground="{DynamicResource MutedTextBrush}"
+                           VerticalAlignment="Center" Margin="8,0,0,0"/>
+                <Border DockPanel.Dock="Right" Style="{DynamicResource ShortcutChip}" Margin="4">
+                    <TextBlock Text="F2" Style="{DynamicResource ShortcutText}"/>
                 </Border>
                 <TextBox x:Name="SearchBox" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                         BorderThickness="0" MinHeight="42"
                          AutomationProperties.Name="Buscar producto"
                          ToolTip="Buscar por PLU o nombre (F2)"/>
             </DockPanel>
@@ -20,8 +23,8 @@
 
         <!-- Aviso persistente sin caja (P-UX-010, JHO-44): solo bloquea cobrar -->
         <Border DockPanel.Dock="Top" Background="{DynamicResource WarnSoftBrush}"
-                BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1"
-                CornerRadius="8" Padding="12,8" Margin="0,0,0,10"
+                BorderBrush="#FDE68A" BorderThickness="1"
+                CornerRadius="6" Padding="12,8" Margin="0,0,0,10"
                 Visibility="{Binding CashWarningVisible, Converter={StaticResource BoolToVis}}"
                 AutomationProperties.Name="Aviso de caja cerrada">
             <TextBlock Text="{Binding CashWarningText}" Foreground="{DynamicResource WarningBrush}"
@@ -34,30 +37,32 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- Resultados -->
-            <Border Grid.Row="0" Style="{DynamicResource Card}" Padding="0,0,0,8" Margin="0,0,0,10">
+            <!-- RESULTADOS -->
+            <Border Grid.Row="0" Style="{DynamicResource Card}" Padding="0,10,0,8" Margin="0,0,0,10">
                 <DockPanel>
-                    <TextBlock DockPanel.Dock="Top" Text="Resultados" FontWeight="SemiBold"
-                               FontSize="15" Margin="16,12,16,8"/>
+                    <TextBlock DockPanel.Dock="Top" Text="RESULTADOS" Style="{DynamicResource ColumnCaption}"
+                               Margin="16,0,16,6"/>
                     <DataGrid ItemsSource="{Binding Results}" SelectedItem="{Binding SelectedResult}"
                               AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
                               HeadersVisibility="Column" CanUserAddRows="False"
                               AutomationProperties.Name="Resultados de búsqueda">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="PLU" Binding="{Binding Plu}" Width="90"/>
-                            <DataGridTextColumn Header="Producto" Binding="{Binding Name}" Width="*"/>
-                            <DataGridTextColumn Header="Unidad" Binding="{Binding UnitCode}" Width="90"/>
-                            <DataGridTextColumn Header="Precio" Binding="{Binding PriceText}" Width="110">
+                            <DataGridTextColumn Header="PRODUCTO" Binding="{Binding Name}" Width="*"/>
+                            <DataGridTextColumn Header="UNIDAD" Binding="{Binding UnitCode}" Width="90"/>
+                            <DataGridTextColumn Header="PRECIO" Binding="{Binding PriceText}" Width="110">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="Typography.NumeralStyle" Value="Tabular"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Existencia" Binding="{Binding StockText}" Width="120">
+                            <DataGridTextColumn Header="EXISTENCIA" Binding="{Binding StockText}" Width="120">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="Typography.NumeralStyle" Value="Tabular"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
@@ -67,76 +72,129 @@
             </Border>
 
             <!-- Venta en preparación -->
-            <Border Grid.Row="1" Style="{DynamicResource Card}" Padding="0">
+            <Border Grid.Row="1" Style="{DynamicResource Card}" Padding="0,10,0,0">
                 <DockPanel>
-                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="16,12,16,10">
-                        <TextBlock Text="Venta en preparación" FontWeight="SemiBold" FontSize="15"
-                                   VerticalAlignment="Center"/>
-                        <Button Content="Limpiar" Command="{Binding ClearDraftCommand}"
-                                Style="{DynamicResource SecondaryButton}" MinHeight="32" FontSize="13"
-                                Padding="12,4" Margin="0,0,8,0"/>
-                        <Button Content="Cantidad F4" Command="{Binding EditQuantityCommand}"
-                                Style="{DynamicResource SecondaryButton}" MinHeight="32" FontSize="13"
-                                Padding="12,4" Margin="0,0,8,0" ToolTip="Editar cantidad (F4)"/>
-                        <Button Content="Quitar Supr" Command="{Binding RemoveLineCommand}"
-                                Style="{DynamicResource SecondaryButton}" MinHeight="32" FontSize="13"
-                                Padding="12,4" ToolTip="Quitar línea (Supr)"/>
-                        <Button Content="Descuento (F6)" Command="{Binding OpenDiscountCommand}"
-                                Style="{DynamicResource SecondaryButton}" MinHeight="32" FontSize="13"
-                                Padding="12,4" Margin="8,0,0,0"/>
-                        <Button Content="Agregar (Enter)" Command="{Binding AddSelectedCommand}"
-                                Style="{DynamicResource SecondaryButton}" MinHeight="32" FontSize="13"
-                                Padding="12,4" Margin="8,0,0,0" HorizontalAlignment="Right"/>
-                    </StackPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="VENTA EN PREPARACIÓN" Style="{DynamicResource ColumnCaption}"
+                               Margin="16,0,16,6"/>
 
-                    <!-- Banda de totales + Cobrar grande, siempre visible (P-UX-006/010) -->
-                    <Border DockPanel.Dock="Bottom" Background="{DynamicResource SurfaceBrush}"
-                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0"
-                            Padding="16,12">
-                        <DockPanel>
-                            <Button DockPanel.Dock="Right" Content="Cobrar  F8"
-                                    Command="{Binding OpenCheckoutCommand}"
-                                    Style="{DynamicResource BigPrimaryButton}"
-                                    AutomationProperties.Name="Cobrar venta"/>
+                    <!-- Banda inferior: acciones outline con chips + totales + Cobrar (DESIGN.md TPV) -->
+                    <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0"
+                            Padding="16,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <StackPanel Margin="0,0,24,0">
-                                    <TextBlock Text="Subtotal" Style="{DynamicResource PageSubtitle}"/>
-                                    <TextBlock Text="{Binding SubtotalText}" FontWeight="SemiBold" FontSize="15"/>
-                                </StackPanel>
-                                <StackPanel Margin="0,0,24,0">
-                                    <TextBlock Text="Descuento" Style="{DynamicResource PageSubtitle}"/>
-                                    <TextBlock Text="{Binding DiscountText}" FontWeight="SemiBold" FontSize="15"/>
-                                </StackPanel>
-                                <StackPanel>
-                                    <TextBlock Text="TOTAL" Style="{DynamicResource PageSubtitle}" FontWeight="Bold"/>
-                                    <TextBlock Text="{Binding TotalText}" FontWeight="Bold" FontSize="28"
-                                               AutomationProperties.Name="Total de la venta"/>
-                                </StackPanel>
+                                <Button Command="{Binding ClearDraftCommand}" Style="{DynamicResource SecondaryButton}"
+                                        MinHeight="40" ToolTip="Descartar la venta (P-UX-013)"
+                                        AutomationProperties.Name="Limpiar venta">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Limpiar"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Command="{Binding EditQuantityCommand}" Style="{DynamicResource SecondaryButton}"
+                                        MinHeight="40" Margin="8,0" AutomationProperties.Name="Editar cantidad">
+                                    <DockPanel>
+                                        <Border DockPanel.Dock="Right" Style="{DynamicResource ShortcutChip}" Margin="6,0,0,0">
+                                            <TextBlock Text="F4" Style="{DynamicResource ShortcutText}"/>
+                                        </Border>
+                                        <TextBlock Text="Cantidad" VerticalAlignment="Center"/>
+                                    </DockPanel>
+                                </Button>
+                                <Button Command="{Binding RemoveLineCommand}" Style="{DynamicResource SecondaryButton}"
+                                        MinHeight="40" AutomationProperties.Name="Quitar línea">
+                                    <DockPanel>
+                                        <Border DockPanel.Dock="Right" Style="{DynamicResource ShortcutChip}" Margin="6,0,0,0">
+                                            <TextBlock Text="SUPR" Style="{DynamicResource ShortcutText}"/>
+                                        </Border>
+                                        <TextBlock Text="Quitar" VerticalAlignment="Center"/>
+                                    </DockPanel>
+                                </Button>
+                                <Button Command="{Binding OpenDiscountCommand}" Style="{DynamicResource SecondaryButton}"
+                                        MinHeight="40" Margin="8,0,0,0" AutomationProperties.Name="Descuento de la venta">
+                                    <DockPanel>
+                                        <Border DockPanel.Dock="Right" Style="{DynamicResource ShortcutChip}" Margin="6,0,0,0">
+                                            <TextBlock Text="F6" Style="{DynamicResource ShortcutText}"/>
+                                        </Border>
+                                        <TextBlock Text="Descuento" VerticalAlignment="Center"/>
+                                    </DockPanel>
+                                </Button>
+                                <Button Command="{Binding AddSelectedCommand}" Style="{DynamicResource SecondaryButton}"
+                                        MinHeight="40" Margin="8,0,0,0" AutomationProperties.Name="Agregar producto">
+                                    <DockPanel>
+                                        <Border DockPanel.Dock="Right" Style="{DynamicResource ShortcutChip}" Margin="6,0,0,0">
+                                            <TextBlock Text="ENTER" Style="{DynamicResource ShortcutText}"/>
+                                        </Border>
+                                        <TextBlock Text="Agregar" VerticalAlignment="Center"/>
+                                    </DockPanel>
+                                </Button>
                             </StackPanel>
-                        </DockPanel>
+
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <StackPanel Margin="0,0,16,0" VerticalAlignment="Center">
+                                    <DockPanel MinWidth="190">
+                                        <TextBlock Text="Subtotal" Style="{DynamicResource PageSubtitle}" FontSize="12"/>
+                                        <TextBlock Text="{Binding SubtotalText}" Style="{DynamicResource NumericText}"
+                                                   HorizontalAlignment="Right"/>
+                                    </DockPanel>
+                                    <DockPanel MinWidth="190">
+                                        <TextBlock Text="Descuento" Style="{DynamicResource PageSubtitle}" FontSize="12"/>
+                                        <TextBlock Text="{Binding DiscountText}" Style="{DynamicResource NumericText}"
+                                                   HorizontalAlignment="Right"/>
+                                    </DockPanel>
+                                    <DockPanel MinWidth="190">
+                                        <TextBlock Text="TOTAL" Style="{DynamicResource PageSubtitle}" FontWeight="Bold" FontSize="12"/>
+                                        <TextBlock Text="{Binding TotalText}" Style="{DynamicResource NumericText}"
+                                                   FontSize="28" FontWeight="Bold" HorizontalAlignment="Right"
+                                                   AutomationProperties.Name="Total de la venta"/>
+                                    </DockPanel>
+                                </StackPanel>
+                                <Button Command="{Binding OpenCheckoutCommand}"
+                                        Style="{DynamicResource BigPrimaryButton}" MinWidth="150"
+                                        AutomationProperties.Name="Cobrar venta">
+                                    <DockPanel>
+                                        <Border DockPanel.Dock="Right" Style="{DynamicResource ShortcutChip}"
+                                                Background="{DynamicResource PrimaryActiveBrush}" BorderThickness="0" Margin="8,0,0,0">
+                                            <TextBlock Text="F8" Style="{DynamicResource ShortcutText}" Foreground="White"/>
+                                        </Border>
+                                        <TextBlock Text="Cobrar" VerticalAlignment="Center"/>
+                                    </DockPanel>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
                     </Border>
 
                     <!-- §8.6: número, producto, cantidad con unidad, precio, importe -->
                     <DataGrid ItemsSource="{Binding Lines}" SelectedItem="{Binding SelectedLine}"
                               AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
                               HeadersVisibility="Column" CanUserAddRows="False"
-                              Margin="8,0,8,8"
+                              Margin="8,0,8,6"
                               AutomationProperties.Name="Líneas de la venta">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="#" Binding="{Binding Number}" Width="48"/>
-                            <DataGridTextColumn Header="Producto" Binding="{Binding Name}" Width="*"/>
-                            <DataGridTextColumn Header="Cantidad" Binding="{Binding QuantityText}" Width="130"/>
-                            <DataGridTextColumn Header="Precio" Binding="{Binding PriceText}" Width="110">
+                            <DataGridTextColumn Header="PRODUCTO" Binding="{Binding Name}" Width="*"/>
+                            <DataGridTextColumn Header="CANTIDAD" Binding="{Binding QuantityText}" Width="130">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
-                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="Typography.NumeralStyle" Value="Tabular"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Importe" Binding="{Binding TotalText}" Width="120">
+                            <DataGridTextColumn Header="PRECIO" Binding="{Binding PriceText}" Width="110">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="Typography.NumeralStyle" Value="Tabular"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="IMPORTE" Binding="{Binding TotalText}" Width="120">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="Typography.NumeralStyle" Value="Tabular"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>

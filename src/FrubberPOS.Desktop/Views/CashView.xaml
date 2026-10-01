@@ -7,94 +7,136 @@
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
     </UserControl.Resources>
     <StackPanel>
-        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-            <TextBlock Text="Caja" Style="{DynamicResource PageTitle}" VerticalAlignment="Center"/>
-            <Border Margin="12,0,0,0" Style="{DynamicResource PillMint}">
-                <TextBlock Text="{Binding StateText}" Style="{DynamicResource PillText}"
-                           AutomationProperties.Name="Estado de caja"/>
-            </Border>
-        </StackPanel>
-
-        <!-- Estado abierto: resumen de lectura (§11.2) -->
+        <!-- Estado abierto: resumen de lectura (§11.2, DESIGN.md Caja/Arqueo) -->
         <StackPanel Visibility="{Binding IsOpen, Converter={StaticResource BoolToVis}}">
-            <!-- KPI cards (fig. 5) -->
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Cerrar caja" Command="{Binding CloseCommand}"
+                        Style="{DynamicResource SecondaryButton}" FontWeight="SemiBold"
+                        Foreground="{DynamicResource ErrorBrush}" MinHeight="36"
+                        AutomationProperties.Name="Cerrar caja (irreversible)"/>
+                <TextBlock Text="Caja abierta" Style="{DynamicResource PageTitle}" VerticalAlignment="Center"/>
+            </DockPanel>
+
+            <!-- Fila de sesión -->
+            <Border Style="{DynamicResource Card}" Padding="16,10" Margin="0,8,0,12">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Margin="0,0,24,0">
+                        <TextBlock Text="SESIÓN ACTUAL" Style="{DynamicResource ColumnCaption}"/>
+                        <Border Style="{DynamicResource PillMint}" HorizontalAlignment="Left" Margin="0,4,0,0">
+                            <TextBlock Text="Abierta" Foreground="{DynamicResource SuccessBrush}"
+                                       Style="{DynamicResource PillText}" AutomationProperties.Name="Estado de caja"/>
+                        </Border>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="APERTURA" Style="{DynamicResource ColumnCaption}"/>
+                        <TextBlock Text="{Binding OpenedAtText}" Margin="0,4,0,0" Style="{DynamicResource NumericText}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="USUARIO" Style="{DynamicResource ColumnCaption}"/>
+                        <TextBlock Text="{Binding OpenedByText}" Margin="0,4,0,0" FontWeight="SemiBold"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="3">
+                        <TextBlock Text="SALDO INICIAL" Style="{DynamicResource ColumnCaption}"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                            <TextBlock Text="{Binding SessionOpeningBalanceDisplay}" Style="{DynamicResource NumericText}"
+                                       VerticalAlignment="Center"/>
+                            <Button Content="Corregir" Command="{Binding CorrectBalanceCommand}" Margin="10,0,0,0"
+                                    Padding="10,0" MinHeight="24" FontSize="12" Style="{DynamicResource SecondaryButton}"
+                                    Visibility="{Binding ShowCorrectBalance, Converter={StaticResource BoolToVis}}"
+                                    ToolTip="Corregir saldo inicial (solo antes de la primera venta)"
+                                    AutomationProperties.Name="Corregir saldo inicial"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- KPI cards con barra superior (DESIGN.md §4) -->
             <UniformGrid Columns="4" Margin="0,0,0,12">
                 <Border Style="{DynamicResource KpiCard}" Margin="0,0,6,0">
-                    <StackPanel Orientation="Horizontal">
-                        <Border Width="4" Background="{DynamicResource PrimaryBrush}" CornerRadius="2"/>
-                        <StackPanel Margin="12,10" >
+                    <StackPanel>
+                        <Border Height="3" Background="{DynamicResource PrimaryBrush}" CornerRadius="3,3,0,0"/>
+                        <StackPanel Margin="14,10">
                             <TextBlock Text="Ventas netas" Style="{DynamicResource PageSubtitle}"/>
-                            <TextBlock Text="{Binding NetSalesText}" FontSize="20" FontWeight="Bold"/>
-                            <TextBlock Text="{Binding SaleCountText, StringFormat='{}{0} ventas'}"
-                                       Style="{DynamicResource PageSubtitle}" FontSize="11"/>
+                            <TextBlock Text="{Binding NetSalesText}" Style="{DynamicResource KpiMetric}" Margin="0,4,0,0"/>
+                            <TextBlock Text="{Binding SaleCountText}" Foreground="{DynamicResource MutedTextBrush}" FontSize="12"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
                 <Border Style="{DynamicResource KpiCard}" Margin="3,0">
-                    <StackPanel Orientation="Horizontal">
-                        <Border Width="4" Background="{DynamicResource SuccessBrush}" CornerRadius="2"/>
-                        <StackPanel Margin="12,10">
+                    <StackPanel>
+                        <Border Height="3" Background="{DynamicResource SuccessBrush}" CornerRadius="3,3,0,0"/>
+                        <StackPanel Margin="14,10">
                             <TextBlock Text="Efectivo" Style="{DynamicResource PageSubtitle}"/>
-                            <TextBlock Text="{Binding CashSalesText}" FontSize="20" FontWeight="Bold"/>
+                            <TextBlock Text="{Binding CashSalesText}" Style="{DynamicResource KpiMetric}" Margin="0,4,0,0"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
                 <Border Style="{DynamicResource KpiCard}" Margin="3,0">
-                    <StackPanel Orientation="Horizontal">
-                        <Border Width="4" Background="#2563EB" CornerRadius="2"/>
-                        <StackPanel Margin="12,10">
+                    <StackPanel>
+                        <Border Height="3" Background="#2563EB" CornerRadius="3,3,0,0"/>
+                        <StackPanel Margin="14,10">
                             <TextBlock Text="Transferencia" Style="{DynamicResource PageSubtitle}"/>
-                            <TextBlock Text="{Binding TransferSalesText}" FontSize="20" FontWeight="Bold"/>
+                            <TextBlock Text="{Binding TransferSalesText}" Style="{DynamicResource KpiMetric}" Margin="0,4,0,0"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
                 <Border Style="{DynamicResource KpiCard}" Margin="6,0,0,0">
-                    <StackPanel Orientation="Horizontal">
-                        <Border Width="4" Background="{DynamicResource WarningBrush}" CornerRadius="2"/>
-                        <StackPanel Margin="12,10">
+                    <StackPanel>
+                        <Border Height="3" Background="{DynamicResource WarningBrush}" CornerRadius="3,3,0,0"/>
+                        <StackPanel Margin="14,10">
                             <TextBlock Text="Descuentos" Style="{DynamicResource PageSubtitle}"/>
-                            <TextBlock Text="{Binding DiscountText}" FontSize="20" FontWeight="Bold"/>
+                            <TextBlock Text="{Binding DiscountText}" Style="{DynamicResource KpiMetric}" Margin="0,4,0,0"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
             </UniformGrid>
 
+            <!-- Efectivo esperado con desglose -->
             <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
-                <StackPanel>
-                    <DockPanel Margin="0,0,0,6">
-                        <TextBlock Text="Apertura:" Width="150" Style="{DynamicResource PageSubtitle}"/>
-                        <TextBlock Text="{Binding OpenedByText}" FontWeight="SemiBold"/>
-                    </DockPanel>
-                    <DockPanel Margin="0,0,0,10">
-                        <TextBlock Text="Saldo inicial:" Width="150" Style="{DynamicResource PageSubtitle}"/>
-                        <TextBlock Text="{Binding SessionOpeningBalanceDisplay}" FontWeight="SemiBold"/>
-                        <Button Content="Corregir saldo" Command="{Binding CorrectBalanceCommand}" Margin="10,0,0,0"
-                                Padding="10,2" MinHeight="28" FontSize="12" Style="{DynamicResource SecondaryButton}"
-                                Visibility="{Binding ShowCorrectBalance, Converter={StaticResource BoolToVis}}"
-                                ToolTip="Solo antes de la primera venta (JHO-61)"
-                                AutomationProperties.Name="Corregir saldo inicial"/>
-                    </DockPanel>
-                    <Separator Margin="0,4" Background="{DynamicResource BorderBrush}"/>
-                    <DockPanel Margin="0,10,0,0">
-                        <TextBlock Text="EFECTIVO ESPERADO" FontSize="12" FontWeight="Bold"
-                                   Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
-                        <TextBlock DockPanel.Dock="Right" Text="{Binding ExpectedCashText}"
-                                   FontSize="22" FontWeight="Bold" Foreground="{DynamicResource SuccessBrush}"
-                                   HorizontalAlignment="Right"
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="EFECTIVO ESPERADO" Style="{DynamicResource ColumnCaption}"/>
+                        <TextBlock Text="{Binding ExpectedCashText}" Style="{DynamicResource DisplayTotal}"
+                                   Margin="0,4,0,0" Foreground="{DynamicResource SuccessBrush}"
                                    AutomationProperties.Name="Efectivo esperado"/>
-                    </DockPanel>
-                </StackPanel>
+                        <TextBlock Text="Saldo inicial + ventas vigentes en efectivo" Style="{DynamicResource PageSubtitle}"
+                                   FontSize="12" Margin="0,2,0,0"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+                        <DockPanel Width="260" Margin="0,2,0,0">
+                            <TextBlock Text="Saldo inicial" Style="{DynamicResource PageSubtitle}"/>
+                            <TextBlock Text="{Binding SessionOpeningBalanceDisplay}" Style="{DynamicResource NumericText}"
+                                       HorizontalAlignment="Right"/>
+                        </DockPanel>
+                        <DockPanel Width="260" Margin="0,2,0,0">
+                            <TextBlock Text="Ventas en efectivo" Style="{DynamicResource PageSubtitle}"/>
+                            <TextBlock Text="{Binding CashSalesText}" Style="{DynamicResource NumericText}"
+                                       HorizontalAlignment="Right"/>
+                        </DockPanel>
+                        <DockPanel Width="260">
+                            <TextBlock Text="Descuentos del día" Style="{DynamicResource PageSubtitle}"/>
+                            <TextBlock Text="{Binding DiscountText}" Style="{DynamicResource NumericText}"
+                                       Foreground="{DynamicResource WarningBrush}" HorizontalAlignment="Right"/>
+                        </DockPanel>
+                    </StackPanel>
+                </Grid>
             </Border>
 
-            <Border Background="{DynamicResource WarnSoftBrush}" CornerRadius="8" Padding="12,8"
-                    Margin="0,0,0,12">
+            <Border Background="{DynamicResource WarnSoftBrush}" BorderBrush="#FDE68A" BorderThickness="1"
+                    CornerRadius="6" Padding="12,8" Margin="0,0,0,0">
                 <TextBlock Text="Al cerrar se conservará el resumen histórico y la venta quedará bloqueada hasta una nueva apertura."
                            Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap" FontWeight="SemiBold"/>
             </Border>
-
-            <Button Content="Cerrar caja" Command="{Binding CloseCommand}" Padding="16,8"
-                    HorizontalAlignment="Right" FontWeight="Bold" Style="{DynamicResource SecondaryButton}"
-                    AutomationProperties.Name="Cerrar caja (irreversible)"/>
         </StackPanel>
 
         <!-- Estado cerrado: formulario de apertura (§11.1) -->
@@ -115,6 +157,6 @@
         </Border>
 
         <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource SuccessBrush}" FontWeight="SemiBold" Margin="0,10,0,0"/>
-        <TextBlock Text="{Binding ErrorMessage}" Style="{DynamicResource ErrorText}" Margin="0,10,0,0"/>
+        <TextBlock Text="{Binding ErrorMessage}" Style="{DynamicResource ErrorText}" Margin="0,6,0,0"/>
     </StackPanel>
 </UserControl>

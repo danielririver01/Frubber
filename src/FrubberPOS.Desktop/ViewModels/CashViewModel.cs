@@ -62,6 +62,13 @@ public sealed class CashViewModel : INotifyPropertyChanged
 
     public string OpenedByText => session is null ? "—" : session.OpenedByNameSnapshot;
 
+    /// <summary>"28 sep 2026 · 8:02 a. m." — apertura en hora local (§11.2).</summary>
+    public string OpenedAtText => session is null
+        ? "—"
+        : DateTimeOffset.FromUnixTimeMilliseconds(session.OpenedAtUtcMs)
+            .ToOffset(TimeSpan.FromMinutes(session.OpenedAtOffsetMinutes))
+            .ToString("dd/MM/yyyy · HH:mm", System.Globalization.CultureInfo.InvariantCulture);
+
     public string SessionOpeningBalanceDisplay => session is null ? "—" : MoneyText.FormatCop(session.OpeningBalanceCop);
 
     public string CashSalesText => session is null ? "—" : MoneyText.FormatCop(session.CashSalesCop);

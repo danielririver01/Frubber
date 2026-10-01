@@ -9,7 +9,7 @@ using FrubberPOS.Domain.Users;
 
 namespace FrubberPOS.Desktop.ViewModels;
 
-public sealed record MenuEntry(string Title, bool AdminOnly);
+public sealed record MenuEntry(string Title, string Icon, bool AdminOnly);
 
 /// <summary>
 /// Shell: role-filtered menu plus sign-out (JHO-29). Cashiers see only
@@ -21,14 +21,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
 {
     private static readonly MenuEntry[] AllEntries =
     [
-        new("Venta", AdminOnly: false),
-        new("Caja", AdminOnly: false),
-        new("Productos", AdminOnly: true),
-        new("Historial", AdminOnly: true),
-        new("Usuarios", AdminOnly: true),
-        new("Configuración", AdminOnly: true),
-        new("Respaldo", AdminOnly: true),
-        new("Licencia", AdminOnly: true)
+        new("Venta", "V", AdminOnly: false),
+        new("Caja", "C", AdminOnly: false),
+        new("Productos", "P", AdminOnly: true),
+        new("Historial", "H", AdminOnly: true),
+        new("Usuarios", "U", AdminOnly: true),
+        new("Configuración", "G", AdminOnly: true),
+        new("Respaldo", "S", AdminOnly: true),
+        new("Licencia", "L", AdminOnly: true)
     ];
 
     private readonly SignOutUseCase signOut;
@@ -102,6 +102,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     /// <summary>Texto de la pastilla de licencia del encabezado; null la oculta.</summary>
     public string? LicenseBadgeText { get; }
+
+    /// <summary>Trail badge = ámbar; licencia vitalicia = menta (DESIGN.md).</summary>
+    public bool LicenseBadgeIsTrial =>
+        LicenseBadgeText?.Contains("Prueba", StringComparison.OrdinalIgnoreCase) == true;
 
     public bool LicenseBadgeVisible => !string.IsNullOrEmpty(LicenseBadgeText);
 

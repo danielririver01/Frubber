@@ -61,7 +61,8 @@ public sealed class ThemeTests
     {
         var theme = LoadTheme();
         Assert.Equal("#0F766E", ColorOf(theme, "PrimaryColor"));
-        Assert.Equal("#F4F7F5", ColorOf(theme, "AppBackgroundColor"));
+        // DESIGN.md (Stitch, dueño): canvas slate #F8FAFC.
+        Assert.Equal("#F8FAFC", ColorOf(theme, "AppBackgroundColor"));
         Assert.Equal("#B91C1C", ColorOf(theme, "ErrorColor"));
     }
 
@@ -93,9 +94,10 @@ public sealed class ThemeTests
     {
         var text = File.ReadAllText(ThemePath);
 
-        // Cards radio 12, radio 8 en botones/píldoras internas, pastillas, acciones TPV 44–48 (§4.4).
-        Assert.Contains("CornerRadius\" Value=\"12\"", text, StringComparison.Ordinal);
-        Assert.Contains("CornerRadius=\"8\"", text, StringComparison.Ordinal);
+        // Cards radio 8 (DESIGN.md: cards/panels = rounded-lg 8), pastillas
+        // 999 (full), acciones TPV 44–48 (§4.4).
+        Assert.Contains("CornerRadius\" Value=\"8\"", text, StringComparison.Ordinal);
+        Assert.Contains("CornerRadius\" Value=\"999\"", text, StringComparison.Ordinal);
         Assert.Contains("x:Key=\"PillMint\"", text, StringComparison.Ordinal);
         Assert.Contains("x:Key=\"KpiCard\"", text, StringComparison.Ordinal);
         Assert.Contains("x:Key=\"AvatarCircle\"", text, StringComparison.Ordinal);

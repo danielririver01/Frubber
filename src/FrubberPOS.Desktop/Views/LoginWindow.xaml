@@ -18,13 +18,17 @@
                  Width="320" Height="320" HorizontalAlignment="Left" VerticalAlignment="Bottom"
                  Margin="-140,0,0,-140"/>
 
-        <!-- Insignia de prueba (arriba a la derecha) -->
-        <Border Style="{DynamicResource PillMint}" HorizontalAlignment="Right" VerticalAlignment="Top"
+        <!-- Insignia de prueba (arriba a la derecha, ámbar) -->
+        <Border Style="{DynamicResource PillTrial}" HorizontalAlignment="Right" VerticalAlignment="Top"
                 Margin="0,20,24,0"
                 Visibility="{Binding HasTrialLine, Converter={StaticResource BoolToVis}, FallbackValue=Collapsed}">
-            <TextBlock Text="{Binding TrialLine}" Style="{DynamicResource PillText}" FontSize="13"
-                       AutomationProperties.Name="Estado de la prueba"/>
+            <TextBlock Text="{Binding TrialLine}" Foreground="{DynamicResource TrialTextBrush}" FontWeight="SemiBold"
+                       FontSize="12" AutomationProperties.Name="Estado de la prueba"/>
         </Border>
+
+        <TextBlock Text="Frubber POS v1.0 · Modo fuera de línea" HorizontalAlignment="Center"
+                   VerticalAlignment="Bottom" Margin="0,12" FontSize="11"
+                   Foreground="{DynamicResource MutedTextBrush}"/>
 
         <Border Style="{DynamicResource Card}" CornerRadius="16" Padding="32,28"
                 Width="640" VerticalAlignment="Center" HorizontalAlignment="Center">
@@ -58,7 +62,7 @@
                                  AutomationProperties.Name="Lista de usuarios">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <StackPanel Orientation="Horizontal">
+                                    <DockPanel MinWidth="200">
                                         <Border Style="{DynamicResource AvatarCircle}" Width="36" Height="36">
                                             <TextBlock Text="{Binding Initials}" FontWeight="Bold" FontSize="13"
                                                        Foreground="{DynamicResource PrimaryBrush}"
@@ -69,7 +73,23 @@
                                             <TextBlock Text="{Binding Role, Converter={StaticResource RoleConverter}}"
                                                        FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
                                         </StackPanel>
-                                    </StackPanel>
+                                        <!-- Check visible al seleccionar (el color no es el único canal) -->
+                                        <TextBlock DockPanel.Dock="Right" Text="✓" FontWeight="Bold" FontSize="16"
+                                                   Foreground="{DynamicResource PrimaryBrush}" HorizontalAlignment="Right"
+                                                   VerticalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"
+                                                                     Value="True">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </DockPanel>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>

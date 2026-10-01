@@ -9,69 +9,112 @@
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
     </Window.Resources>
     <DockPanel>
-        <!-- ===== Barra lateral tipo tarjeta (fig. 1) ===== -->
+        <!-- ===== Barra lateral (DESIGN.md: chips de ícono, activo menta, rol abajo) ===== -->
         <Border x:Name="Sidebar" DockPanel.Dock="Left" Width="200"
-                Style="{DynamicResource Card}" CornerRadius="0" BorderThickness="0,0,1,0"
-                Padding="0">
+                Background="{DynamicResource SurfaceBrush}"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
             <DockPanel>
-                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="16,18,16,14">
-                    <Border Width="32" Height="32" CornerRadius="999" Background="{DynamicResource PrimaryBrush}">
-                        <TextBlock Text="F" Foreground="White" FontWeight="Bold" FontSize="16"
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="16,16,12,14">
+                    <Border Width="30" Height="30" CornerRadius="6" Background="{DynamicResource PrimaryBrush}">
+                        <TextBlock Text="F" Foreground="White" FontWeight="Bold" FontSize="14"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <StackPanel x:Name="BrandText" Margin="10,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="Frubber" FontSize="16" FontWeight="Bold"/>
+                        <TextBlock Text="Frubber" FontSize="15" FontWeight="Bold"/>
                         <TextBlock Text="POS" FontSize="11" FontWeight="SemiBold"
                                    Foreground="{DynamicResource PrimaryBrush}"/>
                     </StackPanel>
                 </StackPanel>
 
-                <DockPanel DockPanel.Dock="Bottom" Margin="12,0,12,14">
+                <DockPanel DockPanel.Dock="Bottom" Margin="12,0,12,12">
+                    <TextBlock DockPanel.Dock="Bottom" Text="v1.0 · Modo fuera de línea"
+                               FontSize="11" Foreground="{DynamicResource MutedTextBrush}" Margin="4,4,0,0"/>
                     <Button DockPanel.Dock="Bottom" Content="Cerrar sesión" Command="{Binding SignOutCommand}"
                             Style="{DynamicResource SecondaryButton}" HorizontalContentAlignment="Left"
+                            MinHeight="36" FontSize="13"
                             AutomationProperties.Name="Cerrar sesión"/>
+                    <!-- El rol abraza su texto (fila compacta, no estirada). -->
                     <Border x:Name="RoleBadge" Style="{DynamicResource PillMint}" DockPanel.Dock="Bottom"
-                            Padding="12,4" Margin="0,0,0,10">
-                        <TextBlock Text="{Binding RoleBadgeText}" Style="{DynamicResource PillText}"
-                                   AutomationProperties.Name="Rol del usuario"/>
+                            Padding="12,4" Margin="0,0,0,10" HorizontalAlignment="Left"
+                            AutomationProperties.Name="Rol del usuario">
+                        <TextBlock Text="{Binding RoleBadgeText}" Style="{DynamicResource PillText}"/>
                     </Border>
                 </DockPanel>
 
                 <ListBox x:Name="MenuList"
-                         ItemsSource="{Binding MenuItems}" DisplayMemberPath="Title"
+                         ItemsSource="{Binding MenuItems}"
                          SelectedItem="{Binding SelectedEntry}"
                          Margin="8,0,8,0"
-                         AutomationProperties.Name="Menú principal"/>
+                         AutomationProperties.Name="Menú principal">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="26" Height="26" CornerRadius="5"
+                                        Background="{DynamicResource MintBrush}">
+                                    <TextBlock Text="{Binding Icon}" FontSize="12" FontWeight="Bold"
+                                               Foreground="{DynamicResource PrimaryBrush}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="{Binding Title}" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
             </DockPanel>
         </Border>
 
         <!-- ===== Contenido ===== -->
         <DockPanel Background="{DynamicResource AppBackground}">
-            <!-- Encabezado: título + pastillas de estado + chip de usuario -->
+            <!-- Encabezado: título + pastillas de estado compactas + chip de usuario -->
             <Border DockPanel.Dock="Top" Background="{DynamicResource SurfaceBrush}"
-                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0" Padding="24,12">
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0" Padding="24,10">
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Border Style="{DynamicResource PillMint}" Margin="4,0"
+                        <Border Style="{DynamicResource PillMint}" Margin="4,0" Padding="10,3"
                                 Visibility="{Binding CashPillVisible, Converter={StaticResource BoolToVis}}"
                                 AutomationProperties.Name="Estado de caja">
-                            <TextBlock Text="Caja abierta" Style="{DynamicResource PillText}"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Width="7" Height="7" Fill="{DynamicResource SuccessBrush}"
+                                         VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <TextBlock Text="Caja abierta" Foreground="{DynamicResource SuccessBrush}"
+                                           FontSize="12" FontWeight="SemiBold"/>
+                            </StackPanel>
                         </Border>
-                        <Border Style="{DynamicResource PillMint}" Margin="4,0"
+                        <Border x:Name="LicensePill" Margin="4,0" Padding="10,3"
+                                CornerRadius="999" Background="{DynamicResource MintBrush}"
                                 Visibility="{Binding LicenseBadgeVisible, Converter={StaticResource BoolToVis}}"
                                 AutomationProperties.Name="Estado de licencia">
-                            <TextBlock Text="{Binding LicenseBadgeText}" Style="{DynamicResource PillText}"/>
+                            <TextBlock x:Name="LicensePillText" Text="{Binding LicenseBadgeText}">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource PillText}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding LicenseBadgeIsTrial}" Value="True">
+                                                <Setter Property="Foreground" Value="{DynamicResource TrialTextBrush}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <Border.Style>
+                                <Style TargetType="Border" BasedOn="{StaticResource PillMint}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding LicenseBadgeIsTrial}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource TrialBrush}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
                         </Border>
                         <StackPanel Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center">
-                            <Border Style="{DynamicResource AvatarCircle}" Width="34" Height="34">
+                            <Border Style="{DynamicResource AvatarCircle}" Width="32" Height="32">
                                 <TextBlock Text="{Binding UserInitials}" Foreground="{DynamicResource PrimaryBrush}"
-                                           FontWeight="Bold" FontSize="13"
+                                           FontWeight="Bold" FontSize="12"
                                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                             <StackPanel Margin="8,0,0,0" VerticalAlignment="Center">
                                 <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13"/>
                                 <TextBlock Text="{Binding RoleBadgeText}" FontSize="11"
-                                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+                                           Foreground="{DynamicResource MutedTextBrush}"/>
                             </StackPanel>
                         </StackPanel>
                     </StackPanel>
@@ -80,8 +123,7 @@
             </Border>
 
             <DockPanel Margin="24">
-                <TextBlock DockPanel.Dock="Top" Text="{Binding PageDescription}"
-                           Margin="0,0,0,0">
+                <TextBlock DockPanel.Dock="Top" Text="{Binding PageDescription}" Margin="0,0,0,2">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock" BasedOn="{StaticResource PageSubtitle}">
                             <Style.Triggers>
@@ -92,7 +134,7 @@
                         </Style>
                     </TextBlock.Style>
                 </TextBlock>
-                <ContentControl DockPanel.Dock="Top" Content="{Binding CurrentPage}" Margin="0,12,0,0"/>
+                <ContentControl DockPanel.Dock="Top" Content="{Binding CurrentPage}" Margin="0,10,0,0"/>
             </DockPanel>
         </DockPanel>
     </DockPanel>
