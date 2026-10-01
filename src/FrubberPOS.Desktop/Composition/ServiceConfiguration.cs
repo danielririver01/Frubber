@@ -1,5 +1,6 @@
 using System.IO;
 using FrubberPOS.Application.Authentication;
+using FrubberPOS.Application.Backup;
 using FrubberPOS.Application.Business;
 using FrubberPOS.Application.Cash;
 using FrubberPOS.Application.Licensing;
@@ -18,6 +19,7 @@ using FrubberPOS.Desktop.Common;
 using FrubberPOS.Desktop.ViewModels;
 using FrubberPOS.Infrastructure.Licensing;
 using FrubberPOS.Infrastructure.Logging;
+using FrubberPOS.Infrastructure.Backup;
 using FrubberPOS.Infrastructure.Migrations;
 using FrubberPOS.Infrastructure.Persistence;
 using FrubberPOS.Infrastructure.Persistence.Business;
@@ -70,6 +72,7 @@ public static class ServiceConfiguration
         services.AddSingleton<IBusinessSettingRepository, DapperBusinessSettingRepository>();
         services.AddSingleton<ITicketPrinter, WindowsTicketPrinter>();
         services.AddSingleton<ICurrentSession, CurrentSession>();
+        services.AddSingleton<IBackupService, SqliteBackupService>();
         services.AddTransient<AuthenticateUserUseCase>();
         services.AddTransient<ListActiveUsersUseCase>();
         services.AddTransient<SignOutUseCase>();
@@ -105,6 +108,7 @@ public static class ServiceConfiguration
         services.AddTransient<VoidSaleUseCase>();
         services.AddTransient<GetBusinessSettingsUseCase>();
         services.AddTransient<UpdateBusinessSettingsUseCase>();
+        services.AddTransient<CreateBackupUseCase>();
         services.AddTransient<LoginViewModel>();
         services.AddTransient<FirstStartViewModel>();
         services.AddTransient<LicenseActivationViewModel>();
@@ -119,6 +123,7 @@ public static class ServiceConfiguration
         services.AddTransient<SalesHistoryViewModel>();
         services.AddTransient<SaleDetailViewModel>();
         services.AddTransient<BusinessSettingsViewModel>();
+        services.AddTransient<BackupViewModel>();
 
         return services;
     }

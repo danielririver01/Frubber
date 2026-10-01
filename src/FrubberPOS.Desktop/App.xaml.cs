@@ -168,7 +168,8 @@ public partial class App : System.Windows.Application, INavigationService
             () => new CashView(Resolve<CashViewModel>()),
             () => new TpvView(Resolve<TpvViewModel>()),
             () => new SalesHistoryView(Resolve<SalesHistoryViewModel>()),
-            () => new BusinessSettingsView(Resolve<BusinessSettingsViewModel>()))));
+            () => new BusinessSettingsView(Resolve<BusinessSettingsViewModel>()),
+            () => new BackupView(Resolve<BackupViewModel>()))));
 
     public bool ShowProductEditor(ProductDto? existing)
     {
@@ -291,6 +292,20 @@ public partial class App : System.Windows.Application, INavigationService
             Owner = currentWindow
         };
         return window.ShowDialog() == true;
+    }
+
+    public string? AskBackupDestination()
+    {
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "Frubber POS — Crear respaldo",
+            Filter = "Respaldo Frubber POS (*.db)|*.db",
+            DefaultExt = ".db",
+            AddExtension = true,
+            FileName = $"FrubberPOS-{DateTime.Now:yyyyMMdd-HHmmss}.db",
+            OverwritePrompt = true
+        };
+        return dialog.ShowDialog(currentWindow) == true ? dialog.FileName : null;
     }
 
     private void OnDispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)

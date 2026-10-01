@@ -74,6 +74,11 @@ public sealed class FakeNavigator : INavigationService
     /// <summary>Void confirmation answer (P-UX §13.4).</summary>
     public bool NextSaleVoidConfirmed { get; set; } = true;
 
+    public int AskBackupDestinationCount { get; private set; }
+
+    /// <summary>Backup destination chosen in the dialog; null = canceled.</summary>
+    public string? NextBackupDestination { get; set; }
+
     /// <summary>
     /// One-shot hook fired inside <see cref="ShowCheckout"/>: simulates a
     /// re-entrant Enter/click while the dialog is open (JHO-39).
@@ -171,5 +176,11 @@ public sealed class FakeNavigator : INavigationService
     {
         ConfirmSaleVoidCount++;
         return NextSaleVoidConfirmed;
+    }
+
+    public string? AskBackupDestination()
+    {
+        AskBackupDestinationCount++;
+        return NextBackupDestination;
     }
 }

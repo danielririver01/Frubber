@@ -66,6 +66,12 @@ public interface INavigationService
     /// inventario y no pide motivo. F9 confirma, Esc cancela.
     /// </summary>
     bool ConfirmSaleVoid(long saleNumber);
+
+    /// <summary>
+    /// Standard Windows dialog to pick the manual-backup destination
+    /// (JHO-53, P-UX §16.1). <c>null</c> = the operator canceled.
+    /// </summary>
+    string? AskBackupDestination();
 }
 
 /// <summary>Checkout modal answer (JHO-41). Whole COP only.</summary>
