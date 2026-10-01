@@ -1,0 +1,55 @@
+<UserControl x:Class="FrubberPOS.Desktop.Views.UsersView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,10">
+            <Button Content="Editar" Command="{Binding EditCommand}" Style="{DynamicResource SecondaryButton}" MinHeight="36" FontSize="13" Margin="0,0,8,0"
+                    AutomationProperties.Name="Editar usuario"/>
+            <Button Content="Restablecer PIN" Command="{Binding ResetPinCommand}" Style="{DynamicResource SecondaryButton}" MinHeight="36" FontSize="13" Margin="0,0,8,0"
+                    AutomationProperties.Name="Restablecer PIN"/>
+            <Button Content="Activar/Desactivar" Command="{Binding ToggleActiveCommand}" Style="{DynamicResource SecondaryButton}" MinHeight="36" FontSize="13" Margin="0,0,8,0"
+                    AutomationProperties.Name="Activar o desactivar usuario"/>
+            <Button Content="Eliminar" Command="{Binding DeleteCommand}" Style="{DynamicResource SecondaryButton}" MinHeight="36" FontSize="13" Margin="0,0,8,0"
+                    AutomationProperties.Name="Eliminar usuario"/>
+            <Button Content="+ Nuevo usuario" Command="{Binding NewCommand}" Padding="16,6" FontWeight="Bold" HorizontalAlignment="Right"
+                    AutomationProperties.Name="Nuevo usuario"/>
+        </StackPanel>
+
+        <TextBlock DockPanel.Dock="Bottom" Text="{Binding ErrorMessage}" Style="{DynamicResource ErrorText}" Margin="0,6,0,0"/>
+        <TextBlock DockPanel.Dock="Bottom" Text="{Binding StatusMessage}" Foreground="{DynamicResource SuccessBrush}" FontWeight="SemiBold" Margin="0,6,0,0"/>
+
+        <Border Style="{DynamicResource Card}" Padding="0,0,0,8">
+            <DataGrid ItemsSource="{Binding Users}" SelectedItem="{Binding SelectedUser}"
+                      AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
+                      CanUserAddRows="False" HeadersVisibility="Column"
+                      AutomationProperties.Name="Usuarios registrados">
+                <DataGrid.Columns>
+                    <DataGridTemplateColumn Header="Usuario" Width="*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Border Style="{DynamicResource AvatarCircle}" Width="32" Height="32" Margin="0,0,10,0">
+                                        <TextBlock Text="{Binding Initials}" FontWeight="Bold" FontSize="12"
+                                                   Foreground="{DynamicResource PrimaryBrush}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="Rol" Binding="{Binding RoleText}" Width="140"/>
+                    <DataGridTemplateColumn Header="Estado" Width="120">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding StateText}" FontWeight="Bold"
+                                           Foreground="{Binding StateBrush}" VerticalAlignment="Center"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+    </DockPanel>
+</UserControl>

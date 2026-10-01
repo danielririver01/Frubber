@@ -1,6 +1,7 @@
 using FrubberPOS.Application.Authentication;
 using FrubberPOS.Application.Navigation;
 using FrubberPOS.Application.Products;
+using FrubberPOS.Application.Users;
 
 namespace FrubberPOS.Tests.TestDoubles;
 
@@ -78,6 +79,20 @@ public sealed class FakeNavigator : INavigationService
 
     /// <summary>Backup destination chosen in the dialog; null = canceled.</summary>
     public string? NextBackupDestination { get; set; }
+
+    public int ShowUserEditorCount { get; private set; }
+
+    public int ShowPinResetCount { get; private set; }
+
+    public int ConfirmUserDeactivationCount { get; private set; }
+
+    public int ConfirmUserDeletionCount { get; private set; }
+
+    public UserDetailDto? LastEditedUser { get; private set; }
+
+    public bool NextUserEditorSaved { get; set; }
+
+    public bool NextPinResetSaved { get; set; }
 
     /// <summary>
     /// One-shot hook fired inside <see cref="ShowCheckout"/>: simulates a
@@ -182,5 +197,33 @@ public sealed class FakeNavigator : INavigationService
     {
         AskBackupDestinationCount++;
         return NextBackupDestination;
+    }
+
+    public bool ShowUserEditor(UserDetailDto? existing)
+    {
+        ShowUserEditorCount++;
+        LastEditedUser = existing;
+        return NextUserEditorSaved;
+    }
+
+    public bool ShowPinReset(UserDetailDto user)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        ShowPinResetCount++;
+        return NextPinResetSaved;
+    }
+
+    public bool ConfirmUserDeactivation(UserDetailDto user)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        ConfirmUserDeactivationCount++;
+        return NextConfirmResult;
+    }
+
+    public bool ConfirmUserDeletion(UserDetailDto user)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        ConfirmUserDeletionCount++;
+        return NextConfirmResult;
     }
 }

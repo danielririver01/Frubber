@@ -1,0 +1,33 @@
+<Window x:Class="FrubberPOS.Desktop.Views.ResetPinDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        Width="420" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        MouseLeftButtonDown="OnDragMove">
+    <Border Style="{DynamicResource DialogCard}" Margin="16">
+        <StackPanel>
+            <TextBlock Text="Restablecer PIN" FontSize="20" FontWeight="Bold"/>
+            <Border Background="{DynamicResource MintBrush}" CornerRadius="8" Padding="12,8" Margin="0,12,0,8">
+                <TextBlock Text="{Binding UserLabel, StringFormat='Usuario: {0}'}" FontWeight="Bold" FontSize="15"/>
+            </Border>
+            <TextBlock Text="Nuevo PIN (4 dígitos):" Style="{DynamicResource FieldLabel}"/>
+            <PasswordBox x:Name="PinBox" MaxLength="4" PasswordChanged="PinBox_PasswordChanged"
+                         AutomationProperties.Name="Nuevo PIN"/>
+            <TextBlock Text="Confirmar PIN:" Style="{DynamicResource FieldLabel}" Margin="0,10,0,4"/>
+            <PasswordBox x:Name="ConfirmBox" MaxLength="4" PasswordChanged="ConfirmBox_PasswordChanged"
+                         AutomationProperties.Name="Confirmar nuevo PIN"/>
+            <TextBlock Text="El PIN anterior no puede recuperarse; se asigna uno nuevo seguro (nunca se guarda en texto)."
+                       Style="{DynamicResource PageSubtitle}" TextWrapping="Wrap" Margin="0,10,0,0"/>
+
+            <TextBlock Text="{Binding ErrorMessage}" Style="{DynamicResource ErrorText}" Margin="0,10,0,0"/>
+
+            <DockPanel Margin="0,16,0,0">
+                <Button DockPanel.Dock="Right" Content="Restablecer PIN" Command="{Binding SaveCommand}"
+                        MinWidth="150" AutomationProperties.Name="Confirmar restablecimiento de PIN"/>
+                <Button Content="Cancelar" Click="OnCancel" IsCancel="True" HorizontalAlignment="Left"
+                        Style="{DynamicResource SecondaryButton}"/>
+            </DockPanel>
+        </StackPanel>
+    </Border>
+</Window>

@@ -8,6 +8,7 @@ using FrubberPOS.Application.Persistence;
 using FrubberPOS.Application.Products;
 using FrubberPOS.Application.Startup;
 using FrubberPOS.Application.Trial;
+using FrubberPOS.Application.Users;
 using FrubberPOS.Desktop.Composition;
 using FrubberPOS.Desktop.ViewModels;
 using FrubberPOS.Desktop.Views;
@@ -186,7 +187,8 @@ public partial class App : System.Windows.Application, INavigationService
                     .ExecuteAsync(new Application.Cash.GetOpenCashSessionRequest(), cancellationToken);
                 return open.IsSuccess && open.Value.Session is not null;
             },
-            trialIsLicensed)));
+            trialIsLicensed,
+            () => new UsersView(Resolve<UsersViewModel>()))));
     }
 
     public bool ShowProductEditor(ProductDto? existing)
@@ -331,6 +333,51 @@ public partial class App : System.Windows.Application, INavigationService
             OverwritePrompt = true
         };
         return dialog.ShowDialog(currentWindow) == true ? dialog.FileName : null;
+    }
+
+    public bool ShowUserEditor(UserDetailDto? existing)
+    {
+        var window = new UserEditorDialog(Resolve<UserEditorViewModel>(), existing)
+        {
+            Owner = currentWindow
+        };
+        return window.ShowDialog() == true;
+    }
+
+    public bool ShowPinReset(UserDetailDto user)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        var window = new ResetPinDialog(Resolve<ResetPinViewModel>(), user)
+        {
+            Owner = currentWindow
+        };
+        return window.ShowDialog() == true;
+    }
+
+    public bool ConfirmUserDeactivation(UserDetailDto user)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        var dialog = new ConfirmActionDialog(
+            "Desactivar usuario",
+            $"¿Desactivar a «{user.DisplayName}»? No podrá ingresar hasta que un administrador lo reactive. Su historial se conserva. (F9 confirma)",
+            "Desactivar usuario")
+        {
+            Owner = currentWindow
+        };
+        return dialog.ShowDialog() == true;
+    }
+
+    public bool ConfirmUserDeletion(UserDetailDto user)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        var dialog = new ConfirmActionDialog(
+            "Eliminar usuario",
+            $"¿Eliminar a «{user.DisplayName}»? Si tiene historial se desactivará en su lugar. Esta acción no se puede deshacer. (F9 confirma)",
+            "Eliminar usuario")
+        {
+            Owner = currentWindow
+        };
+        return dialog.ShowDialog() == true;
     }
 
     private void OnDispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)

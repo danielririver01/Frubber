@@ -40,6 +40,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private readonly Func<object>? settingsPageFactory;
     private readonly Func<object>? backupPageFactory;
     private readonly Func<CancellationToken, Task<bool>>? cashOpenProbe;
+    private readonly Func<object>? usersPageFactory;
 
     private MenuEntry? selectedEntry;
     private string pageTitle = string.Empty;
@@ -51,9 +52,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private object? historyPage;
     private object? settingsPage;
     private object? backupPage;
+    private object? usersPage;
     private bool cashPillVisible;
 
-    public MainViewModel(SignedInUser user, SignOutUseCase signOut, INavigationService navigation, Func<object>? productsPageFactory = null, Func<object>? cashPageFactory = null, Func<object>? tpvPageFactory = null, Func<object>? historyPageFactory = null, Func<object>? settingsPageFactory = null, Func<object>? backupPageFactory = null, string? licenseBadgeText = null, Func<CancellationToken, Task<bool>>? cashOpenProbe = null, bool isLicensed = false)
+    public MainViewModel(SignedInUser user, SignOutUseCase signOut, INavigationService navigation, Func<object>? productsPageFactory = null, Func<object>? cashPageFactory = null, Func<object>? tpvPageFactory = null, Func<object>? historyPageFactory = null, Func<object>? settingsPageFactory = null, Func<object>? backupPageFactory = null, string? licenseBadgeText = null, Func<CancellationToken, Task<bool>>? cashOpenProbe = null, bool isLicensed = false, Func<object>? usersPageFactory = null)
     {
         ArgumentNullException.ThrowIfNull(user);
         ArgumentNullException.ThrowIfNull(signOut);
@@ -67,6 +69,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         this.settingsPageFactory = settingsPageFactory;
         this.backupPageFactory = backupPageFactory;
         this.cashOpenProbe = cashOpenProbe;
+        this.usersPageFactory = usersPageFactory;
 
         DisplayName = user.DisplayName;
         IsAdmin = user.Role == UserRole.Admin;
@@ -205,6 +208,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             PageDescription = string.Empty;
             CurrentPage = backupPage ??= backupPageFactory();
+            return;
+        }
+
+        if (SelectedEntry?.Title == "Usuarios" && usersPageFactory is not null)
+        {
+            PageDescription = string.Empty;
+            CurrentPage = usersPage ??= usersPageFactory();
             return;
         }
 

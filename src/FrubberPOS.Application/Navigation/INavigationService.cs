@@ -1,5 +1,6 @@
 using FrubberPOS.Application.Authentication;
 using FrubberPOS.Application.Products;
+using FrubberPOS.Application.Users;
 
 namespace FrubberPOS.Application.Navigation;
 
@@ -72,6 +73,18 @@ public interface INavigationService
     /// (JHO-53, P-UX §16.1). <c>null</c> = the operator canceled.
     /// </summary>
     string? AskBackupDestination();
+
+    /// <summary>User editor dialog (JHO-26, P-UX §14.2); <c>null</c> creates. True when saved.</summary>
+    bool ShowUserEditor(UserDetailDto? existing);
+
+    /// <summary>PIN reset dialog (§14.1). True when the PIN was reset.</summary>
+    bool ShowPinReset(UserDetailDto user);
+
+    /// <summary>Disable confirmation: names the user and the consequence (JHO-50).</summary>
+    bool ConfirmUserDeactivation(UserDetailDto user);
+
+    /// <summary>Delete confirmation: names the user and the consequence (JHO-50).</summary>
+    bool ConfirmUserDeletion(UserDetailDto user);
 }
 
 /// <summary>Checkout modal answer (JHO-41). Whole COP only.</summary>

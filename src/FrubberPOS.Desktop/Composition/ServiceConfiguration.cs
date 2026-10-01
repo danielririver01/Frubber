@@ -124,6 +124,9 @@ public static class ServiceConfiguration
         services.AddTransient<SaleDetailViewModel>();
         services.AddTransient<BusinessSettingsViewModel>();
         services.AddTransient<BackupViewModel>();
+        services.AddTransient<UsersViewModel>();
+        services.AddTransient<UserEditorViewModel>();
+        services.AddTransient<ResetPinViewModel>();
 
         return services;
     }
