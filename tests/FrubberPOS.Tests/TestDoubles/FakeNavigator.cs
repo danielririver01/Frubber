@@ -71,6 +71,25 @@ public sealed class FakeNavigator : INavigationService
 
     public int ConfirmCashClosureCount { get; private set; }
 
+    public bool ConfirmDiscardDraft()
+    {
+        ConfirmDiscardDraftCount++;
+        return NextConfirmResult;
+    }
+
+    public long? AskQuantity(ProductDto product)
+    {
+        ArgumentNullException.ThrowIfNull(product);
+        AskQuantityCount++;
+        return NextQuantityMilli;
+    }
+
+    public int ConfirmDiscardDraftCount { get; private set; }
+
+    public int AskQuantityCount { get; private set; }
+
+    public long? NextQuantityMilli { get; set; }
+
     public void ShowShell(SignedInUser user)
     {
         ArgumentNullException.ThrowIfNull(user);

@@ -32,4 +32,10 @@ public interface INavigationService
 
     /// <summary>Cash close confirmation, irreversible (spec §11.3). <c>true</c> when confirmed.</summary>
     bool ConfirmCashClosure();
+
+    /// <summary>Discard-draft confirmation (P-UX-013). <c>true</c> when confirmed.</summary>
+    bool ConfirmDiscardDraft();
+
+    /// <summary>Quantity dialog for the product (P-UX-009). <c>null</c> = canceled.</summary>
+    long? AskQuantity(ProductDto product);
 }

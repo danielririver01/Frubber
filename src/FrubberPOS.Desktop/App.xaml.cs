@@ -212,6 +212,28 @@ public partial class App : System.Windows.Application, INavigationService
         return answer == MessageBoxResult.Yes;
     }
 
+    public bool ConfirmDiscardDraft()
+    {
+        var answer = MessageBox.Show(
+            currentWindow,
+            "¿Descartar esta venta?",
+            "Frubber POS — Venta en preparación",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+        return answer == MessageBoxResult.Yes;
+    }
+
+    public long? AskQuantity(ProductDto product)
+    {
+        ArgumentNullException.ThrowIfNull(product);
+        var viewModel = Resolve<QuantityDialogViewModel>();
+        var window = new QuantityDialog(viewModel, product)
+        {
+            Owner = currentWindow
+        };
+        return window.ShowDialog() == true ? viewModel.ParsedMilli : null;
+    }
+
     private void OnDispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
     {
         try
