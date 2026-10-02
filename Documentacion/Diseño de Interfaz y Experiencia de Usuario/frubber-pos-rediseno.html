@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="iconos/frubber-pos-192.png">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Frubber POS — Rediseño Vista Venta</title>
+<style>
+  /* ============================================================
+     FRUBBER POS · DESIGN TOKENS
+     ============================================================ */
+  :root{
+    --teal-500:#14B8A6;
+    --teal-600:#0F9488;
+    --teal-700:#0F766E;
+    --teal-soft:#E6FAF5;
+    --teal-row:#F0FDF9;
+
+    --app-bg:#F7F8FA;
+    --surface:#FFFFFF;
+    --border-soft:#EEF1F4;
+    --border:#E2E8F0;
+
+    --text-high:#0F172A;
+    --text-mid:#475569;
+    --text-low:#94A3B8;
+    --text-sub:#64748B;
+
+    --warn-bg:#FEF3C7;
+    --warn-fg:#D97706;
+    --success:#10B981;
+
+    --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px;
+    --s6:24px; --s8:32px; --s10:40px;
+
+    --r-s:6px; --r-m:10px; --r-l:14px;
+
+    --sh-card:0 1px 2px rgba(15,23,42,.04), 0 0 0 1px rgba(15,23,42,.04);
+    --sh-primary:0 6px 16px rgba(20,184,166,.25);
+    --sh-primary-hover:0 10px 24px rgba(20,184,166,.35);
+
+    --font:"Inter","Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:var(--font);
+    background:var(--app-bg);
+    color:var(--text-high);
+    font-size:14px;
+    line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+    overflow:hidden;
+  }
+  button{font-family:inherit;cursor:pointer;border:none;background:none}
+  ::selection{background:#CCFBF1}
+
+  /* ---------- Tipografía ---------- */
+  .t-display{font-size:28px;font-weight:700;letter-spacing:-.02em;line-height:1.2}
+  .t-title{font-size:15px;font-weight:600;letter-spacing:-.01em}
+
+  /* ============================================================
+     APP SHELL
+     ============================================================ */
+  .app{display:flex;height:100vh;overflow:hidden}
+
+  /* ---------------- ZONA 1 · SIDEBAR ---------------- */
+  .sidebar{
+    width:220px;flex:0 0 220px;
+    background:var(--surface);
+    border-right:1px solid var(--border-soft);
+    display:flex;flex-direction:column;
+    padding:var(--s5) var(--s3) var(--s4);
+  }
+  .brand{display:flex;align-items:center;gap:10px;padding:4px 8px var(--s5)}
+  .brand-logo{
+    width:40px;height:40px;flex:0 0 40px;border-radius:var(--r-m);
+    background:linear-gradient(180deg,var(--teal-500),var(--teal-700));
+    color:#fff;display:grid;place-items:center;
+    font-size:17px;font-weight:700;letter-spacing:-.02em;
+    box-shadow:0 4px 10px rgba(20,184,166,.28);
+  }
+  .brand-name{font-size:15px;font-weight:700;letter-spacing:-.01em;line-height:1.15}
+  .brand-sub{font-size:11px;font-weight:600;letter-spacing:.08em;color:var(--text-low);text-transform:uppercase}
+
+  .nav{display:flex;flex-direction:column;gap:2px}
+  .nav-item{
+    position:relative;display:flex;align-items:center;gap:10px;
+    height:42px;padding:0 12px;border-radius:var(--r-m);
+    border-left:3px solid transparent;
+    font-size:14px;font-weight:500;color:var(--text-mid);
+    transition:background .15s ease,color .15s ease,border-color .15s ease;
+    width:100%;text-align:left;
+  }
+  .nav-item:hover{background:#F8FAFC;color:var(--text-high)}
+  .nav-item .key{
+    width:22px;height:22px;flex:0 0 22px;border-radius:var(--r-s);
+    display:grid;place-items:center;
+    background:#F1F5F9;color:var(--text-sub);
+    font-size:11px;font-weight:700;letter-spacing:.02em;
+    transition:background .15s ease,color .15s ease;
+  }
+  .nav-item.active{
+    background:var(--teal-soft);
+    border-left:3px solid var(--teal-500);
+    color:var(--teal-700);font-weight:600;
+    border-radius:0 var(--r-m) var(--r-m) 0;
+  }
+  .nav-item.active .key{background:rgba(20,184,166,.16);color:var(--teal-700)}
+  .nav-item.active .nav-dot{
+    width:6px;height:6px;border-radius:50%;background:var(--teal-500);
+    margin-left:auto;box-shadow:0 0 0 3px rgba(20,184,166,.16);
+  }
+
+  .sidebar-foot{margin-top:auto;padding-top:var(--s4)}
+  .badge-admin{
+    display:inline-flex;align-items:center;
+    background:var(--teal-soft);color:var(--teal-700);
+    font-size:11px;font-weight:700;letter-spacing:.08em;
+    padding:4px 10px;border-radius:999px;margin:0 0 10px 4px;
+  }
+  .btn-logout{
+    width:100%;height:40px;border-radius:var(--r-m);
+    border:1px solid var(--border);background:var(--surface);
+    color:var(--text-mid);font-size:13px;font-weight:500;
+    transition:background .15s ease,border-color .15s ease,color .15s ease;
+  }
+  .btn-logout:hover{background:#F8FAFC;border-color:#CBD5E1;color:var(--text-high)}
+  .offline{
+    display:flex;align-items:center;gap:7px;
+    margin-top:var(--s4);padding:9px 12px;border-radius:var(--r-m);
+    background:var(--warn-bg);color:var(--warn-fg);
+    font-size:11px;font-weight:600;
+  }
+  .dot-pulse{position:relative;width:7px;height:7px;flex:0 0 7px;border-radius:50%;background:currentColor}
+  .dot-pulse::after{
+    content:"";position:absolute;inset:0;border-radius:50%;
+    background:currentColor;animation:pulse 2s ease-out infinite;
+  }
+  @keyframes pulse{0%{transform:scale(1);opacity:.7}70%{transform:scale(3);opacity:0}100%{opacity:0}}
+
+  /* ---------------- MAIN ---------------- */
+  .main{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+  .main-scroll{flex:1;overflow-y:auto;padding:var(--s5) var(--s6) 0}
+  .main-inner{max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:var(--s3)}
+
+  /* ---------------- ZONA 2 · HEADER ---------------- */
+  .page-head{display:flex;align-items:center;justify-content:space-between;gap:var(--s6);padding-bottom:var(--s4)}
+  .head-sub{font-size:13px;color:var(--text-sub);margin-top:2px;display:flex;align-items:center;gap:8px}
+  .head-sub .sep{color:#CBD5E1}
+  .head-right{display:flex;align-items:center;gap:8px}
+  .pill{
+    display:inline-flex;align-items:center;gap:7px;height:30px;
+    padding:0 12px;border-radius:999px;
+    background:var(--teal-soft);color:var(--teal-700);
+    font-size:12px;font-weight:600;white-space:nowrap;
+    box-shadow:inset 0 0 0 1px rgba(20,184,166,.12);
+  }
+  .pill .dot{width:6px;height:6px;border-radius:50%;background:var(--teal-500)}
+  .pill svg{flex:0 0 auto}
+  .user{display:flex;align-items:center;gap:9px;padding-left:10px;margin-left:4px;border-left:1px solid var(--border-soft)}
+  .avatar{
+    width:36px;height:36px;flex:0 0 36px;border-radius:50%;
+    background:linear-gradient(135deg,var(--teal-500),var(--teal-700));
+    color:#fff;display:grid;place-items:center;
+    font-size:13px;font-weight:600;letter-spacing:.02em;
+    box-shadow:0 3px 8px rgba(20,184,166,.28);
+  }
+  .user-name{font-size:13px;font-weight:600;line-height:1.2}
+  .user-role{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text-low);text-transform:uppercase}
+  /* ---------------- ZONA 3 · BUSCADOR ---------------- */
+  .search{
+    display:flex;align-items:center;gap:var(--s3);
+    height:48px;padding:0 var(--s3) 0 var(--s4);
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--r-m);
+    transition:border-color .15s ease,box-shadow .15s ease;
+    box-shadow:0 1px 2px rgba(15,23,42,.03);
+  }
+  .search:focus-within{border-color:var(--teal-500);box-shadow:0 0 0 3px rgba(20,184,166,.16)}
+  .search svg{flex:0 0 18px;color:var(--text-low)}
+  .search input{
+    flex:1;border:none;outline:none;background:transparent;
+    font-family:inherit;font-size:14px;color:var(--text-high);height:100%;
+  }
+  .search input::placeholder{color:var(--text-low)}
+  .kbd{
+    font-size:10.5px;font-weight:600;color:var(--text-sub);
+    background:#F1F5F9;border:1px solid var(--border);
+    border-bottom-width:2px;border-radius:var(--r-s);
+    padding:3px 7px;letter-spacing:.03em;white-space:nowrap;
+  }
+  .kbd.on-dark{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.3);color:#fff}
+
+  /* ---------------- CARDS ---------------- */
+  .card{
+    background:var(--surface);border-radius:var(--r-l);
+    box-shadow:var(--sh-card);padding:var(--s4) var(--s5);
+  }
+  .card-head{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);margin-bottom:var(--s3)}
+  .card-head .count{font-size:12px;color:var(--text-low);font-weight:500}
+  .card-head .title-wrap{display:flex;align-items:center;gap:10px}
+  .head-icon{
+    width:26px;height:26px;border-radius:8px;background:var(--teal-soft);
+    color:var(--teal-700);display:grid;place-items:center;flex:0 0 26px;
+  }
+
+  /* ---------------- TABLAS ---------------- */
+  .table-wrap{border-radius:var(--r-m);overflow:hidden;box-shadow:inset 0 0 0 1px var(--border-soft)}
+  table{width:100%;border-collapse:collapse;table-layout:fixed}
+  thead th{
+    background:#F8FAFC;padding:9px var(--s4);text-align:left;
+    border-bottom:1px solid var(--border-soft);
+    font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--text-sub);
+    white-space:nowrap;
+  }
+  tbody td{padding:13px var(--s4);border-bottom:1px solid var(--border-soft);font-size:14px;vertical-align:middle}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr.data-row{cursor:pointer;transition:background .15s ease}
+  tbody tr.data-row:hover{background:#F8FAFC}
+  tbody tr.data-row.sel{background:var(--teal-row);box-shadow:inset 3px 0 0 var(--teal-500)}
+  .num{text-align:right;font-variant-numeric:tabular-nums}
+  .th-num{text-align:right}
+  .plu{color:var(--text-sub);font-variant-numeric:tabular-nums;font-size:13px}
+  .prod-name{display:flex;align-items:center;gap:10px;font-weight:500}
+  .prod-avatar{
+    width:28px;height:28px;flex:0 0 28px;border-radius:8px;
+    background:#F1F5F9;color:var(--text-sub);
+    display:grid;place-items:center;font-size:12px;font-weight:600;
+  }
+  tr.data-row.sel .prod-avatar{background:rgba(20,184,166,.16);color:var(--teal-700)}
+  .chev{color:var(--text-low);opacity:0;transition:opacity .15s ease,transform .15s ease}
+  tr.data-row:hover .chev{opacity:1;transform:translateX(2px)}
+  tr.data-row.sel .chev{opacity:1;color:var(--teal-600)}
+  .unit-chip{
+    display:inline-flex;align-items:center;height:22px;padding:0 8px;
+    border-radius:var(--r-s);background:#F1F5F9;color:var(--text-mid);
+    font-size:11px;font-weight:600;letter-spacing:.04em;
+  }
+  .stock{font-variant-numeric:tabular-nums}
+  .stock.low{
+    display:inline-flex;align-items:center;height:22px;padding:0 9px;
+    border-radius:var(--r-s);background:var(--warn-bg);color:var(--warn-fg);
+    font-size:11.5px;font-weight:600;
+  }
+  .price{font-weight:600;font-variant-numeric:tabular-nums}
+  .per{font-size:11px;font-weight:500;color:var(--text-low);margin-left:2px}
+  .scroll-y{max-height:238px;overflow-y:auto}
+
+  /* ---------------- EMPTY STATES ---------------- */
+  .empty{padding:var(--s8) var(--s5);text-align:center;display:flex;flex-direction:column;align-items:center;gap:2px}
+  .empty svg{color:#CBD5E1;margin-bottom:8px}
+  .empty .e-title{font-size:14px;font-weight:600;color:var(--text-mid)}
+  .empty .e-sub{font-size:12.5px;color:var(--text-low);max-width:340px}
+  .empty.compact{padding:var(--s6) var(--s5)}
+
+  /* ---------------- ZONA 5 · VENTA EN PREPARACIÓN ---------------- */
+  .row-actions{display:flex;justify-content:flex-end;gap:2px;opacity:.4;transition:opacity .15s ease}
+  tr.ticket-row:hover .row-actions{opacity:1}
+  .icon-btn{width:26px;height:26px;border-radius:var(--r-s);display:grid;place-items:center;color:var(--text-sub);transition:.15s}
+  .icon-btn:hover{background:#FEF2F2;color:#DC2626}
+  .icon-btn.neutral:hover{background:#F1F5F9;color:var(--text-high)}
+  .qty{font-variant-numeric:tabular-nums;font-weight:600}
+
+  /* ---------------- ZONA 6 · FOOTER ---------------- */
+  .footer{
+    position:sticky;bottom:0;z-index:5;
+    background:linear-gradient(to top,var(--app-bg) 80%,rgba(247,248,250,0));
+    padding:var(--s3) var(--s6) var(--s4);
+  }
+  .footer-inner{
+    max-width:1280px;margin:0 auto;
+    background:var(--surface);border-radius:var(--r-l);
+    box-shadow:0 1px 2px rgba(15,23,42,.05), 0 0 0 1px rgba(15,23,42,.05), 0 -6px 24px rgba(15,23,42,.06);
+    padding:var(--s4) var(--s5);
+    display:flex;align-items:flex-end;justify-content:space-between;gap:var(--s6);
+  }
+  .actions{display:flex;flex-direction:column;gap:10px}
+  .actions-row{display:flex;align-items:center;gap:var(--s2);flex-wrap:wrap}
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    height:40px;padding:0 14px;border-radius:var(--r-m);
+    font-size:13px;font-weight:500;color:var(--text-mid);
+    transition:all .15s ease;white-space:nowrap;
+  }
+  .btn:hover{background:#F1F5F9;color:var(--text-high)}
+  .btn-outline{border:1px solid var(--border);background:var(--surface);color:var(--text-mid)}
+  .btn-outline:hover{background:#F8FAFC;border-color:#CBD5E1;color:var(--text-high)}
+  .btn-teal-outline{border:1px solid rgba(20,184,166,.45);background:rgba(20,184,166,.06);color:var(--teal-700);font-weight:600}
+  .btn-teal-outline:hover{background:rgba(20,184,166,.12);border-color:var(--teal-500);color:var(--teal-700)}
+  .btn .kbd{margin-left:2px}
+  .btn:disabled{opacity:.42;cursor:not-allowed}
+  .btn:disabled:hover{background:var(--surface);color:var(--text-mid);border-color:var(--border)}
+
+  .totals{display:flex;align-items:flex-end;gap:var(--s6)}
+  .totals-rows{display:flex;flex-direction:column;gap:5px;min-width:190px}
+  .t-line{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s6)}
+  .t-line .lbl{font-size:13px;font-weight:500;color:var(--text-sub)}
+  .t-line .val{font-size:14px;font-weight:600;color:var(--text-high);font-variant-numeric:tabular-nums}
+  .t-line .val.disc{color:#059669}
+  .t-div{height:1px;background:var(--border);margin:3px 0 1px}
+  .t-total{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s6)}
+  .t-total .lbl{font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-high)}
+  .t-total .val{font-size:28px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.15}
+
+  .btn-cobrar{
+    height:52px;padding:0 22px;border-radius:var(--r-m);
+    background:var(--teal-500);color:#fff;font-size:15px;font-weight:600;
+    display:inline-flex;align-items:center;gap:10px;
+    box-shadow:var(--sh-primary);
+    transition:transform .18s cubic-bezier(.2,.8,.3,1),box-shadow .18s ease,background .15s ease;
+  }
+  .btn-cobrar:hover{background:var(--teal-600);transform:translateY(-1px);box-shadow:var(--sh-primary-hover)}
+  .btn-cobrar:active{transform:translateY(0) scale(.99)}
+  .btn-cobrar .amt{font-weight:700;font-variant-numeric:tabular-nums;padding-left:10px;border-left:1px solid rgba(255,255,255,.35)}
+
+  /* ---------------- TOAST ---------------- */
+  .toast{
+    position:fixed;top:20px;left:50%;z-index:50;
+    display:flex;align-items:center;gap:10px;
+    background:#0F172A;color:#fff;font-size:13px;font-weight:500;
+    padding:11px 16px;border-radius:999px;box-shadow:0 12px 32px rgba(15,23,42,.28);
+    opacity:0;transform:translate(-50%,-10px);pointer-events:none;
+    transition:opacity .2s ease,transform .2s ease;
+  }
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+  .toast .t-dot{width:7px;height:7px;border-radius:50%;background:var(--teal-500)}
+
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:999px;border:3px solid var(--app-bg)}
+  ::-webkit-scrollbar-thumb:hover{background:#94A3B8}
+
+  @media (max-width:1120px){
+    .footer-inner{flex-direction:column;align-items:stretch}
+    .totals{justify-content:space-between;width:100%}
+    .page-head{flex-wrap:wrap}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ═══════════════ ZONA 1 · SIDEBAR ═══════════════ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-logo">F</div>
+      <div>
+        <div class="brand-name">Frubber</div>
+        <div class="brand-sub">POS</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <button class="nav-item active"><span class="key">V</span>Venta<span class="nav-dot"></span></button>
+      <button class="nav-item"><span class="key">C</span>Caja</button>
+      <button class="nav-item"><span class="key">P</span>Productos</button>
+      <button class="nav-item"><span class="key">H</span>Historial</button>
+      <button class="nav-item"><span class="key">U</span>Usuarios</button>
+      <button class="nav-item"><span class="key">G</span>Configuración</button>
+      <button class="nav-item"><span class="key">S</span>Respaldo</button>
+    </nav>
+
+    <div class="sidebar-foot">
+      <span class="badge-admin">ADMIN</span>
+      <button class="btn-logout" onclick="toast('Sesión cerrada (demo)')">Cerrar sesión</button>
+      <div class="offline"><span class="dot-pulse"></span> Modo fuera de línea</div>
+    </div>
+  </aside>
+
+  <!-- ═══════════════ MAIN ═══════════════ -->
+  <div class="main">
+    <div class="main-scroll" id="scroll">
+      <div class="main-inner">
+
+        <!-- ── ZONA 2 · HEADER ── -->
+        <header class="page-head">
+          <div>
+            <h1 class="t-display">Venta</h1>
+            <div class="head-sub">
+              <span>Ticket <strong id="ticketNo">#00124</strong></span>
+              <span class="sep">·</span>
+              <span>Turno mañana</span>
+            </div>
+          </div>
+          <div class="head-right">
+            <span class="pill"><span class="dot-pulse" style="color:#14B8A6"></span> Caja abierta</span>
+            <span class="pill">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+              Licencia vitalicia
+            </span>
+            <div class="user">
+              <div class="avatar">JD</div>
+              <div>
+                <div class="user-name">Jhoan Daniel</div>
+                <div class="user-role">Admin</div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <!-- ── ZONA 3 · BUSCADOR ── -->
+        <div class="search">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          <input id="q" type="text" placeholder="Escribe el nombre o código del producto..." autocomplete="off" spellcheck="false">
+          <span class="kbd">F2</span>
+        </div>
+
+        <!-- ── ZONA 4 · RESULTADOS ── -->
+        <section class="card">
+          <div class="card-head">
+            <div class="title-wrap">
+              <span class="head-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+              </span>
+              <h2 class="t-title">Resultados</h2>
+            </div>
+            <span class="count" id="resCount">1 producto</span>
+          </div>
+
+          <div class="table-wrap scroll-y">
+            <table id="resTable">
+              <colgroup>
+                <col style="width:90px"><col><col style="width:110px"><col style="width:140px"><col style="width:150px">
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>PLU</th><th>Producto</th>
+                  <th class="th-num">Unidad</th><th class="th-num">Precio</th><th class="th-num">Existencia</th>
+                </tr>
+              </thead>
+              <tbody id="resBody"></tbody>
+            </table>
+            <div class="empty" id="resEmpty" style="display:none">
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+              <div class="e-title">Busca un producto para empezar</div>
+              <div class="e-sub">Usa el nombre, el PLU o escanea el código de barras</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ── ZONA 5 · VENTA EN PREPARACIÓN ── -->
+        <section class="card">
+          <div class="card-head">
+            <div class="title-wrap">
+              <span class="head-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h2.2l2.6 12.2a2 2 0 0 0 2 1.6h8.9a2 2 0 0 0 2-1.55L21 7H5"/></svg>
+              </span>
+              <h2 class="t-title">Venta en preparación</h2>
+            </div>
+            <span class="count" id="ticketCount">0 ítems</span>
+          </div>
+
+          <div class="table-wrap" id="ticketWrap" style="display:none">
+            <table>
+              <colgroup>
+                <col style="width:56px"><col><col style="width:170px"><col style="width:150px"><col style="width:150px"><col style="width:64px">
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>#</th><th>Producto</th>
+                  <th class="th-num">Cantidad</th><th class="th-num">Precio</th><th class="th-num">Importe</th><th></th>
+                </tr>
+              </thead>
+              <tbody id="ticketBody"></tbody>
+            </table>
+          </div>
+
+          <div class="empty compact" id="ticketEmpty">
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h2.2l2.6 12.2a2 2 0 0 0 2 1.6h8.9a2 2 0 0 0 2-1.55L21 7H5"/></svg>
+            <div class="e-title">Tu ticket está vacío</div>
+            <div class="e-sub">Selecciona productos arriba para comenzar la venta</div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+
+    <!-- ── ZONA 6 · FOOTER ── -->
+    <div class="footer">
+      <div class="footer-inner">
+        <div class="actions">
+          <div class="actions-row">
+            <button class="btn btn-outline" onclick="clearAll()">Limpiar</button>
+            <button class="btn" id="bQty" onclick="setQtyPrompt()">Cantidad <span class="kbd">F4</span></button>
+            <button class="btn" id="bDel" onclick="removeSelected()">Quitar <span class="kbd">SUPR</span></button>
+            <button class="btn" id="bDisc" onclick="discountPrompt()">Descuento <span class="kbd">F6</span></button>
+            <button class="btn btn-teal-outline" onclick="addFromSearch()">Agregar <span class="kbd" style="background:rgba(20,184,166,.12);border-color:rgba(20,184,166,.28);color:#0F766E">ENTER</span></button>
+          </div>
+          <div style="font-size:11.5px;color:var(--text-low);font-weight:500">
+            Atajos: F2 buscar · ↑↓ seleccionar · ENTER agregar · F4 cantidad · SUPR quitar · F6 descuento · F8 cobrar
+          </div>
+        </div>
+
+        <div class="totals">
+          <div class="totals-rows">
+            <div class="t-line"><span class="lbl">Subtotal</span><span class="val" id="subtotal">$ 0</span></div>
+            <div class="t-line"><span class="lbl">Descuento</span><span class="val disc" id="discount">−$ 0</span></div>
+            <div class="t-div"></div>
+            <div class="t-total"><span class="lbl">Total</span><span class="val" id="total">$ 0</span></div>
+          </div>
+          <button class="btn-cobrar" onclick="cobrar()">
+            Cobrar <span class="kbd on-dark">F8</span>
+            <span class="amt" id="cobrarAmt">$ 0</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span class="t-dot"></span><span id="toastMsg"></span></div>
+
+<script>
+/* ============================================================
+   DATOS DEMO
+   ============================================================ */
+const CATALOG = [
+  {plu:"4011", name:"Aguacate",         unit:"KG",  price:12000, stock:10, low:false},
+  {plu:"2073", name:"Banano criollo",   unit:"KG",  price:4500,  stock:24, low:false},
+  {plu:"3092", name:"Café molido 250g", unit:"UND", price:9800,  stock:18, low:false},
+  {plu:"1120", name:"Leche entera 1L",  unit:"UND", price:4200,  stock:6,  low:true },
+  {plu:"5501", name:"Pan tajado",       unit:"UND", price:3600,  stock:12, low:false},
+  {plu:"6010", name:"Huevos AA",        unit:"DOC", price:11500, stock:9,  low:false},
+  {plu:"7021", name:"Arroz 500g",       unit:"UND", price:2900,  stock:40, low:false},
+  {plu:"8080", name:"Queso campesino",  unit:"KG",  price:18500, stock:3,  low:true },
+];
+
+const fmt   = n => "$ " + Math.round(n).toLocaleString("es-CO");
+const norm = s => String(s).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+const nf    = new Intl.NumberFormat("es-CO", {maximumFractionDigits:3});
+const fmtQ  = n => nf.format(n);
+let q = "", resList = [...CATALOG], cursor = 0, lines = [], selLine = -1, discountPct = 0;
+
+/* ============================================================
+   ZONA 4 · RESULTADOS
+   ============================================================ */
+const resBody = document.getElementById("resBody");
+const resEmpty = document.getElementById("resEmpty");
+const resTable = document.getElementById("resTable");
+
+function renderResults(){
+  const term = norm(q.trim());
+  resList = CATALOG.filter(p => !term || norm(p.name).includes(term) || p.plu.includes(term));
+  document.getElementById("resCount").textContent =
+    resList.length === 1 ? "1 producto" : resList.length + " productos";
+  resBody.innerHTML = "";
+
+  if(!resList.length){
+    resTable.style.display = "none"; resEmpty.style.display = "flex"; return;
+  }
+  resTable.style.display = "table"; resEmpty.style.display = "none";
+  if(cursor >= resList.length) cursor = resList.length - 1;
+
+  resList.forEach((p, i) => {
+    const tr = document.createElement("tr");
+    tr.className = "data-row" + (i === cursor ? " sel" : "");
+    tr.innerHTML = `
+      <td class="plu">${p.plu}</td>
+      <td>
+        <div class="prod-name">
+          <span class="prod-avatar">${p.name[0]}</span>
+          ${p.name}
+          <svg class="chev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        </div>
+      </td>
+      <td class="num"><span class="unit-chip">${p.unit}</span></td>
+      <td class="num"><span class="price">${fmt(p.price)}</span></td>
+      <td class="num">${p.low
+          ? `<span class="stock low">${p.stock} ${p.unit} · bajo</span>`
+          : `<span class="stock">${p.stock} ${p.unit}</span>`}</td>`;
+    tr.onclick = () => { cursor = i; renderResults(); };
+    tr.ondblclick = () => addProduct(p);
+    resBody.appendChild(tr);
+  });
+}
+
+/* ============================================================
+   ZONA 5 · TICKET
+   ============================================================ */
+const ticketBody  = document.getElementById("ticketBody");
+const ticketWrap  = document.getElementById("ticketWrap");
+const ticketEmpty = document.getElementById("ticketEmpty");
+
+function renderTicket(){
+  ticketBody.innerHTML = "";
+  const has = lines.length > 0;
+  ticketWrap.style.display  = has ? "block" : "none";
+  ticketEmpty.style.display = has ? "none"  : "flex";
+  document.getElementById("ticketCount").textContent =
+    lines.length === 1 ? "1 ítem" : lines.length + " ítems";
+
+  lines.forEach((l, i) => {
+    const tr = document.createElement("tr");
+    tr.className = "ticket-row";
+    tr.innerHTML = `
+      <td class="plu">${i + 1}</td>
+      <td><div class="prod-name" style="gap:8px">${l.name}</div></td>
+      <td class="num"><span class="qty">${fmtQ(l.qty)} ${l.unit}</span></td>
+      <td class="num"><span class="price">${fmt(l.price)}</span>${l.weighed ? '<span class="per">/' + l.unit + '</span>' : ''}</td>
+      <td class="num price">${fmt(l.qty * l.price)}</td>
+      <td>
+        <div class="row-actions">
+          <button class="icon-btn neutral" title="Editar cantidad (F4)" onclick="setQtyPrompt(${i})">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+          </button>
+          <button class="icon-btn" title="Quitar (SUPR)" onclick="removeLine(${i})">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+          </button>
+        </div>
+      </td>`;
+    tr.onclick = e => { if(!e.target.closest("button")) selLine = i; };
+    ticketBody.appendChild(tr);
+  });
+
+  const sub  = lines.reduce((s, l) => s + l.qty * l.price, 0);
+  const disc = sub * discountPct / 100;
+  document.getElementById("subtotal").textContent = fmt(sub);
+  document.getElementById("discount").textContent = "−" + fmt(disc) + (discountPct ? ` (${fmtQ(discountPct)}%)` : "");
+  document.getElementById("total").textContent    = fmt(sub - disc);
+  document.getElementById("cobrarAmt").textContent = fmt(sub - disc);
+  document.getElementById("bDel").disabled  = !lines.length;
+  document.getElementById("bQty").disabled  = !lines.length;
+}
+
+/* ============================================================
+   ACCIONES
+   ============================================================ */
+function addProduct(p){
+  const line = lines.find(l => l.plu === p.plu);
+  if(line) line.qty += 1;
+  else lines.push({...p, qty: 1, weighed: p.unit === "KG"});
+  renderTicket(); toast(p.name + " agregado");
+}
+function addFromSearch(){
+  if(resList.length) addProduct(resList[cursor]);
+  else document.getElementById("q").focus();
+}
+function removeLine(i){ const n = lines[i].name; lines.splice(i, 1); selLine = -1; renderTicket(); toast(n + " eliminado"); }
+function removeSelected(){
+  if(selLine >= 0) removeLine(selLine);
+  else toast("Selecciona una línea del ticket con clic");
+}
+function clearAll(){
+  if(!lines.length) return;
+  lines = []; selLine = -1; discountPct = 0; renderTicket(); toast("Venta limpiada");
+}
+function setQtyPrompt(i){
+  const idx = (typeof i === "number") ? i : selLine;
+  if(idx < 0 || !lines[idx]) return toast("Selecciona una línea del ticket con clic");
+  const l = lines[idx];
+  const v = prompt(`Cantidad para "${l.name}" (${l.unit})`, l.qty);
+  if(v === null) return;
+  const n = parseFloat(String(v).replace(",", "."));
+  if(!isNaN(n) && n > 0){ l.qty = n; renderTicket(); toast("Cantidad actualizada"); }
+}
+function discountPrompt(){
+  const v = prompt("Descuento en % (0-100)", discountPct);
+  if(v === null) return;
+  const n = parseFloat(String(v).replace(",", "."));
+  if(!isNaN(n) && n >= 0 && n <= 100){ discountPct = n; renderTicket(); toast("Descuento del " + n + "%"); }
+}
+function cobrar(){
+  if(!lines.length) return toast("Agrega productos antes de cobrar");
+  toast("Cobrando " + document.getElementById("total").textContent + " (demo)");
+}
+
+/* ============================================================
+   TECLADO · F2 · F4 · F6 · F8 · SUPR · ↑↓ · ENTER
+   ============================================================ */
+const input = document.getElementById("q");
+window.addEventListener("keydown", e => {
+  const k = e.key;
+  if(k === "F2"){ e.preventDefault(); input.focus(); input.select(); return; }
+  if(k === "F4"){ e.preventDefault(); setQtyPrompt(); return; }
+  if(k === "F6"){ e.preventDefault(); discountPrompt(); return; }
+  if(k === "F8"){ e.preventDefault(); cobrar(); return; }
+  if(document.activeElement === input){
+    if(k === "ArrowDown"){ e.preventDefault(); cursor = Math.min(cursor + 1, resList.length - 1); renderResults(); }
+    if(k === "ArrowUp"){   e.preventDefault(); cursor = Math.max(cursor - 1, 0); renderResults(); }
+    if(k === "Enter"){     e.preventDefault(); addFromSearch(); }
+    if(k === "Escape"){    input.value = ""; q = ""; cursor = 0; renderResults(); }
+    return;
+  }
+  if(k === "Delete"){ e.preventDefault(); removeSelected(); }
+});
+
+input.addEventListener("input", e => { q = e.target.value; cursor = 0; renderResults(); });
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+let toastTimer;
+function toast(msg){
+  const t = document.getElementById("toast");
+  document.getElementById("toastMsg").textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 1900);
+}
+
+/* init */
+renderResults(); renderTicket();
+</script>
+</body>
+</html>

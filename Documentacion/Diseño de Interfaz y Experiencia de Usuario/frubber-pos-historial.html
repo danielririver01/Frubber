@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="iconos/frubber-pos-192.png">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Frubber POS — Rediseño Vista Historial</title>
+<style>
+  /* ============================================================
+     FRUBBER POS · DESIGN TOKENS (Venta · Caja · Productos · Historial)
+     ============================================================ */
+  :root{
+    --teal-500:#14B8A6; --teal-600:#0F9488; --teal-700:#0F766E;
+    --teal-soft:#E6FAF5; --teal-row:#F0FDF9; --teal-brd:#99F6E4;
+    --green-500:#10B981; --green-soft:#ECFDF5; --green-deep:#047857;
+    --blue-500:#3B82F6;  --blue-soft:#EFF6FF; --blue-deep:#1D4ED8;
+    --amber-500:#F59E0B; --amber-soft:#FFFBEB; --amber-deep:#92400E; --amber-badge:#FEF3C7;
+    --danger-500:#DC2626; --danger-soft:#FEF2F2; --danger-brd:#FECACA; --danger-hover:#FEE2E2;
+
+    --app-bg:#F7F8FA; --surface:#FFFFFF;
+    --border-soft:#EEF1F4; --border:#E2E8F0; --slate-100:#F1F5F9;
+
+    --text-high:#0F172A; --text-mid:#475569; --text-low:#94A3B8; --text-sub:#64748B;
+
+    --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s8:32px;
+    --r-s:6px; --r-m:10px; --r-l:12px; --r-xl:14px; --r-2xl:16px;
+
+    --sh-card:0 1px 2px rgba(15,23,42,.04), 0 0 0 1px rgba(15,23,42,.04);
+    --sh-raise:0 6px 18px rgba(15,23,42,.08);
+    --font:"Inter","Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:var(--font);background:var(--app-bg);color:var(--text-high);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;overflow:hidden}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  input,select{font-family:inherit}
+  ::selection{background:#CCFBF1}
+
+  .t-display{font-size:28px;font-weight:700;letter-spacing:-.02em;line-height:1.2}
+  .lbl{font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--text-sub)}
+  .money{font-variant-numeric:tabular-nums}
+  .app{display:flex;height:100vh;overflow:hidden}
+
+  /* ---------------- SIDEBAR ---------------- */
+  .sidebar{width:220px;flex:0 0 220px;background:var(--surface);border-right:1px solid var(--border-soft);
+    display:flex;flex-direction:column;padding:var(--s5) var(--s3) var(--s4)}
+  .brand{display:flex;align-items:center;gap:10px;padding:4px 8px var(--s5)}
+  .brand-logo{width:40px;height:40px;flex:0 0 40px;border-radius:var(--r-m);
+    background:linear-gradient(180deg,var(--teal-500),var(--teal-700));color:#fff;display:grid;place-items:center;
+    font-size:17px;font-weight:700;box-shadow:0 4px 10px rgba(20,184,166,.28)}
+  .brand-name{font-size:15px;font-weight:700;line-height:1.15}
+  .brand-sub{font-size:11px;font-weight:600;letter-spacing:.08em;color:var(--text-low);text-transform:uppercase}
+  .nav{display:flex;flex-direction:column;gap:2px}
+  .nav-item{display:flex;align-items:center;gap:10px;height:42px;padding:0 12px;border-radius:var(--r-m);
+    border-left:3px solid transparent;font-size:14px;font-weight:500;color:var(--text-mid);transition:.15s;width:100%;text-align:left}
+  .nav-item:hover{background:#F8FAFC;color:var(--text-high)}
+  .nav-item .key{width:22px;height:22px;flex:0 0 22px;border-radius:var(--r-s);display:grid;place-items:center;
+    background:var(--slate-100);color:var(--text-sub);font-size:11px;font-weight:700;transition:.15s}
+  .nav-item.active{background:var(--teal-soft);border-left:3px solid var(--teal-500);color:var(--teal-700);
+    font-weight:600;border-radius:0 var(--r-m) var(--r-m) 0}
+  .nav-item.active .key{background:rgba(20,184,166,.16);color:var(--teal-700)}
+  .sidebar-foot{margin-top:auto;padding-top:var(--s4)}
+  .badge-admin{display:inline-flex;background:var(--teal-soft);color:var(--teal-700);font-size:11px;font-weight:700;
+    letter-spacing:.08em;padding:4px 10px;border-radius:999px;margin:0 0 10px 4px}
+  .btn-logout{width:100%;height:40px;border-radius:var(--r-m);border:1px solid var(--border);background:var(--surface);
+    color:var(--text-mid);font-size:13px;font-weight:500;transition:.15s}
+  .btn-logout:hover{background:#F8FAFC;border-color:#CBD5E1;color:var(--text-high)}
+  .offline{display:flex;align-items:center;gap:7px;margin-top:var(--s4);padding:9px 12px;border-radius:var(--r-m);
+    background:var(--amber-badge);color:#D97706;font-size:11px;font-weight:600}
+  .dot-pulse{position:relative;width:7px;height:7px;flex:0 0 7px;border-radius:50%;background:currentColor}
+  .dot-pulse::after{content:"";position:absolute;inset:0;border-radius:50%;background:currentColor;animation:pulse 2s ease-out infinite}
+  @keyframes pulse{0%{transform:scale(1);opacity:.7}70%{transform:scale(3);opacity:0}100%{opacity:0}}
+
+  /* ---------------- MAIN ---------------- */
+  .main{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+  .main-scroll{flex:1;overflow-y:auto;padding:var(--s4) var(--s6) var(--s4)}
+  .main-inner{max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
+
+  /* ---------------- HEADER ---------------- */
+  .page-head{display:flex;align-items:center;justify-content:space-between;gap:var(--s6);padding-bottom:var(--s3)}
+  .head-sub{font-size:13px;color:var(--text-sub);margin-top:2px}
+  .head-right{display:flex;align-items:center;gap:8px}
+  .pill{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 12px;border-radius:999px;
+    background:var(--teal-soft);color:var(--teal-700);font-size:12px;font-weight:600;white-space:nowrap;
+    box-shadow:inset 0 0 0 1px rgba(20,184,166,.12)}
+  .pill .dot{width:6px;height:6px;border-radius:50%;background:var(--teal-500)}
+  .user{display:flex;align-items:center;gap:9px;padding-left:10px;margin-left:4px;border-left:1px solid var(--border-soft)}
+  .avatar{width:36px;height:36px;flex:0 0 36px;border-radius:50%;
+    background:linear-gradient(135deg,var(--teal-500),var(--teal-700));color:#fff;display:grid;place-items:center;
+    font-size:13px;font-weight:600;box-shadow:0 3px 8px rgba(20,184,166,.28)}
+  .user-name{font-size:13px;font-weight:600;line-height:1.2}
+  .user-role{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text-low);text-transform:uppercase}
+  /* ---------------- BOTONES ---------------- */
+  .btn-primary{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px;border-radius:var(--r-m);
+    background:var(--teal-500);color:#fff;font-size:13.5px;font-weight:600;box-shadow:0 6px 16px rgba(20,184,166,.25);transition:.18s}
+  .btn-primary:hover{background:var(--teal-600);transform:translateY(-1px);box-shadow:0 10px 24px rgba(20,184,166,.35)}
+  .btn-teal-outline{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px;border-radius:var(--r-m);
+    border:1px solid rgba(20,184,166,.45);background:rgba(20,184,166,.06);color:var(--teal-700);font-size:13px;font-weight:600;transition:.15s}
+  .btn-teal-outline:hover{background:rgba(20,184,166,.12);border-color:var(--teal-500)}
+  .btn-outline{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 14px;border-radius:var(--r-m);
+    border:1px solid var(--border);background:var(--surface);color:var(--text-mid);font-size:13px;font-weight:500;transition:.15s}
+  .btn-outline:hover{background:#F8FAFC;border-color:#CBD5E1;color:var(--text-high)}
+  .btn-ghost{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 14px;border-radius:var(--r-m);
+    color:var(--text-mid);font-size:13px;font-weight:500;transition:.15s}
+  .btn-ghost:hover{background:var(--slate-100);color:var(--text-high)}
+  .btn-link{color:var(--text-sub);font-size:13px;font-weight:500;transition:.15s;padding:6px 2px}
+  .btn-link:hover{color:var(--teal-700);text-decoration:underline}
+  .btn-danger-outline{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 14px;border-radius:var(--r-m);
+    background:var(--surface);color:var(--danger-500);border:1px solid var(--danger-brd);font-size:13px;font-weight:600;transition:.15s}
+  .btn-danger-outline:hover{background:var(--danger-soft)}
+  .btn-danger-soft{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:38px;padding:0 16px;border-radius:var(--r-m);
+    background:var(--danger-soft);color:var(--danger-500);border:1px solid var(--danger-brd);font-size:13px;font-weight:600;transition:.15s}
+  .btn-danger-soft:hover{background:var(--danger-hover)}
+
+  /* ---------------- KPIs ---------------- */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--s3)}
+  .kpi-mini{display:flex;align-items:center;gap:var(--s3);background:var(--surface);border:1px solid var(--border-soft);
+    border-radius:var(--r-l);padding:var(--s4) var(--s5);box-shadow:0 1px 2px rgba(15,23,42,.04);min-height:76px}
+  .kpi-ico{width:40px;height:40px;flex:0 0 40px;border-radius:var(--r-m);display:grid;place-items:center}
+  .kpi-ico.teal{background:var(--teal-soft);color:var(--teal-700)}
+  .kpi-ico.green{background:#D1FAE5;color:var(--green-deep)}
+  .kpi-ico.neutral{background:var(--slate-100);color:var(--text-sub)}
+  .kpi-ico.danger{background:var(--danger-soft);color:var(--danger-500)}
+  .kpi-label{font-size:12px;font-weight:600;color:var(--text-sub)}
+  .kpi-value{font-size:24px;font-weight:700;letter-spacing:-.02em;line-height:1.15;margin-top:1px}
+  .kpi-note{font-size:11.5px;color:var(--text-low);margin-top:1px}
+
+  /* ---------------- FILTROS ---------------- */
+  .filter-bar{background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--r-xl);
+    box-shadow:0 1px 2px rgba(15,23,42,.04);padding:var(--s4) var(--s5);display:flex;flex-direction:column;gap:var(--s3)}
+  .filter-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .date-field{position:relative;display:flex;align-items:center;height:40px;border:1px solid var(--border);
+    border-radius:var(--r-m);background:var(--surface);padding:0 10px 0 34px;transition:.15s;width:168px;flex:0 0 168px}
+  .date-field:focus-within{border-color:var(--teal-500);box-shadow:0 0 0 3px rgba(20,184,166,.14)}
+  .date-field svg.cal{position:absolute;left:12px;color:var(--text-low);pointer-events:none}
+  .date-field input{border:none;outline:none;background:transparent;font-size:13px;font-weight:500;
+    color:var(--text-high);width:100%;font-variant-numeric:tabular-nums;min-width:0}
+  .date-field .cap{position:absolute;top:-8px;left:30px;background:var(--surface);padding:0 4px;
+    font-size:10.5px;font-weight:600;color:var(--text-low);letter-spacing:.03em}
+  .date-field:focus-within .cap{color:var(--teal-700)}
+  .sep-v{width:1px;height:24px;background:var(--border-soft)}
+  .select-wrap{position:relative;display:flex;align-items:center}
+  .select-wrap svg.lead{position:absolute;left:11px;color:var(--text-low);pointer-events:none}
+  .select-wrap select{height:40px;border:1px solid var(--border);border-radius:var(--r-m);background:var(--surface);
+    font-size:13px;font-weight:500;color:var(--text-mid);padding:0 26px 0 30px;cursor:pointer;appearance:none;width:175px;flex:0 0 175px;transition:.15s}
+  .select-wrap select:hover{border-color:#CBD5E1;color:var(--text-high)}
+  .select-wrap select:focus{outline:none;border-color:var(--teal-500);box-shadow:0 0 0 3px rgba(20,184,166,.14)}
+  .select-wrap svg.chev{position:absolute;right:11px;color:var(--text-low);pointer-events:none}
+  .filter-foot{display:flex;align-items:center;gap:var(--s3);border-top:1px solid var(--border-soft);padding-top:var(--s3)}
+  .result-count{font-size:13px;color:var(--text-sub);font-weight:500}
+  .quick-ranges{display:flex;align-items:center;gap:4px;background:var(--slate-100);padding:3px;border-radius:var(--r-m)}
+  .quick-ranges button{padding:6px 11px;border-radius:8px;font-size:12.5px;font-weight:500;color:var(--text-sub);transition:.15s}
+  .quick-ranges button:hover{color:var(--text-high)}
+  .quick-ranges button.on{background:var(--surface);color:var(--text-high);font-weight:600;box-shadow:0 1px 2px rgba(15,23,42,.06)}
+  .toolbar-spacer{flex:1}
+
+  /* ---------------- TABLA ---------------- */
+  .card{background:var(--surface);border-radius:var(--r-xl);box-shadow:var(--sh-card);overflow:visible}
+  .table-scroll{overflow-x:auto;border-radius:var(--r-xl) var(--r-xl) 0 0}
+  table{width:100%;border-collapse:collapse;min-width:1040px}
+  thead th{background:#F8FAFC;padding:9px var(--s4);text-align:left;border-bottom:1px solid var(--border-soft);
+    font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--text-sub);white-space:nowrap}
+  tbody td{padding:12px var(--s4);border-bottom:1px solid var(--border-soft);font-size:13.5px;vertical-align:middle}
+  tbody tr{transition:background .15s ease;position:relative;z-index:1}
+  tbody tr:hover{background:#F8FAFC}
+  tbody tr.sel{background:var(--teal-row);box-shadow:inset 3px 0 0 var(--teal-500)}
+  tbody tr.menu-open{z-index:30}
+  .group-row td{background:#F8FAFC;padding:8px var(--s4);font-size:11.5px;font-weight:600;letter-spacing:.4px;
+    text-transform:uppercase;color:var(--text-sub);border-bottom:1px solid var(--border-soft)}
+  .group-row .g-count{float:right;text-transform:none;letter-spacing:0;font-weight:500;color:var(--text-low)}
+  .cell-mute{color:var(--text-sub);font-variant-numeric:tabular-nums;font-size:13px}
+  .ticket-n{font-weight:600;font-variant-numeric:tabular-nums}
+  .ca jero,.cashier{display:flex;align-items:center;gap:8px}
+  .mini-avatar{width:26px;height:26px;flex:0 0 26px;border-radius:50%;background:var(--slate-100);color:var(--text-sub);
+    display:grid;place-items:center;font-size:10.5px;font-weight:700}
+  .pay{display:inline-flex;align-items:center;gap:7px;font-size:13px}
+  .pay-ico{width:24px;height:24px;flex:0 0 24px;border-radius:7px;display:grid;place-items:center}
+  .pay-ico.cash{background:var(--green-soft);color:var(--green-deep)}
+  .pay-ico.transfer{background:var(--blue-soft);color:var(--blue-deep)}
+  .pay-ico.card{background:var(--slate-100);color:var(--text-mid)}
+  .total{font-weight:700;font-variant-numeric:tabular-nums}
+  .status-dot{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500}
+  .status-dot::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--status-color)}
+  .status-dot--ok{--status-color:var(--green-500);color:var(--green-deep)}
+  .status-dot--pending{--status-color:var(--amber-500);color:var(--amber-deep)}
+  .status-dot--cancel{--status-color:#EF4444;color:var(--danger-500)}
+  .row-cancel td .total{text-decoration:line-through;color:var(--text-low);font-weight:600}
+  .row-actions{text-align:right;padding-right:var(--s5)!important;position:relative}
+  .dots{width:30px;height:30px;border-radius:var(--r-s);display:inline-grid;place-items:center;color:var(--text-sub);transition:.15s}
+  .dots:hover{background:var(--slate-100);color:var(--text-high)}
+  .menu{position:absolute;right:var(--s4);top:calc(100% - 8px);z-index:40;min-width:200px;background:var(--surface);
+    border-radius:var(--r-m);box-shadow:0 12px 32px rgba(15,23,42,.16), 0 0 0 1px rgba(15,23,42,.06);padding:6px;
+    display:none;text-align:left}
+  .menu.show{display:block;animation:menuin .14s ease}
+  @keyframes menuin{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+  .menu button{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border-radius:var(--r-s);
+    font-size:13px;font-weight:500;color:var(--text-mid);text-align:left;transition:.12s}
+  .menu button:hover{background:var(--slate-100);color:var(--text-high)}
+  .menu button.danger{color:var(--danger-500)}
+  .menu button.danger:hover{background:var(--danger-soft)}
+  .menu .sep{height:1px;background:var(--border-soft);margin:5px 4px}
+  .menu svg{flex:0 0 15px;color:var(--text-low)}
+  .menu button.danger svg{color:var(--danger-500)}
+
+  /* ---------------- EMPTY STATE ---------------- */
+  .empty{padding:var(--s8) var(--s5);text-align:center;display:flex;flex-direction:column;align-items:center}
+  .empty-ico{width:64px;height:64px;border-radius:50%;background:var(--slate-100);color:#CBD5E1;display:grid;place-items:center;margin-bottom:var(--s4)}
+  .empty-title{font-size:16px;font-weight:600;color:var(--text-mid)}
+  .empty-sub{font-size:13px;color:var(--text-sub);margin-top:4px;max-width:380px}
+  .empty .btn-outline{margin-top:var(--s5)}
+
+  /* ---------------- PAGINACIÓN ---------------- */
+  .pagination{display:flex;align-items:center;gap:var(--s4);padding:var(--s3) var(--s5);border-top:1px solid var(--border-soft);
+    background:#FCFDFE;border-radius:0 0 var(--r-xl) var(--r-xl);flex-wrap:wrap}
+  .page-info{font-size:12.5px;color:var(--text-sub)}
+  .pages{display:flex;align-items:center;gap:4px;margin-left:auto}
+  .pages button{min-width:30px;height:30px;padding:0 8px;border-radius:var(--r-s);font-size:12.5px;font-weight:500;
+    color:var(--text-mid);display:grid;place-items:center;transition:.15s}
+  .pages button:hover:not(:disabled){background:var(--slate-100);color:var(--text-high)}
+  .pages button.on{background:var(--teal-soft);color:var(--teal-700);font-weight:700;box-shadow:inset 0 0 0 1px rgba(20,184,166,.25)}
+  .pages button:disabled{opacity:.35;cursor:not-allowed}
+
+  /* ---------------- OVERLAY / MODALES ---------------- */
+  .overlay{position:fixed;inset:0;z-index:80;background:rgba(15,23,42,.45);backdrop-filter:blur(2px);
+    display:none;align-items:center;justify-content:center;padding:var(--s6)}
+  .overlay.show{display:flex;animation:fade .18s ease}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .modal{width:100%;max-width:520px;background:var(--surface);border-radius:var(--r-2xl);
+    box-shadow:0 24px 64px rgba(15,23,42,.3);animation:rise .22s cubic-bezier(.2,.8,.3,1);max-height:90vh;display:flex;flex-direction:column}
+  @keyframes rise{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+  .modal-head{display:flex;align-items:flex-start;gap:var(--s4);padding:var(--s5) var(--s5) var(--s4)}
+  .modal-ico{width:38px;height:38px;flex:0 0 38px;border-radius:var(--r-m);display:grid;place-items:center}
+  .modal-ico.teal{background:var(--teal-soft);color:var(--teal-700)}
+  .modal-ico.danger{background:var(--danger-soft);color:var(--danger-500)}
+  .modal-title{font-size:16px;font-weight:700}
+  .modal-sub{font-size:12.5px;color:var(--text-sub);margin-top:2px}
+  .modal-close{margin-left:auto;width:30px;height:30px;border-radius:var(--r-s);display:grid;place-items:center;color:var(--text-low);transition:.15s}
+  .modal-close:hover{background:var(--slate-100);color:var(--text-high)}
+  .modal-body{padding:0 var(--s5) var(--s5);overflow-y:auto}
+  .modal-foot{display:flex;justify-content:flex-end;gap:var(--s2);padding:var(--s4) var(--s5);
+    border-top:1px solid var(--border-soft);background:#FCFDFE;border-radius:0 0 var(--r-2xl) var(--r-2xl)}
+  .recap{background:#F8FAFC;border:1px solid var(--border-soft);border-radius:var(--r-m);padding:var(--s3) var(--s4)}
+  .brow{display:flex;align-items:center;justify-content:space-between;gap:var(--s6);padding:7px 0;font-size:13px}
+  .brow + .brow{border-top:1px solid var(--border-soft)}
+  .brow .bl{color:var(--text-sub)}
+  .brow .bv{font-weight:600;font-variant-numeric:tabular-nums}
+  .brow.sum{border-top:2px solid var(--border);padding-top:10px;margin-top:2px}
+  .brow.sum .bl{color:var(--text-high);font-weight:600}
+  .brow.sum .bv{color:var(--teal-700);font-weight:700;font-size:15px}
+  .warn-note{display:flex;gap:10px;margin-top:var(--s4);padding:12px 14px;border-radius:var(--r-m);
+    background:var(--amber-soft);border:1px solid #FDE68A;color:var(--amber-deep);font-size:12.5px;line-height:1.5}
+  .warn-note svg{flex:0 0 16px;margin-top:1px;color:#B45309}
+
+  /* ---------------- TICKET (vista detalle) ---------------- */
+  .ticket-modal{max-width:440px;background:#F7F8FA}
+  .receipt{background:var(--surface);border-radius:var(--r-m);box-shadow:var(--sh-card);padding:var(--s5);
+    font-size:13px;position:relative}
+  .receipt::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:10px;
+    background:radial-gradient(circle at 6px 10px, transparent 6px, var(--surface) 6px) repeat-x;background-size:12px 12px}
+  .r-head{text-align:center;padding-bottom:var(--s4);border-bottom:1px dashed var(--border)}
+  .r-logo{width:44px;height:44px;margin:0 auto 8px;border-radius:var(--r-m);display:grid;place-items:center;
+    background:linear-gradient(135deg,var(--teal-500),var(--teal-700));color:#fff;font-size:18px;font-weight:700}
+  .r-brand{font-size:15px;font-weight:700;letter-spacing:-.01em}
+  .r-meta{font-size:11.5px;color:var(--text-sub);margin-top:2px}
+  .ticket-state{display:inline-flex;align-items:center;gap:7px;margin-top:10px;padding:4px 11px;border-radius:999px;
+    font-size:11.5px;font-weight:600}
+  .ticket-state.ok{background:var(--green-soft);color:var(--green-deep)}
+  .ticket-state.cancel{background:var(--danger-soft);color:var(--danger-500)}
+  .ticket-state.pending{background:var(--amber-badge);color:var(--amber-deep)}
+  .r-dates{display:grid;grid-template-columns:1fr 1fr;gap:var(--s3);padding:var(--s4) 0;border-bottom:1px dashed var(--border)}
+  .r-dates .k{font-size:10.5px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--text-low)}
+  .r-dates .v{font-size:12.5px;font-weight:600;margin-top:2px}
+  .r-items{padding:var(--s4) 0;border-bottom:1px dashed var(--border)}
+  .r-item{display:flex;align-items:flex-start;gap:10px;padding:6px 0}
+  .r-item .qty{font-variant-numeric:tabular-nums;font-weight:600;color:var(--text-sub);min-width:44px;font-size:12.5px}
+  .r-item .nm{flex:1;font-weight:500}
+  .r-item .nm small{display:block;color:var(--text-low);font-size:11px;font-weight:400}
+  .r-item .amt{font-weight:600;font-variant-numeric:tabular-nums}
+  .r-totals{padding:var(--s4) 0 0}
+  .pay-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:var(--s4);padding-top:var(--s4);border-top:1px dashed var(--border)}
+  .pay-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--slate-100);
+    font-size:11.5px;font-weight:600;color:var(--text-mid)}
+  .timeline{margin-top:var(--s4);padding-top:var(--s4);border-top:1px solid var(--border-soft)}
+  .tl-item{display:flex;gap:12px;padding:6px 0}
+  .tl-dot{width:22px;height:22px;flex:0 0 22px;border-radius:50%;display:grid;place-items:center;font-size:11px;margin-top:1px}
+  .tl-dot.teal{background:var(--teal-soft);color:var(--teal-700)}
+  .tl-dot.green{background:var(--green-soft);color:var(--green-deep)}
+  .tl-dot.danger{background:var(--danger-soft);color:var(--danger-500)}
+  .tl-txt{font-size:12.5px;font-weight:500}
+  .tl-time{font-size:11px;color:var(--text-low)}
+
+  .toast{position:fixed;bottom:26px;left:50%;z-index:90;display:flex;align-items:center;gap:10px;background:#0F172A;color:#fff;
+    font-size:13px;font-weight:500;padding:11px 16px;border-radius:999px;box-shadow:0 12px 32px rgba(15,23,42,.28);
+    opacity:0;transform:translate(-50%,10px);pointer-events:none;transition:.2s}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+  .toast .td{width:7px;height:7px;border-radius:50%;background:var(--teal-500)}
+
+  /* anotaciones */
+
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:999px;border:3px solid var(--app-bg)}
+  ::-webkit-scrollbar-thumb:hover{background:#94A3B8}
+
+  @media (max-width:1180px){
+    .kpis{grid-template-columns:repeat(2,1fr)}
+    .page-head{flex-wrap:wrap}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- ═══════════ SIDEBAR ═══════════ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-logo">F</div>
+      <div><div class="brand-name">Frubber</div><div class="brand-sub">POS</div></div>
+    </div>
+    <nav class="nav">
+      <button class="nav-item"><span class="key">V</span>Venta</button>
+      <button class="nav-item"><span class="key">C</span>Caja</button>
+      <button class="nav-item"><span class="key">P</span>Productos</button>
+      <button class="nav-item active"><span class="key">H</span>Historial</button>
+      <button class="nav-item"><span class="key">U</span>Usuarios</button>
+      <button class="nav-item"><span class="key">G</span>Configuración</button>
+      <button class="nav-item"><span class="key">S</span>Respaldo</button>
+    </nav>
+    <div class="sidebar-foot">
+      <span class="badge-admin">ADMIN</span>
+      <button class="btn-logout" onclick="toast('Sesión cerrada (demo)')">Cerrar sesión</button>
+      <div class="offline"><span class="dot-pulse"></span> Modo fuera de línea</div>
+    </div>
+  </aside>
+
+  <!-- ═══════════ MAIN ═══════════ -->
+  <div class="main">
+    <div class="main-scroll" id="scroll">
+      <div class="main-inner">
+
+        <!-- ── HEADER ── -->
+        <header class="page-head">
+          <div>
+            <h1 class="t-display">Historial</h1>
+            <div class="head-sub">Consulta y analiza las ventas realizadas</div>
+          </div>
+          <div class="head-right">
+            <span class="pill"><span class="dot-pulse" style="color:#14B8A6"></span> Caja abierta</span>
+            <span class="pill">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+              Licencia vitalicia
+            </span>
+            <div class="user">
+              <div class="avatar">JD</div>
+              <div><div class="user-name">Jhoan Daniel</div><div class="user-role">Admin</div></div>
+            </div>
+          </div>
+        </header>
+
+        <!-- ── KPIs DEL RANGO ── -->
+        <section class="kpis">
+          <div class="kpi-mini">
+            <span class="kpi-ico teal">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>
+            </span>
+            <div>
+              <div class="kpi-label">Ventas</div>
+              <div class="kpi-value money" id="kVentas">0</div>
+              <div class="kpi-note" id="kVentasNote">en el rango</div>
+            </div>
+          </div>
+          <div class="kpi-mini">
+            <span class="kpi-ico green">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </span>
+            <div>
+              <div class="kpi-label">Total vendido</div>
+              <div class="kpi-value money" id="kTotal">$ 0</div>
+              <div class="kpi-note" id="kTotalNote">sin canceladas</div>
+            </div>
+          </div>
+          <div class="kpi-mini">
+            <span class="kpi-ico neutral">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V9M9 21V4M15 21v-8M21 21v-5"/></svg>
+            </span>
+            <div>
+              <div class="kpi-label">Ticket promedio</div>
+              <div class="kpi-value money" id="kProm">$ 0</div>
+              <div class="kpi-note">por venta completada</div>
+            </div>
+          </div>
+          <div class="kpi-mini">
+            <span class="kpi-ico danger" id="kCancelIco">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg>
+            </span>
+            <div>
+              <div class="kpi-label">Canceladas</div>
+              <div class="kpi-value money" id="kCancel">0</div>
+              <div class="kpi-note" id="kCancelNote">ninguna en el rango</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ── FILTROS ── -->
+        <section class="filter-bar">
+          <div class="filter-row">
+            <div class="date-field">
+              <svg class="cal" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 11h18"/></svg>
+              <span class="cap">Desde</span>
+              <input type="date" id="fDesde">
+            </div>
+            <div class="date-field">
+              <svg class="cal" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 11h18"/></svg>
+              <span class="cap">Hasta</span>
+              <input type="date" id="fHasta">
+            </div>
+            <div class="quick-ranges" id="quickRanges">
+              <button data-range="hoy" class="on">Hoy</button>
+              <button data-range="7d">7 días</button>
+              <button data-range="mes">Este mes</button>
+            </div>
+            <span class="sep-v"></span>
+            <div class="select-wrap">
+              <svg class="lead" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="3.4"/><path d="M5 20a7 7 0 0 1 14 0"/></svg>
+              <select id="fCajero">
+                <option value="">Todos los cajeros</option>
+                <option>Jhoan Daniel</option>
+                <option>María López</option>
+              </select>
+              <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+            <div class="select-wrap">
+              <svg class="lead" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg>
+              <select id="fMedio">
+                <option value="">Todos los medios</option>
+                <option value="Efectivo">Efectivo</option>
+                <option value="Transferencia">Transferencia</option>
+                <option value="Tarjeta">Tarjeta</option>
+              </select>
+              <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+            <div class="select-wrap">
+              <svg class="lead" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+              <select id="fEstado">
+                <option value="">Todos los estados</option>
+                <option value="ok">Completadas</option>
+                <option value="pending">Pendientes</option>
+                <option value="cancel">Canceladas</option>
+              </select>
+              <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+            <button class="btn-teal-outline" onclick="applyFilters()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+              Buscar
+            </button>
+          </div>
+
+          <div class="filter-foot">
+            <button class="btn-link" onclick="clearFilters()">Limpiar filtros</button>
+            <span class="toolbar-spacer"></span>
+            <span class="result-count" id="resultCount">0 ventas</span>
+            <button class="btn-outline" onclick="exportData('CSV')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+              Exportar
+            </button>
+          </div>
+        </section>
+
+        <!-- ── TABLA ── -->
+        <section class="card">
+          <div class="table-scroll">
+            <table id="table">
+              <colgroup>
+                <col style="width:150px"><col style="width:110px"><col style="width:180px"><col style="width:140px">
+                <col style="width:150px"><col style="width:130px"><col style="width:140px"><col style="width:64px">
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>Fecha y hora</th><th>N° Ticket</th><th>Cajero</th><th>Productos</th>
+                  <th>Medio</th><th style="text-align:right">Total</th><th>Estado</th><th></th>
+                </tr>
+              </thead>
+              <tbody id="tbody"></tbody>
+            </table>
+          </div>
+
+          <div class="empty" id="empty" style="display:none">
+            <div class="empty-ico">
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>
+            </div>
+            <div class="empty-title" id="emptyTitle">No hay ventas en este rango</div>
+            <div class="empty-sub" id="emptySub">Intenta ampliar las fechas o quitar algunos filtros para ver más resultados.</div>
+            <button class="btn-outline" id="emptyCta" onclick="clearFilters()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3v6h6"/><path d="M3.5 9a9 9 0 1 0 2.1-3.4L3 9"/></svg>
+              Limpiar filtros
+            </button>
+          </div>
+
+          <div class="pagination" id="pagination" style="display:none">
+            <span class="page-info" id="pageInfo"></span>
+            <div class="pages" id="pages"></div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MODAL · DETALLE DEL TICKET ═══════════ -->
+<div class="overlay" id="detailModal">
+  <div class="modal ticket-modal" role="dialog" aria-modal="true">
+    <div class="modal-head" style="padding-bottom:var(--s3)">
+      <div class="modal-ico teal">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>
+      </div>
+      <div>
+        <div class="modal-title" id="dtTitle">Ticket #00124</div>
+        <div class="modal-sub" id="dtSub">—</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('detailModal')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" id="dtBody"></div>
+    <div class="modal-foot">
+      <button class="btn-ghost" onclick="closeModal('detailModal')">Cerrar</button>
+      <button class="btn-outline" id="dtCancelBtn" onclick="cancelFromDetail()">Cancelar venta</button>
+      <button class="btn-primary" onclick="reprint()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6M6 18H4v-6h16v6h-2M8 14h8v7H8z"/></svg>
+        Reimprimir
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MODAL · CANCELAR VENTA ═══════════ -->
+<div class="overlay" id="cancelModal">
+  <div class="modal" style="max-width:470px" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <div class="modal-ico danger">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg>
+      </div>
+      <div>
+        <div class="modal-title" id="cTitle">Cancelar venta</div>
+        <div class="modal-sub">La venta se conserva en el historial marcada como cancelada.</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('cancelModal')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="recap">
+        <div class="brow"><span class="bl">Ticket</span><span class="bv money" id="cTicket">#000</span></div>
+        <div class="brow"><span class="bl">Monto</span><span class="bv money" id="cMonto">$ 0</span></div>
+        <div class="brow sum"><span class="bl">Impacto en caja</span><span class="bv money" id="cImpacto">−$ 0</span></div>
+      </div>
+      <div class="field" style="display:flex;flex-direction:column;gap:6px;margin-top:var(--s4)">
+        <label style="font-size:12px;font-weight:600;color:var(--text-mid)">Motivo de la cancelación</label>
+        <select class="select" id="cMotivo" style="height:42px;border:1px solid var(--border);border-radius:var(--r-m);width:100%;padding:0 12px;font-size:13.5px;background:var(--surface);color:var(--text-high)">
+          <option>Error del cajero</option>
+          <option>Cliente se arrepintió</option>
+          <option>Producto en mal estado</option>
+          <option>Duplicado / prueba</option>
+          <option>Falla del sistema</option>
+        </select>
+      </div>
+      <div class="warn-note">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9.5 17H2.5z"/><path d="M12 9v5M12 17.5v.01"/></svg>
+        <div><strong>El stock no se devuelve automáticamente.</strong> Si el producto regresa al inventario, ajústalo desde Productos → Ajustar stock.</div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-ghost" onclick="closeModal('cancelModal')">Volver</button>
+      <button class="btn-danger-soft" onclick="confirmCancel()">Confirmar cancelación</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span class="td"></span><span id="toastMsg"></span></div>
+
+<script>
+/* ============================================================
+   DATOS DEMO — ventas de hoy, ayer y días previos
+   ============================================================ */
+const today = new Date();
+const day = offset => { const d = new Date(today); d.setDate(d.getDate() - offset); return d; };
+const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+// hora de hoy
+const at = (offset, h, m) => { const d = day(offset); d.setHours(h, m, 0, 0); return d; };
+
+const SALES = [
+  {id:"#00124", when:at(0, 15, 2),  cashier:"Jhoan Daniel", pay:"Efectivo",      state:"ok",      items:[
+      {qty:1.5, unit:"KG",  name:"Aguacate", unit_price:12000},
+      {qty:2,   unit:"UND", name:"Leche entera 1L", unit_price:4200},
+      {qty:1,   unit:"DOC", name:"Huevos AA", unit_price:11500}], disc:0},
+  {id:"#00123", when:at(0, 12, 41), cashier:"Jhoan Daniel", pay:"Transferencia", state:"ok",      items:[
+      {qty:1, unit:"KG", name:"Queso campesino", unit_price:18500},
+      {qty:1, unit:"UND", name:"Pan tajado", unit_price:3600}], disc:5},
+  {id:"#00122", when:at(0, 11, 15), cashier:"María López",  pay:"Efectivo",      state:"pending", items:[
+      {qty:3, unit:"UND", name:"Gaseosa 1.5L", unit_price:5800}], disc:0},
+  {id:"#00121", when:at(0, 10, 3),  cashier:"Jhoan Daniel", pay:"Efectivo",      state:"cancel",  items:[
+      {qty:2, unit:"KG", name:"Tomate chonto", unit_price:6800}], disc:0, reason:"Error del cajero"},
+  {id:"#00120", when:at(0, 9, 20),  cashier:"María López",  pay:"Efectivo",      state:"ok",      items:[
+      {qty:1, unit:"UND", name:"Café molido 250g", unit_price:9800},
+      {qty:2, unit:"UND", name:"Arroz 500g", unit_price:2900}], disc:0},
+
+  {id:"#00119", when:at(1, 18, 12), cashier:"Jhoan Daniel", pay:"Efectivo",      state:"ok",      items:[
+      {qty:1, unit:"KG", name:"Pechuga de pollo", unit_price:15900},
+      {qty:1, unit:"KG", name:"Zanahoria", unit_price:3900}], disc:0},
+  {id:"#00118", when:at(1, 16, 45), cashier:"María López",  pay:"Tarjeta",       state:"ok",      items:[
+      {qty:1, unit:"UND", name:"Torta de chocolate", unit_price:24000}], disc:10},
+  {id:"#00117", when:at(1, 10, 30), cashier:"Jhoan Daniel", pay:"Transferencia", state:"ok",      items:[
+      {qty:4, unit:"UND", name:"Agua botella 600ml", unit_price:2500},
+      {qty:1, unit:"UND", name:"Jugo de naranja 1L", unit_price:7900}], disc:0},
+
+  {id:"#00116", when:at(2, 17, 5),  cashier:"Jhoan Daniel", pay:"Efectivo",      state:"ok",      items:[
+      {qty:2, unit:"KG", name:"Manzana roja", unit_price:8900},
+      {qty:1, unit:"UND", name:"Panela 500g", unit_price:5400}], disc:0},
+  {id:"#00115", when:at(3, 13, 50), cashier:"María López",  pay:"Efectivo",      state:"ok",      items:[
+      {qty:1, unit:"KG", name:"Carne molida", unit_price:17800},
+      {qty:1, unit:"UND", name:"Aceite girasol 1L", unit_price:12400}], disc:0},
+
+  {id:"#00114", when:at(12, 12, 0), cashier:"Jhoan Daniel", pay:"Efectivo",      state:"ok",      items:[
+      {qty:5, unit:"KG", name:"Banano criollo", unit_price:4500}], disc:0},
+  {id:"#00113", when:at(20, 11, 30),cashier:"María López",  pay:"Tarjeta",       state:"ok",      items:[
+      {qty:1, unit:"UND", name:"Leche entera 1L", unit_price:4200},
+      {qty:1, unit:"UND", name:"Pan tajado", unit_price:3600},
+      {qty:1, unit:"KING", name:"Arroz 500g", unit_price:2900}], disc:0},
+];
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+const fmt  = n => "$ " + Math.round(n).toLocaleString("es-CO");
+const fmtQ = n => new Intl.NumberFormat("es-CO", {maximumFractionDigits:2}).format(n);
+const pad  = n => String(n).padStart(2, "0");
+const fechaHora = d => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${String(d.getFullYear()).slice(2)} · ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const fechaLarga = d => d.toLocaleDateString("es-CO", {weekday:"long", day:"numeric", month:"long"});
+const sameDay = (a, b) => a.toDateString() === b.toDateString();
+const subtotal = s => s.items.reduce((t, i) => t + i.qty * i.unit_price, 0);
+const totalOf  = s => Math.round(subtotal(s) * (1 - (s.disc || 0) / 100));
+const STATE = {
+  ok:      {cls:"status-dot--ok",      label:"Completada",  chip:"ok"},
+  pending: {cls:"status-dot--pending", label:"Pendiente",   chip:"pending"},
+  cancel:  {cls:"status-dot--cancel",  label:"Cancelada",   chip:"cancel"}
+};
+const PAY_ICO = {
+  "Efectivo":      {cls:"cash",     svg:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>'},
+  "Transferencia": {cls:"transfer", svg:'<path d="M4 8h13l-3-3M20 16H7l3 3"/>'},
+  "Tarjeta":       {cls:"card",     svg:'<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>'}
+};
+
+/* ============================================================
+   ESTADO DE VISTA
+   ============================================================ */
+const view = {
+  desde: iso(day(0)), hasta: iso(day(0)), range:"hoy",
+  cajero:"", medio:"", estado:"",
+  page:1, pageSize:8, menu:null, detail:null
+};
+
+function filtered(){
+  return SALES.filter(s => {
+    const f = iso(s.when);
+    if(f < view.desde || f > view.hasta) return false;
+    if(view.cajero && s.cashier !== view.cajero) return false;
+    if(view.medio && s.pay !== view.medio) return false;
+    if(view.estado && s.state !== view.estado) return false;
+    return true;
+  }).sort((a, b) => b.when - a.when);
+}
+
+/* ============================================================
+   KPIs
+   ============================================================ */
+function renderKpis(){
+  const list = filtered();
+  const ok = list.filter(s => s.state !== "cancel");
+  const completadas = list.filter(s => s.state === "ok");
+  const canceladas = list.filter(s => s.state === "cancel");
+  const totalVendido = ok.reduce((t, s) => t + totalOf(s), 0);
+
+  document.getElementById("kVentas").textContent = list.length;
+  document.getElementById("kVentasNote").textContent =
+    ok.length + (ok.length === 1 ? " válida" : " válidas") + " · " + canceladas.length + " canceladas";
+  document.getElementById("kTotal").textContent = fmt(totalVendido);
+  document.getElementById("kTotalNote").textContent = "sin contar canceladas";
+  document.getElementById("kProm").textContent = completadas.length ? fmt(totalVendido / completadas.length) : fmt(0);
+  document.getElementById("kCancel").textContent = canceladas.length;
+  document.getElementById("kCancelNote").textContent = canceladas.length
+    ? fmt(canceladas.reduce((t, s) => t + totalOf(s), 0)) + " no facturado"
+    : "ninguna en el rango";
+  document.getElementById("kCancelIco").className = "kpi-ico " + (canceladas.length ? "danger" : "neutral");
+
+  document.getElementById("resultCount").textContent =
+    list.length === 1 ? "1 venta" : list.length + " ventas";
+}
+
+/* ============================================================
+   TABLA con agrupación por día
+   ============================================================ */
+function renderTable(){
+  const list = filtered();
+  const tbody = document.getElementById("tbody");
+  const table = document.getElementById("table");
+  const empty = document.getElementById("empty");
+  const pag = document.getElementById("pagination");
+
+  if(!list.length){
+    table.style.display = "none"; pag.style.display = "none"; empty.style.display = "flex";
+    document.getElementById("emptyTitle").textContent = "No hay ventas en este rango";
+    document.getElementById("emptySub").textContent = "Intenta ampliar las fechas o quitar algunos filtros para ver más resultados.";
+    return;
+  }
+  table.style.display = ""; empty.style.display = "none"; pag.style.display = "";
+
+  const totalPages = Math.max(1, Math.ceil(list.length / view.pageSize));
+  if(view.page > totalPages) view.page = totalPages;
+  const start = (view.page - 1) * view.pageSize;
+  const pageItems = list.slice(start, start + view.pageSize);
+
+  let html = "", lastDay = "";
+  pageItems.forEach(s => {
+    const dkey = s.when.toDateString();
+    if(dkey !== lastDay){
+      lastDay = dkey;
+      const dayRows = pageItems.filter(x => x.when.toDateString() === dkey);
+      const dayTotal = dayRows.filter(x => x.state !== "cancel").reduce((t, x) => t + totalOf(x), 0);
+      const isToday = sameDay(s.when, today);
+      const isYesterday = sameDay(s.when, day(1));
+      const label = isToday ? "Hoy — " + fechaLarga(s.when) : isYesterday ? "Ayer — " + fechaLarga(s.when) : fechaLarga(s.when);
+      html += `<tr class="group-row"><td colspan="8">${label}
+        <span class="g-count">${dayRows.length} ${dayRows.length === 1 ? "venta" : "ventas"} · ${fmt(dayTotal)}</span></td></tr>`;
+    }
+    const st = STATE[s.state];
+    const nItems = s.items.length;
+    const pay = PAY_ICO[s.pay];
+    html += `
+      <tr class="${s.state === "cancel" ? "row-cancel" : ""} ${view.menu === s.id ? "menu-open" : ""}"
+          onclick="rowClick('${s.id}')">
+        <td class="cell-mute">${fechaHora(s.when)}</td>
+        <td class="ticket-n">${s.id}</td>
+        <td><div class="cashier">
+          <span class="mini-avatar">${s.cashier.split(" ").map(w => w[0]).join("")}</span> ${s.cashier.split(" ")[0]}
+        </div></td>
+        <td class="cell-mute">${nItems} ${nItems === 1 ? "ítem" : "ítems"}${s.disc ? ' · <span style="color:var(--teal-700);font-weight:600">' + s.disc + "% dto" + '</span>' : ""}</td>
+        <td><span class="pay">
+          <span class="pay-ico ${pay.cls}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${pay.svg}</svg></span>
+          ${s.pay}
+        </span></td>
+        <td style="text-align:right"><span class="total">${fmt(totalOf(s))}</span></td>
+        <td><span class="status-dot ${st.cls}">${st.label}</span></td>
+        <td class="row-actions" onclick="event.stopPropagation()">
+          <button class="dots" onclick="toggleMenu('${s.id}', event)" aria-label="Acciones">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+          </button>
+          ${view.menu === s.id ? menuHtml(s) : ""}
+        </td>
+      </tr>`;
+  });
+  tbody.innerHTML = html;
+
+  // paginación
+  document.getElementById("pageInfo").textContent =
+    `Mostrando ${start + 1}–${Math.min(start + view.pageSize, list.length)} de ${list.length}`;
+  let ph = `<button onclick="goto(${view.page - 1})" ${view.page === 1 ? "disabled" : ""}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>`;
+  for(let i = 1; i <= totalPages; i++){
+    if(totalPages > 7 && i > 2 && i < totalPages - 1 && Math.abs(i - view.page) > 1){
+      if(i === 3) ph += `<span style="color:var(--text-low);padding:0 4px">…</span>`;
+      continue;
+    }
+    ph += `<button class="${i === view.page ? "on" : ""}" onclick="goto(${i})">${i}</button>`;
+  }
+  ph += `<button onclick="goto(${view.page + 1})" ${view.page === totalPages ? "disabled" : ""}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>`;
+  document.getElementById("pages").innerHTML = ph;
+}
+
+function menuHtml(s){
+  return `<div class="menu show" onclick="event.stopPropagation()">
+    <button onclick="openDetail('${s.id}')">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="2.6"/></svg>
+      Ver detalle
+    </button>
+    <button onclick="reprintFrom('${s.id}')">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6M6 18H4v-6h16v6h-2M8 14h8v7H8z"/></svg>
+      Reimprimir
+    </button>
+    <div class="sep"></div>
+    <button class="danger" ${s.state === "cancel" ? "disabled style='opacity:.45;cursor:not-allowed'" : ""}
+      onclick="${s.state === "cancel" ? "" : "openCancel('" + s.id + "')"}">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg>
+      ${s.state === "cancel" ? "Ya cancelada" : "Cancelar venta"}
+    </button>
+  </div>`;
+}
+
+/* ============================================================
+   VISTA DETALLE (ticket)
+   ============================================================ */
+function openDetail(id){
+  view.menu = null;
+  const s = SALES.find(x => x.id === id);
+  view.detail = id;
+  const st = STATE[s.state];
+  document.getElementById("dtTitle").textContent = "Ticket " + s.id;
+  document.getElementById("dtSub").textContent = fechaLarga(s.when) + " · " + pad(s.when.getHours()) + ":" + pad(s.when.getMinutes());
+  document.getElementById("dtCancelBtn").style.display = s.state === "cancel" ? "none" : "";
+
+  const sub = subtotal(s), disc = Math.round(sub * (s.disc || 0) / 100), tot = totalOf(s);
+  const tl = [
+    {cls:"teal", ic:"✎", txt:"Venta creada", time:pad(s.when.getHours()) + ":" + pad(s.when.getMinutes())},
+    ...(s.state !== "cancel" ? [{cls:"green", ic:"✓", txt:"Cobro confirmado · " + s.pay, time:pad(s.when.getHours()) + ":" + pad(s.when.getMinutes() + 1)}] : []),
+    ...(s.state === "cancel" ? [{cls:"danger", ic:"✕", txt:"Cancelada · " + (s.reason || "sin motivo"), time:pad(s.when.getHours()) + ":" + pad(s.when.getMinutes() + 6)}] : [])
+  ];
+
+  document.getElementById("dtBody").innerHTML = `
+    <div class="receipt">
+      <div class="r-head">
+        <div class="r-logo">F</div>
+        <div class="r-brand">Frubber POS</div>
+        <div class="r-meta">NIT 900.123.456-7 · Calle 12 #4-56 · Pereira</div>
+        <div class="ticket-state ${st.chip}">${st.label}</div>
+      </div>
+      <div class="r-dates">
+        <div><div class="k">Fecha</div><div class="v">${fechaHora(s.when)}</div></div>
+        <div><div class="k">Cajero</div><div class="v">${s.cashier}</div></div>
+      </div>
+      <div class="r-items">
+        ${s.items.map(i => `
+          <div class="r-item">
+            <span class="qty">${fmtQ(i.qty)} ${i.unit}</span>
+            <span class="nm">${i.name}<small>${fmt(i.unit_price)} / ${i.unit.toLowerCase()}</small></span>
+            <span class="amt">${fmt(i.qty * i.unit_price)}</span>
+          </div>`).join("")}
+      </div>
+      <div class="r-totals">
+        <div class="brow"><span class="bl">Subtotal</span><span class="bv">${fmt(sub)}</span></div>
+        ${s.disc ? `<div class="brow"><span class="bl">Descuento ${s.disc}%</span><span class="bv" style="color:var(--green-deep)">−${fmt(disc)}</span></div>` : ""}
+        <div class="brow sum"><span class="bl">Total</span><span class="bv">${fmt(tot)}</span></div>
+      </div>
+      <div class="pay-chips">
+        <span class="pay-chip">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${PAY_ICO[s.pay].svg}</svg>
+          ${s.pay} · ${fmt(tot)}
+        </span>
+      </div>
+    </div>
+    <div class="timeline">
+      ${tl.map(e => `
+        <div class="tl-item">
+          <span class="tl-dot ${e.cls}">${e.ic}</span>
+          <span><span class="tl-txt">${e.txt}</span><br><span class="tl-time">${e.time}</span></span>
+        </div>`).join("")}
+    </div>`;
+  openModal("detailModal");
+}
+
+/* ============================================================
+   CANCELAR
+   ============================================================ */
+function openCancel(id){
+  const s = SALES.find(x => x.id === id);
+  view.detail = id; view.menu = null;
+  document.getElementById("cTitle").textContent = "Cancelar venta " + s.id;
+  document.getElementById("cTicket").textContent = s.id;
+  document.getElementById("cMonto").textContent = fmt(totalOf(s));
+  document.getElementById("cImpacto").textContent = "−" + fmt(totalOf(s));
+  openModal("cancelModal");
+}
+function cancelFromDetail(){ closeModal("detailModal"); openCancel(view.detail); }
+function confirmCancel(){
+  const s = SALES.find(x => x.id === view.detail);
+  s.state = "cancel";
+  s.reason = document.getElementById("cMotivo").value;
+  closeModal("cancelModal");
+  renderKpis(); renderTable();
+  toast("Venta " + s.id + " cancelada · " + s.reason);
+}
+function reprint(){ toast("Reimprimiendo " + view.detail + " (demo)"); }
+function reprintFrom(id){ view.menu = null; renderTable(); toast("Reimprimiendo " + id + " (demo)"); }
+
+/* ============================================================
+   FILTROS
+   ============================================================ */
+function applyFilters(){
+  view.desde = document.getElementById("fDesde").value || view.desde;
+  view.hasta = document.getElementById("fHasta").value || view.hasta;
+  view.cajero = document.getElementById("fCajero").value;
+  view.medio  = document.getElementById("fMedio").value;
+  view.estado = document.getElementById("fEstado").value;
+  view.page = 1;
+  renderKpis(); renderTable();
+  toast("Filtros aplicados");
+}
+function syncFilterInputs(){
+  document.getElementById("fDesde").value = view.desde;
+  document.getElementById("fHasta").value = view.hasta;
+}
+function setRange(r){
+  view.range = r;
+  if(r === "hoy"){ view.desde = iso(day(0)); view.hasta = iso(day(0)); }
+  if(r === "7d"){  view.desde = iso(day(6)); view.hasta = iso(day(0)); }
+  if(r === "mes"){ view.desde = iso(new Date(today.getFullYear(), today.getMonth(), 1)); view.hasta = iso(day(0)); }
+  syncFilterInputs();
+  document.querySelectorAll("#quickRanges button").forEach(b => b.classList.toggle("on", b.dataset.range === r));
+  view.page = 1;
+  renderKpis(); renderTable();
+}
+function clearFilters(){
+  view.cajero = ""; view.medio = ""; view.estado = "";
+  document.getElementById("fCajero").value = "";
+  document.getElementById("fMedio").value = "";
+  document.getElementById("fEstado").value = "";
+  setRange("hoy");
+  toast("Filtros restablecidos al día de hoy");
+}
+function exportData(fmtName){
+  const list = filtered();
+  const header = "Ticket;Fecha;Cajero;Medio;Items;Total;Estado";
+  const rows = list.map(s => [s.id, fechaHora(s.when), s.cashier, s.pay, s.items.length, totalOf(s), STATE[s.state].label].join(";"));
+  const csv = [header, ...rows].join("\n");
+  const blob = new Blob(["\uFEFF" + csv], {type:"text/csv;charset=utf-8;"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `historial_${view.desde}_${view.hasta}.csv`;
+  a.click();
+  toast("Exportando " + list.length + " ventas a " + fmtName);
+}
+["fDesde","fHasta","fCajero","fMedio","fEstado"].forEach(id => {
+  document.addEventListener("DOMContentLoaded", () => {
+    const el = document.getElementById(id);
+    el.addEventListener("change", () => { view.range = ""; document.querySelectorAll("#quickRanges button").forEach(b => b.classList.remove("on")); });
+  });
+});
+
+/* ============================================================
+   UI
+   ============================================================ */
+function rowClick(id){
+  view.menu = null;
+  openDetail(id);
+}
+function toggleMenu(id, e){
+  e.stopPropagation();
+  view.menu = view.menu === id ? null : id;
+  renderTable();
+}
+function goto(p){ const tp = Math.max(1, Math.ceil(filtered().length / view.pageSize)); if(p < 1 || p > tp) return; view.page = p; renderTable(); }
+function openModal(id){ document.getElementById(id).classList.add("show"); }
+function closeModal(id){ document.getElementById(id).classList.remove("show"); }
+document.querySelectorAll(".overlay").forEach(o => o.addEventListener("click", e => { if(e.target === o) o.classList.remove("show"); }));
+document.addEventListener("keydown", e => {
+  if(e.key === "Escape"){
+    document.querySelectorAll(".overlay.show").forEach(o => o.classList.remove("show"));
+    if(view.menu){ view.menu = null; renderTable(); }
+  }
+});
+document.addEventListener("click", () => { if(view.menu){ view.menu = null; renderTable(); } });
+
+let tt;
+function toast(msg){
+  const t = document.getElementById("toast");
+  document.getElementById("toastMsg").textContent = msg;
+  t.classList.add("show");
+  clearTimeout(tt);
+  tt = setTimeout(() => t.classList.remove("show"), 2100);
+}
+
+/* init */
+setRange("hoy");
+document.getElementById("quickRanges").addEventListener("click", e => {
+  const b = e.target.closest("button"); if(b) setRange(b.dataset.range);
+});
+</script>
+</body>
+</html>

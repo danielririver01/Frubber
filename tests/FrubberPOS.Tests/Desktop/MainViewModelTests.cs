@@ -115,4 +115,38 @@ public sealed class MainViewModelTests
         Assert.Null(session.Current);
         Assert.Equal(1, navigator.LoginCount);
     }
+
+    [Fact]
+    public async Task VentaBadge_ReflejaLineasDelBorrador()
+    {
+        // JHO-69: la píldora del menú Venta muestra las líneas en preparación.
+        await using var bed = await FrubberPOS.Tests.Products.ProductTestBed.CreateAsync();
+        var nav = new FakeNavigator { NextQuantityMilli = 1_000 };
+        var tpv = new TpvViewModel(
+            new FrubberPOS.Application.Sales.SearchProductsForSaleUseCase(bed.Products, bed.Units, FrubberPOS.Tests.Products.ProductTestBed.AdminSession()),
+            new FrubberPOS.Application.Sales.FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, FrubberPOS.Tests.Products.ProductTestBed.AdminSession(), bed.Clock),
+            new FrubberPOS.Application.Cash.GetOpenCashSessionUseCase(bed.Sessions, bed.Units, FrubberPOS.Tests.Products.ProductTestBed.AdminSession()),
+            new FrubberPOS.Application.Sales.GetTicketForSaleUseCase(bed.Sales, bed.Settings, bed.Units),
+            new FakeTicketPrinter(),
+            nav);
+        var viewModel = new MainViewModel(
+            new SignedInUser(1, "Admin", UserRole.Admin),
+            new SignOutUseCase(new FakeCurrentSession()),
+            new FakeNavigator(),
+            tpvPageFactory: () => new object(),
+            draftBadgeSource: tpv);
+
+        var venta = viewModel.MenuItems.Single(m => m.Title == "Venta");
+        Assert.Equal(0, venta.BadgeCount);
+        Assert.False(venta.BadgeVisible);
+
+        await new FrubberPOS.Application.Products.CreateProductUseCase(bed.Products, bed.Units, FrubberPOS.Tests.Products.ProductTestBed.AdminSession())
+            .ExecuteAsync(new FrubberPOS.Application.Products.CreateProductRequest("L1", "Leche", Domain.Products.ProductUnit.Unit, 4_200, 0), CancellationToken.None);
+        await tpv.SearchAsync();
+        tpv.SelectedResult = tpv.Results.Single();
+        await tpv.AddSelectedAsync();
+
+        Assert.Equal(1, venta.BadgeCount);
+        Assert.True(venta.BadgeVisible);
+    }
 }

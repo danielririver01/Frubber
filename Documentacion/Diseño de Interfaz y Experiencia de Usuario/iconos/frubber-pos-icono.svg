@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Frubber POS">
+  <title>Frubber POS</title>
+  <defs>
+    <!-- Degradado vertical medido sobre el render aprobado -->
+    <linearGradient id="teal" x1="0" y1="0" x2="0" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0"    stop-color="#35B2A6"/>
+      <stop offset="0.09" stop-color="#33B1A7"/>
+      <stop offset="0.30" stop-color="#35AA9F"/>
+      <stop offset="0.50" stop-color="#318F88"/>
+      <stop offset="0.70" stop-color="#2A7D76"/>
+      <stop offset="0.90" stop-color="#246E68"/>
+      <stop offset="1"    stop-color="#246E68"/>
+    </linearGradient>
+  </defs>
+  <!-- Teja: lado 512, esquinas 146 px = 28,5 % (medido del render) -->
+  <rect x="0" y="0" width="512" height="512" rx="146" fill="url(#teal)"/>
+  <!-- F blanca: trazo 52 px (10,2 %), alto 285 px (55,7 %), geometría medida -->
+  <g fill="#FFFFFF">
+    <rect x="162" y="122.5" width="52" height="285"/>
+    <rect x="162" y="122.5" width="188" height="48.6"/>
+    <rect x="162" y="245.1" width="167" height="48.6"/>
+  </g>
+</svg>

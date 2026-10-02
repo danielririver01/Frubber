@@ -1,0 +1,94 @@
+<Window x:Class="FrubberPOS.Desktop.Views.SplashWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Width="440" Height="520"
+        WindowStyle="None" ResizeMode="NoResize" ShowInTaskbar="False"
+        WindowStartupLocation="CenterScreen" Background="#062F2B"
+        AutomationProperties.Name="Frubber POS · Iniciando">
+    <!--
+        Splash JHO-69 = splash_screen_frubber_pos.html (dueño 2026-10-02):
+        fondo verde oscuro #062F2B, logo 128 con degradado #35B2A6→#246E68
+        y resplandor teal, ecualizador de 6 barras y estado dinámico.
+    -->
+    <Window.Triggers>
+        <EventTrigger RoutedEvent="Window.Loaded">
+            <BeginStoryboard>
+                <Storyboard>
+                    <DoubleAnimation Storyboard.TargetName="Bar1" Storyboard.TargetProperty="Height"
+                                     From="8" To="28" Duration="0:0:0.6" BeginTime="0:0:0"
+                                     AutoReverse="True" RepeatBehavior="Forever">
+                        <DoubleAnimation.EasingFunction><SineEase EasingMode="EaseInOut"/></DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                    <DoubleAnimation Storyboard.TargetName="Bar2" Storyboard.TargetProperty="Height"
+                                     From="8" To="28" Duration="0:0:0.6" BeginTime="0:0:0.1"
+                                     AutoReverse="True" RepeatBehavior="Forever">
+                        <DoubleAnimation.EasingFunction><SineEase EasingMode="EaseInOut"/></DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                    <DoubleAnimation Storyboard.TargetName="Bar3" Storyboard.TargetProperty="Height"
+                                     From="8" To="28" Duration="0:0:0.6" BeginTime="0:0:0.2"
+                                     AutoReverse="True" RepeatBehavior="Forever">
+                        <DoubleAnimation.EasingFunction><SineEase EasingMode="EaseInOut"/></DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                    <DoubleAnimation Storyboard.TargetName="Bar4" Storyboard.TargetProperty="Height"
+                                     From="8" To="28" Duration="0:0:0.6" BeginTime="0:0:0.3"
+                                     AutoReverse="True" RepeatBehavior="Forever">
+                        <DoubleAnimation.EasingFunction><SineEase EasingMode="EaseInOut"/></DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                    <DoubleAnimation Storyboard.TargetName="Bar5" Storyboard.TargetProperty="Height"
+                                     From="8" To="28" Duration="0:0:0.6" BeginTime="0:0:0.4"
+                                     AutoReverse="True" RepeatBehavior="Forever">
+                        <DoubleAnimation.EasingFunction><SineEase EasingMode="EaseInOut"/></DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                    <DoubleAnimation Storyboard.TargetName="Bar6" Storyboard.TargetProperty="Height"
+                                     From="8" To="28" Duration="0:0:0.6" BeginTime="0:0:0.5"
+                                     AutoReverse="True" RepeatBehavior="Forever">
+                        <DoubleAnimation.EasingFunction><SineEase EasingMode="EaseInOut"/></DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                </Storyboard>
+            </BeginStoryboard>
+        </EventTrigger>
+    </Window.Triggers>
+
+    <Grid>
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+            <!-- Logo 128×128, radio ~28.5 %, letra F 84 seminegrita -->
+            <Border Width="128" Height="128" CornerRadius="36.5"
+                    Background="{DynamicResource SplashLogoGradient}"
+                    HorizontalAlignment="Center" Margin="0,0,0,24">
+                <Border.Effect>
+                    <DropShadowEffect Color="#35B2A6" Opacity="0.25" BlurRadius="35" ShadowDepth="15"/>
+                </Border.Effect>
+                <TextBlock Text="F" FontSize="84" FontWeight="Bold" Foreground="White"
+                           LineHeight="1" Margin="0,0,8,0"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+
+            <TextBlock Text="Frubber POS" FontSize="28" FontWeight="SemiBold" Foreground="White"
+                       HorizontalAlignment="Center" Margin="0,0,0,8"/>
+            <TextBlock Text="Versión 1.0.0" FontSize="14" Foreground="#94A3B8"
+                       HorizontalAlignment="Center" Margin="0,0,0,32"/>
+
+            <!-- Ecualizador de carga: 6 barras teal -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"
+                        VerticalAlignment="Bottom" Height="28" Margin="0,0,0,16">
+                <Border x:Name="Bar1" Width="4" Height="8" CornerRadius="4" Background="#35B2A6"
+                        VerticalAlignment="Bottom" Margin="0,0,4,0"/>
+                <Border x:Name="Bar2" Width="4" Height="8" CornerRadius="4" Background="#35B2A6"
+                        VerticalAlignment="Bottom" Margin="0,0,4,0"/>
+                <Border x:Name="Bar3" Width="4" Height="8" CornerRadius="4" Background="#35B2A6"
+                        VerticalAlignment="Bottom" Margin="0,0,4,0"/>
+                <Border x:Name="Bar4" Width="4" Height="8" CornerRadius="4" Background="#35B2A6"
+                        VerticalAlignment="Bottom" Margin="0,0,4,0"/>
+                <Border x:Name="Bar5" Width="4" Height="8" CornerRadius="4" Background="#35B2A6"
+                        VerticalAlignment="Bottom" Margin="0,0,4,0"/>
+                <Border x:Name="Bar6" Width="4" Height="8" CornerRadius="4" Background="#35B2A6"
+                        VerticalAlignment="Bottom"/>
+            </StackPanel>
+
+            <TextBlock x:Name="StatusText" Text="Iniciando sistema..." FontSize="13"
+                       FontWeight="Medium" Foreground="#94A3B8" MinHeight="20"
+                       HorizontalAlignment="Center"
+                       AutomationProperties.Name="Estado de carga"/>
+        </StackPanel>
+    </Grid>
+</Window>

@@ -8,8 +8,48 @@ using FrubberPOS.Desktop.Common;
 using FrubberPOS.Domain.Users;
 
 namespace FrubberPOS.Desktop.ViewModels;
+/// <summary>
+/// Ítem del menú lateral (prototipo integrado, JHO-69): letra-chip, título,
+/// filtro por rol y badge de conteo (p. ej. líneas del borrador en Venta).
+/// </summary>
+public sealed class MenuEntry : INotifyPropertyChanged
+{
+    private int badgeCount;
 
-public sealed record MenuEntry(string Title, string Icon, bool AdminOnly);
+    public MenuEntry(string title, string icon, bool adminOnly)
+    {
+        Title = title;
+        Icon = icon;
+        AdminOnly = adminOnly;
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public string Title { get; }
+
+    public string Icon { get; }
+
+    public bool AdminOnly { get; }
+
+    /// <summary>Conteo mostrado en la píldora teal del ítem; 0 = oculta.</summary>
+    public int BadgeCount
+    {
+        get => badgeCount;
+        set
+        {
+            if (value == badgeCount)
+            {
+                return;
+            }
+
+            badgeCount = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(BadgeCount)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(BadgeVisible)));
+        }
+    }
+
+    public bool BadgeVisible => BadgeCount > 0;
+}
 
 /// <summary>
 /// Shell: role-filtered menu plus sign-out (JHO-29). Cashiers see only
@@ -21,14 +61,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
 {
     private static readonly MenuEntry[] AllEntries =
     [
-        new("Venta", "V", AdminOnly: false),
-        new("Caja", "C", AdminOnly: false),
-        new("Productos", "P", AdminOnly: true),
-        new("Historial", "H", AdminOnly: true),
-        new("Usuarios", "U", AdminOnly: true),
-        new("Configuración", "G", AdminOnly: true),
-        new("Respaldo", "S", AdminOnly: true),
-        new("Licencia", "L", AdminOnly: true)
+        new("Venta", "V", adminOnly: false),
+        new("Caja", "C", adminOnly: false),
+        new("Productos", "P", adminOnly: true),
+        new("Historial", "H", adminOnly: true),
+        new("Usuarios", "U", adminOnly: true),
+        new("Configuración", "G", adminOnly: true),
+        new("Respaldo", "S", adminOnly: true),
+        new("Licencia", "L", adminOnly: true)
     ];
 
     private readonly SignOutUseCase signOut;
@@ -55,7 +95,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private object? usersPage;
     private bool cashPillVisible;
 
-    public MainViewModel(SignedInUser user, SignOutUseCase signOut, INavigationService navigation, Func<object>? productsPageFactory = null, Func<object>? cashPageFactory = null, Func<object>? tpvPageFactory = null, Func<object>? historyPageFactory = null, Func<object>? settingsPageFactory = null, Func<object>? backupPageFactory = null, string? licenseBadgeText = null, Func<CancellationToken, Task<bool>>? cashOpenProbe = null, bool isLicensed = false, Func<object>? usersPageFactory = null)
+    public MainViewModel(SignedInUser user, SignOutUseCase signOut, INavigationService navigation, Func<object>? productsPageFactory = null, Func<object>? cashPageFactory = null, Func<object>? tpvPageFactory = null, Func<object>? historyPageFactory = null, Func<object>? settingsPageFactory = null, Func<object>? backupPageFactory = null, string? licenseBadgeText = null, Func<CancellationToken, Task<bool>>? cashOpenProbe = null, bool isLicensed = false, Func<object>? usersPageFactory = null, TpvViewModel? draftBadgeSource = null)
     {
         ArgumentNullException.ThrowIfNull(user);
         ArgumentNullException.ThrowIfNull(signOut);
@@ -84,6 +124,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         NavigateCommand = new RelayCommand(() => ShowSelected());
         SignOutCommand = new AsyncCommand(_ => SignOutAsync());
+
+        // Badge del ítem Venta = líneas del borrador (prototipo: píldora teal).
+        if (draftBadgeSource is not null)
+        {
+            UpdateVentaBadge(draftBadgeSource.Lines.Count);
+            draftBadgeSource.Lines.CollectionChanged += (_, _) => UpdateVentaBadge(draftBadgeSource.Lines.Count);
+        }
 
         SelectedEntry = MenuItems.FirstOrDefault();
     }
@@ -235,6 +282,16 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
 
         CashPillVisible = await cashOpenProbe(CancellationToken.None);
+    }
+
+    /// <summary>Badge del menú Venta = número de líneas en preparación (JHO-69).</summary>
+    private void UpdateVentaBadge(int count)
+    {
+        var venta = MenuItems.FirstOrDefault(e => e.Title == "Venta");
+        if (venta is not null)
+        {
+            venta.BadgeCount = count;
+        }
     }
 
     private static string ComputeInitials(string displayName)

@@ -1,0 +1,376 @@
+<!DOCTYPE html><html lang='es'><head>
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="iconos/frubber-pos-192.png">
+<meta charset='utf-8'><title>Frubber POS · Resumen ejecutivo</title><style>
+@page { size: A4; margin: 0 }
+* { box-sizing: border-box; margin: 0; padding: 0 }
+body { font-family: "Inter","Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:#0F172A; -webkit-print-color-adjust: exact; print-color-adjust: exact; background:#fff }
+.page { width:210mm; height:297mm; padding:15mm 15mm 12mm; page-break-after:always; position:relative;
+        display:flex; flex-direction:column; overflow:hidden }
+.page:last-child { page-break-after:auto }
+.hd { display:flex; align-items:center; justify-content:space-between; padding-bottom:6mm; border-bottom:1px solid #E2E8F0; margin-bottom:7mm }
+.hd-brand { display:flex; align-items:center; gap:8px; font-size:10.5px; font-weight:700; color:#0F172A; letter-spacing:-.2px }
+.hd-logo { width:22px; height:22px; border-radius:7px; background:#14B8A6; color:#fff; display:grid; place-items:center; font-size:11px; font-weight:800 }
+.hd-tag { font-size:9.5px; color:#94A3B8; letter-spacing:.4px; text-transform:uppercase }
+.ft { position:absolute; left:15mm; right:15mm; bottom:7mm; display:flex; justify-content:space-between; align-items:center;
+      font-size:9px; color:#94A3B8; border-top:1px solid #EEF1F4; padding-top:3mm }
+h1 { font-size:34px; letter-spacing:-1.4px; line-height:1.1 }
+h2 { font-size:21px; letter-spacing:-.7px; margin-bottom:2mm }
+h3 { font-size:12px; letter-spacing:-.2px; margin-bottom:2mm }
+p  { font-size:11px; line-height:1.55; color:#334155 }
+.lead { font-size:12.5px; color:#475569; line-height:1.6 }
+.kicker { font-size:10px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:#0F766E; margin-bottom:3mm }
+.shot { width:100%; border-radius:3mm; border:1px solid #E2E8F0; display:block }
+.shot-sm { width:62%; }
+.two { display:grid; grid-template-columns:1fr 1fr; gap:6mm }
+.three { display:grid; grid-template-columns:1fr 1fr 1fr; gap:5mm }
+.card { border:1px solid #E2E8F0; border-radius:3mm; padding:5mm }
+.card-teal { border-color:#99F6E4; background:#F0FDFA }
+.grid { display:grid; grid-template-columns:1fr 1fr; gap:4mm 6mm; margin-top:4mm }
+.item { display:flex; gap:3mm }
+.item .ic { width:16px; height:16px; border-radius:5px; background:#E6FAF5; color:#0F766E; display:grid; place-items:center; flex:0 0 16px; font-size:9px; font-weight:800 }
+.item b { font-size:10.5px; display:block; margin-bottom:.6mm }
+.item span { font-size:10px; color:#475569; line-height:1.45 }
+ul { margin:2mm 0 0 4mm } li { font-size:10.5px; color:#334155; line-height:1.5; margin-bottom:1.2mm }
+table { width:100%; border-collapse:collapse; margin-top:3mm }
+th { font-size:9px; text-transform:uppercase; letter-spacing:.6px; color:#64748B; text-align:left; padding:2mm 2mm; border-bottom:1px solid #E2E8F0 }
+td { font-size:10px; padding:2mm 2mm; border-bottom:1px solid #EEF1F4; color:#334155; vertical-align:top }
+td b { color:#0F172A }
+.pill { display:inline-block; font-size:9px; font-weight:700; padding:1mm 2.4mm; border-radius:99px; background:#E6FAF5; color:#0F766E }
+.pill-amb { background:#FFFBEB; color:#92400E }
+.pill-red { background:#FEF2F2; color:#B91C1C }
+.pill-gray { background:#F1F5F9; color:#475569 }
+.cover { display:flex; flex-direction:column; justify-content:center; height:100% }
+.cover-band { height:6px; background:linear-gradient(90deg,#14B8A6,#0F766E); border-radius:99px; width:64px; margin-bottom:9mm }
+.num { font-size:44px; font-weight:800; letter-spacing:-2px; color:#0F766E }
+.num-s { font-size:10px; color:#64748B; line-height:1.4 }
+.meta { margin-top:10mm; font-size:10.5px; color:#64748B; line-height:1.7 }
+.big { font-size:13px; color:#334155; line-height:1.6 }
+.note { background:#F8FAFC; border-left:2.5px solid #14B8A6; padding:3.5mm 4mm; border-radius:0 2mm 2mm 0; margin-top:4mm }
+.note p { font-size:10.5px }
+.quote { font-size:10.5px; color:#475569; font-style:italic }
+.sw-row { display:flex; gap:3mm; margin-top:3mm }
+.sw { flex:1 1 0; border:1px solid #E2E8F0; border-radius:2.5mm; padding:2.5mm; text-align:center }
+.sw i { display:block; height:11mm; border-radius:1.5mm; margin-bottom:2mm }
+.sw b { display:block; font-size:8.5px; color:#0F172A }
+.sw span { font-size:8px; color:#94A3B8 }
+</style></head><body><section class="page">
+  <div class="hd"><div class="hd-brand"><span class="hd-logo">F</span> Frubber POS · Rediseño de interfaz</div><div class="hd-tag">Portada</div></div>
+  <div style="flex:1;min-height:0"><div class="cover">
+  <div class="cover-band"></div>
+  <h1>Rediseño de la interfaz<br>del punto de venta</h1>
+  <p class="lead" style="margin-top:6mm;max-width:150mm">Nueve pantallas rediseñadas y funcionando, con un mismo lenguaje visual,
+  modo oscuro real, lenguaje llano para el cajero y una sesión que respeta el rol de cada persona.</p>
+  <div class="meta">
+    <b style="color:#0F172A">Frubber POS</b> · Punto de venta de mostrador<br>
+    Resumen ejecutivo · 2 de octubre de 2026<br>
+    Prototipos funcionales entregados: 9 archivos HTML
+  </div>
+  <div class="three" style="margin-top:12mm">
+    <div class="card"><div class="num">9</div><div class="num-s">pantallas<br>rediseñadas</div></div>
+    <div class="card"><div class="num">0</div><div class="num-s">errores de consola en<br>todos los recorridos</div></div>
+    <div class="card"><div class="num">2</div><div class="num-s">temas: claro y oscuro,<br>ambos verificados</div></div>
+  </div>
+</div></div>
+  <div class="ft"><span>Prototipo funcional · Dosquebradas, Colombia</span><span>1</span></div>
+</section><section class="page">
+  <div class="hd"><div class="hd-brand"><span class="hd-logo">F</span> Frubber POS · Rediseño de interfaz</div><div class="hd-tag">Lo que se entregó</div></div>
+  <div style="flex:1;min-height:0"><div class="kicker">Panorama</div>
+<h2>Un sistema completo, pantalla por pantalla</h2>
+<p class="lead">Se partió del análisis de cada pantalla del sistema actual y se construyó un prototipo funcional
+(no una maqueta): se puede hacer clic, escribir, cobrar, cerrar caja, respaldar y volver a entrar.</p>
+<div class="grid">
+  <div class="item"><span class="ic">1</span><span><b>Venta</b>Búsqueda con F2, resultados en vivo, ticket con totales y cobro con cambio.</span></div>
+  <div class="item"><span class="ic">2</span><span><b>Caja</b>Apertura, movimientos, arqueo por denominaciones y cierre del turno.</span></div>
+  <div class="item"><span class="ic">3</span><span><b>Productos</b>Catálogo, filtros, acciones masivas, stock bajo y edición por fila.</span></div>
+  <div class="item"><span class="ic">4</span><span><b>Historial</b>Indicadores del período, agrupación por día, detalle del ticket y exportación.</span></div>
+  <div class="item"><span class="ic">5</span><span><b>Usuarios</b>Roles, permisos, restablecer PIN, avatares y acciones por fila.</span></div>
+  <div class="item"><span class="ic">6</span><span><b>Configuración</b>Siete secciones, vista previa del ticket y guardado inteligente.</span></div>
+  <div class="item"><span class="ic">7</span><span><b>Respaldo</b>Copias sin internet, copia externa en USB, restauración con triple aviso.</span></div>
+  <div class="item"><span class="ic">8</span><span><b>Inicio de sesión</b>Lista de usuarios con todos los nombres a la vista y PIN de seis dígitos, pensado para el mouse.</span></div>
+  <div class="item"><span class="ic">9</span><span><b>Licencia y bloqueo</b>Modal de licencia compacto y salida de sesión con permisos por rol.</span></div>
+</div>
+<h3 style="margin-top:6mm">Los cinco cambios que se sienten en todo el sistema</h3>
+<table>
+  <tr><th style="width:46%">Antes</th><th>Ahora</th></tr>
+  <tr><td>Textos con palabras de programador</td><td><b>Lenguaje de mostrador: “copia de tus datos”, “guardar en el equipo”</b></td></tr>
+  <tr><td>Cuatro roles, uno de ellos “Supervisor”</td><td><b>Dos roles claros: Administrador y Cajero</b></td></tr>
+  <tr><td>Cerrar sesión no hacía nada</td><td><b>Pantalla de bloqueo con usuario, PIN y permisos reales</b></td></tr>
+  <tr><td>Modo oscuro solo decorativo</td><td><b>Modo oscuro real en las nueve pantallas, con contraste garantizado</b></td></tr>
+  <tr><td>Copia de seguridad en la nube</td><td><b>Copia en el equipo o en USB, sin necesitar internet</b></td></tr>
+</table>
+<div class="note"><p><b>Cómo se verificó.</b> Cada recorrido se ejecutó en un navegador real y automatizado:
+apertura de cada pantalla, cobro, cierre de caja, respaldo y restauración, activación de licencia, cambio de usuario
+y modo oscuro. Resultado: <b>cero errores</b> en consola en todos los casos, y alturas de pantalla idénticas en claro y oscuro.</p></div></div>
+  <div class="ft"><span>Prototipo funcional · Dosquebradas, Colombia</span><span>2</span></div>
+</section><section class="page">
+  <div class="hd"><div class="hd-brand"><span class="hd-logo">F</span> Frubber POS · Rediseño de interfaz</div><div class="hd-tag">Sistema de diseño</div></div>
+  <div style="flex:1;min-height:0"><div class="kicker">Sistema de diseño</div>
+<h2>Una sola forma de hacer las cosas</h2>
+<div class="two" style="margin-top:2mm">
+  <div>
+    <h3>Medidas, colores y letras</h3>
+    <ul>
+      <li><b>Marca:</b> un color principal, con una versión suave para fondos</li>
+      <li><b>Letra:</b> Inter, en cuatro tamaños jerarquizados</li>
+      <li><b>Esquinas redondeadas</b> de 6 a 14 px · <b>espaciado</b> en pasos de 4 px</li>
+      <li><b>Estados:</b> verde éxito, ámbar advertencia, rojo destructivo</li>
+      <li><b>Iconos:</b> un solo juego, de trazo fino y uniforme</li>
+    </ul>
+  </div>
+  <div>
+    <h3>Modo oscuro de verdad</h3>
+    <ul>
+      <li>Paleta oscura propia: fondo #0B1220, tarjetas #111A26</li>
+      <li>La marca elegida se respeta en ambos temas</li>
+      <li>Contraste del texto sobre el relleno de marca garantizado
+          (blanco salvo en ámbar, donde pasa a tinta oscura)</li>
+      <li>Los 12 modales del sistema auditados uno por uno</li>
+      <li>El ticket se mantiene en papel claro a propósito</li>
+    </ul>
+  </div>
+</div>
+<div class="two" style="margin-top:6mm">
+  <div class="card card-teal">
+    <h3>Para el cajero, no para el programador</h3>
+    <p style="font-size:10.5px">Se eliminó todo el vocabulario técnico de la vista de respaldo:
+    ya no aparece nada pensado para un programador.
+    Dice “copia de tus datos”, “se guarda en…” y “todo en orden”.</p>
+  </div>
+  <div class="card">
+    <h3>Sin internet, por diseño</h3>
+    <p style="font-size:10.5px">La copia en la nube se reemplazó por <b>copia externa en USB o disco</b>.
+    El texto lo dice explícitamente: “no necesita internet y nada sale de tu negocio”.</p>
+  </div>
+</div>
+<h3 style="margin-top:6mm">La paleta, en claro y en oscuro</h3>
+<div class="sw-row">
+  <div class="sw"><i style="background:#14B8A6"></i><b>Marca</b><span>#14B8A6</span></div>
+  <div class="sw"><i style="background:#0F766E"></i><b>Marca oscura</b><span>#0F766E</span></div>
+  <div class="sw"><i style="background:#16A34A"></i><b>Éxito</b><span>#16A34A</span></div>
+  <div class="sw"><i style="background:#D97706"></i><b>Advertencia</b><span>#D97706</span></div>
+  <div class="sw"><i style="background:#DC2626"></i><b>Peligro</b><span>#DC2626</span></div>
+  <div class="sw"><i style="background:#F1F5F9"></i><b>Fondo claro</b><span>#F1F5F9</span></div>
+  <div class="sw"><i style="background:#0B1220"></i><b>Fondo oscuro</b><span>#0B1220</span></div>
+  <div class="sw"><i style="background:#111A26"></i><b>Tarjeta oscura</b><span>#111A26</span></div>
+</div>
+<h3 style="margin-top:6mm">Piezas que se repiten en las nueve pantallas</h3>
+<div class="grid">
+  <div class="item"><span class="ic">1</span><span><b>Botones</b>Principal, contorno y destructivo: tres variantes y nada más.</span></div>
+  <div class="item"><span class="ic">2</span><span><b>Campos con etiqueta</b>Siempre arriba, con ayuda cuando el dato lo necesita.</span></div>
+  <div class="item"><span class="ic">3</span><span><b>Tarjetas de indicador</b>Un número grande, su título y su acción.</span></div>
+  <div class="item"><span class="ic">4</span><span><b>Tablas</b>Selección por fila, menú ⋯ al final y pie con paginación.</span></div>
+  <div class="item"><span class="ic">5</span><span><b>Modales</b>Tres tamaños fijos, con cabecera, cuerpo y pie ordenados.</span></div>
+  <div class="item"><span class="ic">6</span><span><b>Avisos flotantes</b>Confirman lo que acaba de pasar, sin tapar el trabajo.</span></div>
+</div>
+<div class="note"><p><b>Accesibilidad del habla.</b> Los mensajes de error explican qué pasó y qué hacer
+(“PIN incorrecto · verifica e inténtalo de nuevo”), y los estados vacíos siempre traen una acción concreta.</p></div></div>
+  <div class="ft"><span>Prototipo funcional · Dosquebradas, Colombia</span><span>3</span></div>
+</section><section class="page">
+  <div class="hd"><div class="hd-brand"><span class="hd-logo">F</span> Frubber POS · Rediseño de interfaz</div><div class="hd-tag">Venta</div></div>
+  <div style="flex:1;min-height:0"><div class="kicker">Pantalla 1 de 9</div>
+<h2>Venta</h2>
+<img class="shot " src="file:///tmp/pdfimg/venta.jpg">
+<table><tr><th style="width:46%">Antes</th><th>Ahora</th></tr><tr><td>Ticket estático, totales al final del día</td><td><b>Resultados en vivo mientras se escribe (F2)</b></td></tr><tr><td>Sin búsqueda ni atajos</td><td><b>Totales que se recalculan al instante</b></td></tr><tr><td>Cobro sin medios de pago</td><td><b>Cobro con efectivo, transferencia y tarjeta; el cambio se calcula solo</b></td></tr></table>
+<div class="note"><p>Al finalizar la venta, el stock del catálogo baja, la venta entra al Historial y el valor se suma al efectivo esperado de Caja.</p></div><div class="three" style="margin-top:5mm"><div class="card"><h3>Atajos siempre a la vista</h3><p style="font-size:9.5px;color:#475569">F2 buscar · F4 cantidad · F6 descuento · F8 cobrar, recordados al pie del ticket.</p></div><div class="card"><h3>Aviso al agregar</h3><p style="font-size:9.5px;color:#475569">Un aviso flotante confirma “Aguacate agregado” sin tapar el ticket.</p></div><div class="card"><h3>Cobro con cambio</h3><p style="font-size:9.5px;color:#475569">Total $ 21.800 con $ 60.000 recibidos: el sistema calcula $ 38.200 de cambio.</p></div></div></div>
+  <div class="ft"><span>Prototipo funcional · Dosquebradas, Colombia</span><span>4</span></div>
+</section><section class="page">
+  <div class="hd"><div class="hd-brand"><span class="hd-logo">F</span> Frubber POS · Rediseño de interfaz</div><div class="hd-tag">Caja</div></div>
+  <div style="flex:1;min-height:0"><div class="kicker">Pantalla 2 de 9</div>
+<h2>Caja</h2>
+<img class="shot " src="file:///tmp/pdfimg/caja.jpg">
+<table><tr><th style="width:46%">Antes</th><th>Ahora</th></tr><tr><td>Cuadre manual en papel</td><td><b>Arqueo por denominaciones con resultado “La caja cuadra ✓”</b></td></tr><tr><td>“Corregir” como enlace rojo</td><td><b>“Editar” en lugar de “Corregir” y cierre en rojo suave</b></td></tr><tr><td>Sin historial de turnos</td><td><b>Turnos cerrados con su resumen, reapertura con número nuevo</b></td></tr></table>
+<div class="three" style="margin-top:5mm"><div class="card"><h3>Arqueo por denominaciones</h3><p style="font-size:9.5px;color:#475569">Se cuenta billete por billete y el sistema responde “La caja cuadra ✓” o cuánto falta.</p></div><div class="card"><h3>Palabras menos duras</h3><p style="font-size:9.5px;color:#475569">“Corregir” pasó a “Editar” y cerrar caja usa un rojo suave, nunca un enlace rojo.</p></div><div class="card"><h3>Historial de turnos</h3><p style="font-size:9.5px;color:#475569">Cada cierre queda con su resumen y la reapertura arranca un turno nuevo.</p></div></div></div>
+  <div class="ft"><span>Prototipo funcional · Dosquebradas, Colombia</span><span>5</span></div>
+</section><section class="page">
+  <div class="hd"><div class="hd-brand"><span class="hd-logo">F</span> Frubber POS · Rediseño de interfaz</div><div class="hd-tag">Productos</div></div>
+  <div style="flex:1;min-height:0"><div class="kicker">Pantalla 3 de 9</div>
+<h2>Productos</h2>
+<img class="shot " src="file:///tmp/pdfimg/productos.jpg">
+<table><tr><th style="width:46%">Antes</th><th>Ahora</th></tr><tr><td>Existencia y estado en la misma columna</td><td><b>Columnas separadas: categoría, existencia y estado</b></td></tr><tr><td>Búsqueda sin filtros ni paginación</td><td><b>Filtros, búsqueda y paginación numerada</b></td></tr><tr><td>Aviso de stock bajo escondido</td><td><b>Indicador de stock bajo que filtra la tabla al hacer clic; acciones masivas y menú ⋯ por fila</b></td></tr></table>
+<div class="three" style="margin-top:5mm"><div class="card"><h3>El indicador que filtra</h3><p style="font-size:9.5px;color:#475569">El aviso de stock bajo lleva a la lista de lo que hay que reponer.</p></div><div class="card"><h3>Cada dato en su columna</h3><p style="font-size:9.5px;color:#475569">Categoría, existencia y estado, separados para leerse de un vistazo.</p></div><div class="card"><h3>Acciones por fila</h3><p style="font-size:9.5px;color:#475569">Editar, duplicar o eliminar desde el menú ⋯; eliminar siempre en rojo.</p></div></div></div>
+  <div class="ft"><span>Prototipo funcional · Dosquebradas, Colombia</span><span>6</span></div>
+</section><section class="page">
+  <div class="hd"><div class="hd-brand"><span class="hd-logo">F</span> Frubber POS · Rediseño de interfaz</div><div class="hd-tag">Historial</div></div>
+  <div style="flex:1;min-height:0"><div class="kicker">Pantalla 4 de 9</div>
+<h2>Historial</h2>
+<img class="shot " src="file:///tmp/pdfimg/historial.jpg">
+<table><tr><th style="width:46%">Antes</th><th>Ahora</th></tr><tr><td>Listado plano sin totales</td><td><b>Indicadores del período en el encabezado y ventas agrupadas por día</b></td></tr><tr><td>Filtros de fecha diminutos</td><td><b>Filtros cómodos, contador “Mostrando X–Y de Z” y exportación CSV</b></td></tr><tr><td>Ticket sin contexto</td><td><b>Detalle del ticket con productos, pago y cancelación</b></td></tr></table>
+<div class="three" style="margin-top:5mm"><div class="card"><h3>Totales del período</h3><p style="font-size:9.5px;color:#475569">Ventas, valor total y ticket promedio del rango elegido, arriba y siempre visibles.</p></div><div class="card"><h3>Agrupado por día</h3><p style="font-size:9.5px;color:#475569">Cada jornada con su subtotal y el contador “Mostrando X–Y de Z”.</p></div><div class="card"><h3>Para contabilidad</h3><p style="font-size:9.5px;color:#475569">Exportación a CSV o PDF de lo que se esté viendo, sin pasos extra.</p></div></div></div>
+  <div class="ft"><span>Prototipo funcional · Dosquebradas, Colombia</span><span>7</span></div>
+</section><section class="page">
+  <div class="hd"><div class="hd-brand"><span class="hd-logo">F</span> Frubber POS · Rediseño de interfaz</div><div class="hd-tag">Usuarios</div></div>
+  <div style="flex:1;min-height:0"><div class="kicker">Pantalla 5 de 9</div>
+<h2>Usuarios</h2>
+<img class="shot " src="file:///tmp/pdfimg/usuarios.jpg">
+<table><tr><th style="width:46%">Antes</th><th>Ahora</th></tr><tr><td>Columna de correos que no se usa en el mostrador</td><td><b>Sin columna de correos (el correo propio vive en el perfil)</b></td></tr><tr><td>Tres roles, incluido “Supervisor”</td><td><b>Solo dos roles: Administrador y Cajero</b></td></tr><tr><td>Acciones siempre visibles en cada fila</td><td><b>Acciones por fila solo con la fila seleccionada; eliminar siempre en rojo; avatares por color determinista</b></td></tr></table>
+<div class="three" style="margin-top:5mm"><div class="card"><h3>Avatares con color propio</h3><p style="font-size:9.5px;color:#475569">Cada persona tiene su color, siempre el mismo, calculado del nombre.</p></div><div class="card"><h3>PIN que se puede reponer</h3><p style="font-size:9.5px;color:#475569">Restablecer PIN desde la fila o desde el detalle, sin borrar al usuario.</p></div><div class="card"><h3>Permisos a la vista</h3><p style="font-size:9.5px;color:#475569">El detalle muestra qué puede hacer cada rol, con ✓ y ⛔.</p></div></div></div>
+  <div class="ft"><span>Prototipo funcional · Dosquebradas, Colombia</span><span>8</span></div>
+</section><section class="page">
+  <div class="hd"><div class="hd-brand"><span class="hd-logo">F</span> Frubber POS · Rediseño de interfaz</div><div class="hd-tag">Configuración</div></div>
+  <div style="flex:1;min-height:0"><div class="kicker">Pantalla 6 de 9</div>
+<h2>Configuración</h2>
+<img class="shot " src="file:///tmp/pdfimg/config.jpg">
+<table><tr><th style="width:46%">Antes</th><th>Ahora</th></tr><tr><td>Media pantalla vacía a la derecha</td><td><b>Dos columnas con navegación lateral fija y siete secciones</b></td></tr><tr><td>Guardar ambiguo, sin confirmación</td><td><b>Botón que se activa al haber cambios, gira al guardar y confirma con aviso</b></td></tr><tr><td>Ticket sin vista previa</td><td><b>Vista previa del ticket que se actualiza en tiempo real</b></td></tr></table>
+<div class="note"><p>Incluye papel 58 / 80 mm, impuestos editables, medios de pago que se pueden renombrar y reordenar, y ajustes de tema, color de marca y densidad.</p></div></div>
+  <div class="ft"><span>Prototipo funcional · Dosquebradas, Colombia</span><span>9</span></div>
+</section><section class="page">
+  <div class="hd"><div class="hd-brand"><span class="hd-logo">F</span> Frubber POS · Rediseño de interfaz</div><div class="hd-tag">Respaldo</div></div>
+  <div style="flex:1;min-height:0"><div class="kicker">Pantalla 7 de 9</div>
+<h2>Respaldo</h2>
+<img class="shot " src="file:///tmp/pdfimg/respaldo.jpg">
+<table><tr><th style="width:46%">Antes</th><th>Ahora</th></tr><tr><td>Cuatro indicadores sin jerarquía y media pantalla vacía</td><td><b>Estado de tus datos en un vistazo, con banner verde / ámbar / rojo y su acción</b></td></tr><tr><td>Solo respaldo manual local</td><td><b>Creación con barra de progreso y fase, cancelable; historial con búsqueda, filtros y páginas</b></td></tr><tr><td>Restaurar sin advertencias</td><td><b>Restauración con triple seguridad: qué se pierde, copia previa y escribir “RESTAURAR”</b></td></tr></table>
+<div class="three" style="margin-top:5mm"><div class="card"><h3>Estado en un vistazo</h3><p style="font-size:9.5px;color:#475569">Banner verde, ámbar o rojo, con el botón para actuar en el momento.</p></div><div class="card"><h3>Copia con progreso</h3><p style="font-size:9.5px;color:#475569">Barra con la fase actual y opción de cancelar sin dejar el archivo a medias.</p></div><div class="card"><h3>Copia externa</h3><p style="font-size:9.5px;color:#475569">Se elige el USB o disco, la carpeta y la hora; funciona sin internet.</p></div></div></div>
+  <div class="ft"><span>Prototipo funcional · Dosquebradas, Colombia</span><span>10</span></div>
+</section><section class="page">
+  <div class="hd"><div class="hd-brand"><span class="hd-logo">F</span> Frubber POS · Rediseño de interfaz</div><div class="hd-tag">Respaldo · detalle</div></div>
+  <div style="flex:1;min-height:0"><div class="kicker">Pantalla 7 de 9 · en detalle</div>
+<h2>Copias sin internet y restauración segura</h2>
+<div class="two" style="margin-top:1mm">
+  <div>
+    <img class="shot " src="file:///tmp/pdfimg/restaurar.jpg">
+    <p style="font-size:10px;color:#64748B;margin-top:2mm">Doble confirmación antes de devolver los datos a una fecha anterior.</p>
+  </div>
+  <div>
+    <div class="card card-teal" style="margin-bottom:4mm">
+      <h3>Copia externa en USB o disco</h3>
+      <p style="font-size:10.5px">Elige el dispositivo, la carpeta, cada cuánto y a qué hora. La barra muestra el espacio
+      usado del dispositivo y hay un botón “Copiar ahora”. <b>Funciona sin conexión.</b></p>
+    </div>
+    <table>
+      <tr><th>Antes</th><th>Ahora</th></tr>
+      <tr><td>Nube, cuentas y proveedores</td><td><b>USB / disco externo, sin internet</b></td></tr>
+      <tr><td>Palabras que solo entiende un programador</td><td><b>“Copia de seguridad de tus datos”</b></td></tr>
+      <tr><td>Fases técnicas del progreso</td><td><b>“Preparando la copia…”, “Guardando…”, “Comprobando…”</b></td></tr>
+    </table>
+  </div>
+</div>
+<div class="three" style="margin-top:5mm">
+  <div><img class="shot " src="file:///tmp/pdfimg/usb.jpg"><p style="font-size:9.5px;color:#64748B;margin-top:2mm">Elegir el dispositivo y la carpeta, en palabras simples.</p></div>
+  <div class="card"><h3>Qué se guarda</h3>
+    <p style="font-size:10px;color:#475569">Productos, ventas, movimientos de caja, historial, usuarios y configuración:
+    todo junto en un solo archivo comprimido, listo para llevarse.</p></div>
+  <div class="card"><h3>Cómo se usa</h3>
+    <p style="font-size:10px;color:#475569">Se elige el dispositivo, la carpeta, cada cuánto y a qué hora.
+    El botón “Copiar ahora” hace la copia al instante, sin esperar a la hora programada.</p></div>
+</div></div>
+  <div class="ft"><span>Prototipo funcional · Dosquebradas, Colombia</span><span>11</span></div>
+</section><section class="page">
+  <div class="hd"><div class="hd-brand"><span class="hd-logo">F</span> Frubber POS · Rediseño de interfaz</div><div class="hd-tag">Inicio de sesión</div></div>
+  <div style="flex:1;min-height:0"><div class="kicker">Pantalla 8 de 9</div>
+<h2>Inicio de sesión</h2>
+<img class="shot " src="file:///tmp/pdfimg/login.jpg">
+<table><tr><th style="width:46%">Antes</th><th>Ahora</th></tr><tr><td>Teclado numérico gigante y curva decorativa</td><td><b>Lista con todos los usuarios del equipo y su rol</b></td></tr><tr><td>Un solo usuario visible</td><td><b>PIN de seis dígitos con círculos animados y error que tiembla</b></td></tr><tr><td>Un clic no hacía nada</td><td><b>Mouse primero: un clic en el nombre lleva al PIN; botón “Continuar como…” y “Elegir otro usuario”</b></td></tr></table>
+<div class="note"><p>El mouse manda: un clic en el nombre pasa al PIN y el pie recuerda “Haz clic en tu nombre”. Si se prefiere el teclado, funciona igual: flechas para elegir, dígitos para el PIN y Enter para entrar. El teclado en pantalla quedó como plan B, de 200 px.</p></div></div>
+  <div class="ft"><span>Prototipo funcional · Dosquebradas, Colombia</span><span>12</span></div>
+</section><section class="page">
+  <div class="hd"><div class="hd-brand"><span class="hd-logo">F</span> Frubber POS · Rediseño de interfaz</div><div class="hd-tag">Licencia</div></div>
+  <div style="flex:1;min-height:0"><div class="kicker">Pantalla 9 de 9</div>
+<h2>Licencia del equipo</h2>
+<img class="shot " src="file:///tmp/pdfimg/licencia.jpg">
+<table><tr><th style="width:46%">Antes</th><th>Ahora</th></tr><tr><td>Modal enorme que ocupaba casi toda la pantalla</td><td><b>Modal compacto de 480 px, centrado y animado</b></td></tr><tr><td>Código para compartir y código a pegar idénticos</td><td><b>Estado completo: plan, fecha de activación, vencimiento y equipo</b></td></tr><tr><td>Sin confirmación de nada</td><td><b>Copiar con confirmación “✓ Copiado”, pegado con guiones automáticos y validación del código</b></td></tr></table>
+<div class="note"><p>Se puede usar solo con teclado: <b>Esc</b> cerrar, <b>Enter</b> activar, <b>Ctrl+C</b> copiar. Y si hay un código escrito sin activar, al cerrar pregunta antes de descartarlo.</p></div></div>
+  <div class="ft"><span>Prototipo funcional · Dosquebradas, Colombia</span><span>13</span></div>
+</section><section class="page">
+  <div class="hd"><div class="hd-brand"><span class="hd-logo">F</span> Frubber POS · Rediseño de interfaz</div><div class="hd-tag">Sesión y permisos</div></div>
+  <div style="flex:1;min-height:0"><div class="kicker">Sesión y permisos</div>
+<h2>Cerrar sesión ahora hace algo de verdad</h2>
+<img class="shot " src="file:///tmp/pdfimg/bloqueo.jpg">
+<div class="two" style="margin-top:5mm">
+  <div><img class="shot " src="file:///tmp/pdfimg/permisos.jpg"><p style="font-size:9.5px;color:#64748B;margin-top:2mm">El detalle de un cajero: qué puede hacer y qué no, con ✓ y ⛔.</p></div>
+  <div>
+  <div class="card"><h3>El rol define el menú</h3>
+    <p style="font-size:10.5px">Al entrar como <b>Cajero</b>, el menú queda en Venta y Caja.
+    Al entrar como <b>Administrador</b>, aparecen las nueve pantallas. La cabecera y el pie muestran
+    el nombre, el avatar y el rol de quien está usando el equipo.</p></div>
+  <div class="card card-teal"><h3>Mientras el bloqueo está abierto</h3>
+    <p style="font-size:10.5px">Las teclas del punto de venta (F2–F8, Supr) quedan desactivadas:
+    no se puede cobrar ni tocar el sistema sin identificarse. <b>Esc</b> vuelve a la lista de usuarios.</p></div>
+  </div>
+</div></div>
+  <div class="ft"><span>Prototipo funcional · Dosquebradas, Colombia</span><span>14</span></div>
+</section><section class="page">
+  <div class="hd"><div class="hd-brand"><span class="hd-logo">F</span> Frubber POS · Rediseño de interfaz</div><div class="hd-tag">Modo oscuro</div></div>
+  <div style="flex:1;min-height:0"><div class="kicker">Modo oscuro</div>
+<h2>Verificado pantalla por pantalla</h2>
+<div class="two"><img class="shot " src="file:///tmp/pdfimg/oscuro1.jpg"><img class="shot " src="file:///tmp/pdfimg/oscuro2.jpg"></div>
+<div class="grid" style="margin-top:5mm">
+  <div class="item"><span class="ic">✓</span><span><b>Nada de fondos claros sueltos</b>Las tarjetas, tablas, modales y menús usan la paleta oscura.</span></div>
+  <div class="item"><span class="ic">✓</span><span><b>La marca se respeta</b>El color de marca elegido en Configuración se aplica igual en oscuro.</span></div>
+  <div class="item"><span class="ic">✓</span><span><b>Contraste garantizado</b>El texto sobre el relleno de marca se calcula automáticamente.</span></div>
+  <div class="item"><span class="ic">✓</span><span><b>Interruptores legibles</b>Encendido y apagado se distinguen de un vistazo en ambos temas.</span></div>
+</div>
+<div class="sw-row">
+  <div class="sw"><i style="background:#0B1220"></i><b>Fondo</b><span>#0B1220</span></div>
+  <div class="sw"><i style="background:#111A26"></i><b>Tarjeta</b><span>#111A26</span></div>
+  <div class="sw"><i style="background:#1E293B"></i><b>Bordes</b><span>#1E293B</span></div>
+  <div class="sw"><i style="background:#E6EAF2"></i><b>Texto</b><span>#E6EAF2</span></div>
+  <div class="sw"><i style="background:#14B8A6"></i><b>Marca activa</b><span>se conserva</span></div>
+</div>
+<div class="three" style="margin-top:5mm">
+  <div class="card"><h3>También en el inicio de sesión</h3><p style="font-size:9.5px;color:#475569">La lista de usuarios y el teclado del PIN, en ambos temas.</p></div>
+  <div class="card"><h3>También en el bloqueo</h3><p style="font-size:9.5px;color:#475569">La pantalla de bloqueo y el modal de licencia siguen el tema elegido.</p></div>
+  <div class="card"><h3>Cinco colores probados</h3><p style="font-size:9.5px;color:#475569">Se verificó con cinco colores de marca distintos, no solo con el teal.</p></div>
+</div>
+<div class="note"><p>Se revisaron además los <b>12 modales</b> del sistema (cobro, cierre, cancelación, usuario, PIN, producto, stock,
+eliminación, apertura, respaldo, restauración y licencia) con cinco colores de marca distintos.</p></div></div>
+  <div class="ft"><span>Prototipo funcional · Dosquebradas, Colombia</span><span>15</span></div>
+</section><section class="page">
+  <div class="hd"><div class="hd-brand"><span class="hd-logo">F</span> Frubber POS · Rediseño de interfaz</div><div class="hd-tag">Entregables</div></div>
+  <div style="flex:1;min-height:0"><div class="kicker">Entregables</div>
+<h2>Nueve archivos que se abren con doble clic</h2>
+<p class="lead" style="margin-bottom:2mm">Cada archivo funciona sin conexión y sin instalar nada. El índice permite abrirlos todos desde un solo lugar.</p>
+<table>
+  <tr><th>Archivo</th><th>Qué contiene</th></tr>
+  <tr><td><b>index.html</b></td><td>Índice: abre los nueve prototipos desde una sola página</td></tr>
+  <tr><td><b>frubber-pos.html</b></td><td>Prototipo integrado: las siete pantallas con navegación real entre ellas</td></tr>
+  <tr><td><b>frubber-pos-login.html</b></td><td>Inicio de sesión (también incluye licencia y bloqueo)</td></tr>
+  <tr><td><b>frubber-pos-rediseno.html</b></td><td>Venta</td></tr>
+  <tr><td><b>frubber-pos-caja.html</b></td><td>Caja</td></tr>
+  <tr><td><b>frubber-pos-productos.html</b></td><td>Productos</td></tr>
+  <tr><td><b>frubber-pos-historial.html</b></td><td>Historial</td></tr>
+  <tr><td><b>frubber-pos-configuracion.html</b></td><td>Configuración</td></tr>
+  <tr><td><b>frubber-pos-respaldo.html</b></td><td>Respaldo</td></tr>
+</table>
+<div class="three" style="margin-top:6mm">
+  <div class="card card-teal"><h3>1 · Abrir el índice</h3><p style="font-size:9.5px;color:#475569">Doble clic en <b>index.html</b>:
+  aparecen las nueve tarjetas y desde ahí se entra a cualquier prototipo.</p></div>
+  <div class="card"><h3>2 · Usarlo como en el mostrador</h3><p style="font-size:9.5px;color:#475569">Los botones responden de verdad:
+  se cobra, se cierra caja, se respalda y se cambia de usuario.</p></div>
+  <div class="card"><h3>3 · Sin instalar nada</h3><p style="font-size:9.5px;color:#475569">Solo hace falta un navegador.
+  No se necesita internet ni ningún programa adicional.</p></div>
+</div>
+<div class="note"><p><b>Nota de alcance.</b> Son prototipos de interfaz: todos los datos son de demostración y las acciones
+se simulan (el cobro no factura, la copia no escribe en disco). Están listos para conectarse al sistema real
+sin cambiar el diseño.</p></div></div>
+  <div class="ft"><span>Prototipo funcional · Dosquebradas, Colombia</span><span>16</span></div>
+</section><section class="page">
+  <div class="hd"><div class="hd-brand"><span class="hd-logo">F</span> Frubber POS · Rediseño de interfaz</div><div class="hd-tag">Para seguir</div></div>
+  <div style="flex:1;min-height:0"><div class="kicker">Para seguir</div>
+<h2>Lo que conviene decidir ahora</h2>
+<div class="grid">
+  <div class="item"><span class="ic">1</span><span><b>Conectar con el sistema real</b>El diseño queda igual; falta enlazar ventas, caja, productos e historial con el programa que ya usan.</span></div>
+  <div class="item"><span class="ic">2</span><span><b>PIN de 4 o de 6 dígitos</b>Se implementó de seis, como en el diseño aprobado. Si prefiere cuatro, es un cambio de un valor.</span></div>
+  <div class="item"><span class="ic">3</span><span><b>Reconocer el USB real</b>Hoy el dispositivo se elige de una lista; con el sistema conectado se puede detectar solo.</span></div>
+  <div class="item"><span class="ic">4</span><span><b>Probar con cajeros</b>Una sesión corta con quien usa el mostrador todos los días vale más que cualquier ajuste de escritorio.</span></div>
+</div>
+<div class="note" style="margin-top:6mm"><p class="quote">“El cajero debe poder cobrar, cerrar caja y respaldar sin que nadie le explique términos de computadores.”</p>
+<p style="font-size:10px;color:#64748B;margin-top:1.5mm">Criterio que guió todo el rediseño.</p></div>
+<h3 style="margin-top:8mm">Revisión en 10 minutos</h3>
+<div class="grid">
+  <div class="item"><span class="ic">1</span><span><b>Configuración</b>Cambie el color de marca, guarde y mire el aviso de confirmación.</span></div>
+  <div class="item"><span class="ic">2</span><span><b>Venta</b>Busque “agua”, agréguela al ticket y cobre con efectivo.</span></div>
+  <div class="item"><span class="ic">3</span><span><b>Caja</b>Cuente el efectivo en el arqueo y cierre el turno.</span></div>
+  <div class="item"><span class="ic">4</span><span><b>Respaldo</b>Cree una copia en el USB imaginario y vea el progreso.</span></div>
+  <div class="item"><span class="ic">5</span><span><b>Sesión</b>Pulse Cerrar sesión y vuelva a entrar como Cajero.</span></div>
+  <div class="item"><span class="ic">6</span><span><b>Modo oscuro</b>Actívelo y recorra las pantallas: nada se queda en blanco.</span></div>
+</div>
+<h3 style="margin-top:8mm">Qué más se puede sumar cuando quiera</h3>
+<ul>
+  <li>Cierre de caja imprimible con el resumen del turno</li>
+  <li>Aviso al abrir el sistema si la última copia tiene más de siete días</li>
+  <li>Modo de pantalla completa para el mostrador</li>
+</ul></div>
+  <div class="ft"><span>Prototipo funcional · Dosquebradas, Colombia</span><span>17</span></div>
+</section></body></html>

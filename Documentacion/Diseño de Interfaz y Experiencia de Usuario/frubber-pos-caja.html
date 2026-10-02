@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="iconos/frubber-pos-192.png">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Frubber POS — Rediseño Vista Caja</title>
+<style>
+  /* ============================================================
+     FRUBBER POS · DESIGN TOKENS (compartidos con vista Venta)
+     ============================================================ */
+  :root{
+    --teal-500:#14B8A6; --teal-600:#0F9488; --teal-700:#0F766E;
+    --teal-soft:#E6FAF5; --teal-row:#F0FDF9; --teal-brd:#99F6E4;
+    --green-500:#10B981; --green-soft:#ECFDF5;
+    --blue-500:#3B82F6;  --blue-soft:#EFF6FF;
+    --amber-500:#F59E0B; --amber-soft:#FFFBEB; --amber-fg:#92400E;
+    --danger-500:#DC2626; --danger-soft:#FEF2F2; --danger-brd:#FECACA; --danger-hover:#FEE2E2;
+
+    --app-bg:#F7F8FA; --surface:#FFFFFF;
+    --border-soft:#EEF1F4; --border:#E2E8F0;
+
+    --text-high:#0F172A; --text-mid:#475569; --text-low:#94A3B8; --text-sub:#64748B;
+
+    --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s8:32px;
+    --r-s:6px; --r-m:10px; --r-l:14px; --r-xl:16px;
+
+    --sh-card:0 1px 2px rgba(15,23,42,.04), 0 0 0 1px rgba(15,23,42,.04);
+    --sh-raise:0 6px 18px rgba(15,23,42,.08);
+
+    --font:"Inter","Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:var(--font);background:var(--app-bg);color:var(--text-high);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;overflow:hidden}
+  button{font-family:inherit;cursor:pointer;border:none;background:none}
+  ::selection{background:#CCFBF1}
+
+  .t-display{font-size:28px;font-weight:700;letter-spacing:-.02em;line-height:1.2}
+  .t-title{font-size:15px;font-weight:600;letter-spacing:-.01em}
+  .lbl{font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--text-sub)}
+  .money{font-variant-numeric:tabular-nums}
+
+  .app{display:flex;height:100vh;overflow:hidden}
+
+  /* ---------------- SIDEBAR ---------------- */
+  .sidebar{width:220px;flex:0 0 220px;background:var(--surface);border-right:1px solid var(--border-soft);
+    display:flex;flex-direction:column;padding:var(--s5) var(--s3) var(--s4)}
+  .brand{display:flex;align-items:center;gap:10px;padding:4px 8px var(--s5)}
+  .brand-logo{width:40px;height:40px;flex:0 0 40px;border-radius:var(--r-m);
+    background:linear-gradient(180deg,var(--teal-500),var(--teal-700));color:#fff;display:grid;place-items:center;
+    font-size:17px;font-weight:700;box-shadow:0 4px 10px rgba(20,184,166,.28)}
+  .brand-name{font-size:15px;font-weight:700;line-height:1.15}
+  .brand-sub{font-size:11px;font-weight:600;letter-spacing:.08em;color:var(--text-low);text-transform:uppercase}
+  .nav{display:flex;flex-direction:column;gap:2px}
+  .nav-item{display:flex;align-items:center;gap:10px;height:42px;padding:0 12px;border-radius:var(--r-m);
+    border-left:3px solid transparent;font-size:14px;font-weight:500;color:var(--text-mid);
+    transition:background .15s ease,color .15s ease;width:100%;text-align:left}
+  .nav-item:hover{background:#F8FAFC;color:var(--text-high)}
+  .nav-item .key{width:22px;height:22px;flex:0 0 22px;border-radius:var(--r-s);display:grid;place-items:center;
+    background:#F1F5F9;color:var(--text-sub);font-size:11px;font-weight:700;transition:.15s}
+  .nav-item.active{background:var(--teal-soft);border-left:3px solid var(--teal-500);color:var(--teal-700);
+    font-weight:600;border-radius:0 var(--r-m) var(--r-m) 0}
+  .nav-item.active .key{background:rgba(20,184,166,.16);color:var(--teal-700)}
+  .sidebar-foot{margin-top:auto;padding-top:var(--s4)}
+  .badge-admin{display:inline-flex;background:var(--teal-soft);color:var(--teal-700);font-size:11px;font-weight:700;
+    letter-spacing:.08em;padding:4px 10px;border-radius:999px;margin:0 0 10px 4px}
+  .btn-logout{width:100%;height:40px;border-radius:var(--r-m);border:1px solid var(--border);background:var(--surface);
+    color:var(--text-mid);font-size:13px;font-weight:500;transition:.15s}
+  .btn-logout:hover{background:#F8FAFC;border-color:#CBD5E1;color:var(--text-high)}
+  .offline{display:flex;align-items:center;gap:7px;margin-top:var(--s4);padding:9px 12px;border-radius:var(--r-m);
+    background:#FEF3C7;color:#D97706;font-size:11px;font-weight:600}
+  .dot-pulse{position:relative;width:7px;height:7px;flex:0 0 7px;border-radius:50%;background:currentColor}
+  .dot-pulse::after{content:"";position:absolute;inset:0;border-radius:50%;background:currentColor;animation:pulse 2s ease-out infinite}
+  @keyframes pulse{0%{transform:scale(1);opacity:.7}70%{transform:scale(3);opacity:0}100%{opacity:0}}
+
+  /* ---------------- MAIN ---------------- */
+  .main{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+  .main-scroll{flex:1;overflow-y:auto;padding:var(--s5) var(--s6) var(--s6)}
+  .main-inner{max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:var(--s3)}
+
+  /* ---------------- HEADER ---------------- */
+  .page-head{display:flex;align-items:center;justify-content:space-between;gap:var(--s6);padding-bottom:var(--s4)}
+  .head-sub{font-size:13px;color:var(--text-sub);margin-top:2px;display:flex;align-items:center;gap:8px}
+  .head-sub .sep{color:#CBD5E1}
+  .head-sub .timer{display:inline-flex;align-items:center;gap:5px;font-weight:500;color:var(--text-sub)}
+  .head-sub .timer svg{color:var(--text-low)}
+  .head-right{display:flex;align-items:center;gap:8px}
+  .pill{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 12px;border-radius:999px;
+    background:var(--teal-soft);color:var(--teal-700);font-size:12px;font-weight:600;white-space:nowrap;
+    box-shadow:inset 0 0 0 1px rgba(20,184,166,.12)}
+  .pill .dot{width:6px;height:6px;border-radius:50%;background:var(--teal-500)}
+  .user{display:flex;align-items:center;gap:9px;padding-left:10px;margin-left:4px;border-left:1px solid var(--border-soft)}
+  .avatar{width:36px;height:36px;flex:0 0 36px;border-radius:50%;
+    background:linear-gradient(135deg,var(--teal-500),var(--teal-700));color:#fff;display:grid;place-items:center;
+    font-size:13px;font-weight:600;box-shadow:0 3px 8px rgba(20,184,166,.28)}
+  .user-name{font-size:13px;font-weight:600;line-height:1.2}
+  .user-role{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text-low);text-transform:uppercase}
+  /* botón destructivo suave */
+  .btn-danger-soft{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 16px;border-radius:var(--r-m);
+    background:var(--danger-soft);color:var(--danger-500);border:1px solid var(--danger-brd);
+    font-size:13px;font-weight:600;transition:.15s ease}
+  .btn-danger-soft:hover{background:var(--danger-hover);border-color:#FCA5A5}
+  .btn-primary{display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 20px;border-radius:var(--r-m);
+    background:var(--teal-500);color:#fff;font-size:14px;font-weight:600;box-shadow:0 6px 16px rgba(20,184,166,.25);transition:.18s}
+  .btn-primary:hover{background:var(--teal-600);transform:translateY(-1px);box-shadow:0 10px 24px rgba(20,184,166,.35)}
+  .btn-ghost{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 14px;border-radius:var(--r-m);
+    color:var(--text-mid);font-size:13px;font-weight:500;transition:.15s}
+  .btn-ghost:hover{background:#F1F5F9;color:var(--text-high)}
+  .btn-outline{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 14px;border-radius:var(--r-m);
+    border:1px solid var(--border);background:var(--surface);color:var(--text-mid);font-size:13px;font-weight:500;transition:.15s}
+  .btn-outline:hover{background:#F8FAFC;border-color:#CBD5E1;color:var(--text-high)}
+  .btn-sm{height:28px;padding:0 10px;font-size:12px;border-radius:var(--r-s)}
+  .btn-danger-sm{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:var(--r-s);
+    background:var(--danger-soft);color:var(--danger-500);border:1px solid var(--danger-brd);font-size:12px;font-weight:600;transition:.15s}
+  .btn-danger-sm:hover{background:var(--danger-hover)}
+
+  /* ---------------- PANEL SESIÓN ACTUAL ---------------- */
+  .session{background:var(--surface);border-radius:var(--r-l);box-shadow:var(--sh-card);
+    border-left:4px solid var(--teal-500);padding:var(--s4) var(--s5);
+    display:grid;grid-template-columns:1.05fr 1.15fr 1.2fr 1.3fr}
+  .session.state-closed{border-left-color:#CBD5E1}
+  .s-col{padding:0 var(--s5);display:flex;flex-direction:column;justify-content:center;gap:6px;min-height:52px}
+  .s-col:first-child{padding-left:0}
+  .s-col + .s-col{border-left:1px solid var(--border-soft)}
+  .s-val{font-size:14px;font-weight:600;color:var(--text-high);display:flex;align-items:center;gap:8px}
+  .s-val.dim{font-weight:500;color:var(--text-mid)}
+  .badge-open{display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 11px;border-radius:999px;
+    background:var(--green-soft);color:#047857;font-size:12px;font-weight:600;box-shadow:inset 0 0 0 1px rgba(16,185,129,.2)}
+  .badge-closed{display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 11px;border-radius:999px;
+    background:#F1F5F9;color:var(--text-sub);font-size:12px;font-weight:600;box-shadow:inset 0 0 0 1px var(--border)}
+  .badge-closed .dot{width:6px;height:6px;border-radius:50%;background:var(--text-low)}
+  .avatar-sm{width:32px;height:32px;flex:0 0 32px;border-radius:50%;
+    background:linear-gradient(135deg,var(--teal-500),var(--teal-700));color:#fff;display:grid;place-items:center;
+    font-size:12px;font-weight:600}
+  .s-edit{margin-top:2px}
+
+  /* ---------------- MÉTRICAS ---------------- */
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--s3)}
+  .metric{position:relative;background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--r-l);
+    padding:var(--s5);box-shadow:0 1px 2px rgba(15,23,42,.04);overflow:hidden}
+  .metric::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent)}
+  .metric-top{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--s3)}
+  .metric-val{font-size:28px;font-weight:700;letter-spacing:-.02em;margin-top:10px;line-height:1.15}
+  .metric-sub{font-size:12px;color:var(--text-low);margin-top:4px}
+  .metric-sub.alert{color:var(--amber-500);font-weight:600}
+  .metric-ico{width:30px;height:30px;flex:0 0 30px;border-radius:9px;display:grid;place-items:center;
+    background:var(--accent-soft);color:var(--accent)}
+
+  /* ---------------- KPI HERO ---------------- */
+  .kpi{background:linear-gradient(135deg,#F0FDFA 0%,#FFFFFF 62%);border:1px solid var(--teal-brd);border-radius:var(--r-xl);
+    padding:var(--s6) 28px;display:grid;grid-template-columns:1.25fr 1fr;gap:var(--s8);align-items:center;
+    box-shadow:0 1px 2px rgba(15,23,42,.04)}
+  .kpi.state-closed{background:var(--surface);border-color:var(--border)}
+  .kpi-left{display:flex;align-items:center;gap:var(--s5)}
+  .kpi-ico{width:80px;height:80px;flex:0 0 80px;border-radius:50%;background:var(--teal-soft);color:var(--teal-600);
+    display:grid;place-items:center;box-shadow:inset 0 0 0 1px rgba(20,184,166,.18)}
+  .kpi-label{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .kpi-badge{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 9px;border-radius:999px;
+    background:rgba(20,184,166,.1);color:var(--teal-700);font-size:11px;font-weight:600}
+  .kpi-val{font-size:40px;font-weight:700;letter-spacing:-.03em;color:var(--teal-700);line-height:1.1;margin-top:6px}
+  .kpi.state-closed .kpi-val{color:var(--text-high)}
+  .kpi.state-closed .kpi-ico{background:#F1F5F9;color:var(--text-sub);box-shadow:inset 0 0 0 1px var(--border)}
+  .kpi-note{font-size:12.5px;color:var(--text-sub);margin-top:6px;max-width:340px}
+  .kpi-break{display:flex;flex-direction:column}
+  .brow{display:flex;align-items:center;justify-content:space-between;gap:var(--s6);padding:10px 0;font-size:13px}
+  .brow + .brow{border-top:1px solid var(--border-soft)}
+  .brow .bl{color:var(--text-sub);font-weight:500}
+  .brow .bv{font-weight:600;font-variant-numeric:tabular-nums}
+  .brow.neg .bv{color:var(--danger-500)}
+  .brow.sum{border-top:2px solid var(--border);padding-top:12px;margin-top:2px}
+  .brow.sum .bl{color:var(--text-high);font-weight:600}
+  .brow.sum .bv{color:var(--teal-700);font-weight:700;font-size:15px}
+  .kpi.state-closed .brow.sum .bv{color:var(--text-high)}
+
+  /* ---------------- BANNER ---------------- */
+  .banner{display:flex;align-items:flex-start;gap:var(--s4);background:var(--amber-soft);
+    border:1px solid #FDE68A;border-left:4px solid var(--amber-500);border-radius:var(--r-l);padding:var(--s4) var(--s5)}
+  .banner-ico{width:34px;height:34px;flex:0 0 34px;border-radius:50%;background:rgba(245,158,11,.16);
+    color:#B45309;display:grid;place-items:center}
+  .banner-body{flex:1;min-width:0}
+  .banner-title{font-size:14px;font-weight:600;color:#78350F}
+  .banner-text{font-size:13px;color:var(--amber-fg);margin-top:2px;line-height:1.5}
+  .banner-link{display:inline-flex;align-items:center;gap:5px;margin-top:8px;color:#B45309;font-size:12.5px;font-weight:600}
+  .banner-link:hover{text-decoration:underline}
+  .banner.ok{background:#F0FDF4;border-color:#BBF7D0;border-left-color:var(--green-500)}
+  .banner.ok .banner-ico{background:rgba(16,185,129,.14);color:#047857}
+  .banner.ok .banner-title{color:#065F46}
+  .banner.ok .banner-text{color:#047857}
+
+  /* ---------------- ACCIONES RÁPIDAS ---------------- */
+  .quick{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s3)}
+  .qcard{display:flex;align-items:center;gap:var(--s4);background:var(--surface);border:1px solid var(--border-soft);
+    border-radius:var(--r-l);padding:var(--s4) var(--s5);box-shadow:0 1px 2px rgba(15,23,42,.04);
+    text-align:left;transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
+  .qcard:hover{transform:translateY(-1px);box-shadow:var(--sh-raise);border-color:var(--border)}
+  .qico{width:40px;height:40px;flex:0 0 40px;border-radius:var(--r-m);background:#F1F5F9;color:var(--text-mid);
+    display:grid;place-items:center;transition:.16s}
+  .qcard:hover .qico{background:var(--teal-soft);color:var(--teal-700)}
+  .qtitle{font-size:13.5px;font-weight:600}
+  .qsub{font-size:12px;color:var(--text-low);margin-top:1px}
+  .qchev{margin-left:auto;color:#CBD5E1;transition:.16s}
+  .qcard:hover .qchev{color:var(--teal-500);transform:translateX(2px)}
+
+  /* ---------------- MODALES ---------------- */
+  .overlay{position:fixed;inset:0;z-index:80;background:rgba(15,23,42,.45);backdrop-filter:blur(2px);
+    display:none;align-items:center;justify-content:center;padding:var(--s6)}
+  .overlay.show{display:flex;animation:fade .18s ease}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .modal{width:100%;max-width:520px;background:var(--surface);border-radius:var(--r-xl);
+    box-shadow:0 24px 64px rgba(15,23,42,.3);animation:rise .22s cubic-bezier(.2,.8,.3,1);max-height:88vh;display:flex;flex-direction:column}
+  @keyframes rise{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+  .modal-head{display:flex;align-items:flex-start;gap:var(--s4);padding:var(--s5) var(--s5) var(--s3)}
+  .modal-ico{width:38px;height:38px;flex:0 0 38px;border-radius:var(--r-m);display:grid;place-items:center}
+  .modal-ico.danger{background:var(--danger-soft);color:var(--danger-500)}
+  .modal-ico.teal{background:var(--teal-soft);color:var(--teal-700)}
+  .modal-title{font-size:16px;font-weight:700}
+  .modal-sub{font-size:12.5px;color:var(--text-sub);margin-top:2px}
+  .modal-close{margin-left:auto;width:30px;height:30px;border-radius:var(--r-s);display:grid;place-items:center;color:var(--text-low);transition:.15s}
+  .modal-close:hover{background:#F1F5F9;color:var(--text-high)}
+  .modal-body{padding:0 var(--s5) var(--s5);overflow-y:auto}
+  .modal-foot{display:flex;justify-content:flex-end;gap:var(--s2);padding:var(--s4) var(--s5);
+    border-top:1px solid var(--border-soft);background:#FCFDFE;border-radius:0 0 var(--r-xl) var(--r-xl)}
+  .field{display:flex;flex-direction:column;gap:6px;margin-top:var(--s4)}
+  .field label{font-size:12px;font-weight:600;color:var(--text-mid)}
+  .input{height:44px;border:1px solid var(--border);border-radius:var(--r-m);padding:0 14px;font-family:inherit;
+    font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text-high);transition:.15s;width:100%}
+  .input:focus{outline:none;border-color:var(--teal-500);box-shadow:0 0 0 3px rgba(20,184,166,.16)}
+  .hint{font-size:11.5px;color:var(--text-low)}
+  .recap{background:#F8FAFC;border:1px solid var(--border-soft);border-radius:var(--r-m);padding:var(--s3) var(--s4);margin-top:var(--s4)}
+  .recap .brow{padding:7px 0;font-size:13px}
+  .recap .brow + .brow{border-top:1px solid var(--border-soft)}
+  .diff{margin-top:var(--s3);display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:var(--r-m);
+    font-size:13px;font-weight:600;background:#F1F5F9;color:var(--text-sub);transition:.2s}
+  .diff.good{background:var(--green-soft);color:#047857}
+  .diff.bad{background:var(--danger-soft);color:var(--danger-500)}
+  .diff .dv{margin-left:auto;font-variant-numeric:tabular-nums}
+  .alert-dark{display:flex;gap:10px;margin-top:var(--s4);padding:12px 14px;border-radius:var(--r-m);
+    background:var(--amber-soft);border:1px solid #FDE68A;color:var(--amber-fg);font-size:12.5px;line-height:1.5}
+  .alert-dark svg{flex:0 0 16px;margin-top:1px;color:#B45309}
+  .mov{display:flex;align-items:center;gap:var(--s3);padding:12px 0;font-size:13px}
+  .mov + .mov{border-top:1px solid var(--border-soft)}
+  .mov-ico{width:30px;height:30px;flex:0 0 30px;border-radius:9px;display:grid;place-items:center}
+  .mov-ico.in{background:var(--green-soft);color:#047857}
+  .mov-ico.out{background:var(--danger-soft);color:var(--danger-500)}
+  .mov-name{font-weight:600}
+  .mov-sub{font-size:11.5px;color:var(--text-low)}
+  .mov-amt{margin-left:auto;font-weight:600;font-variant-numeric:tabular-nums}
+  .mov-amt.pos{color:#047857}
+  .mov-amt.neg{color:var(--danger-500)}
+
+  /* toast */
+  .toast{position:fixed;bottom:26px;left:50%;z-index:90;display:flex;align-items:center;gap:10px;background:#0F172A;color:#fff;
+    font-size:13px;font-weight:500;padding:11px 16px;border-radius:999px;box-shadow:0 12px 32px rgba(15,23,42,.28);
+    opacity:0;transform:translate(-50%,10px);pointer-events:none;transition:.2s}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+  .toast .td{width:7px;height:7px;border-radius:50%;background:var(--teal-500)}
+
+  /* anotaciones */
+
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:999px;border:3px solid var(--app-bg)}
+  ::-webkit-scrollbar-thumb:hover{background:#94A3B8}
+
+  @media (max-width:1180px){
+    .metrics{grid-template-columns:repeat(2,1fr)}
+    .kpi{grid-template-columns:1fr}
+    .session{grid-template-columns:1fr 1fr;gap:var(--s4) 0}
+    .s-col:nth-child(3){border-left:none;padding-left:0}
+    .quick{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- ═══════════ SIDEBAR ═══════════ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-logo">F</div>
+      <div><div class="brand-name">Frubber</div><div class="brand-sub">POS</div></div>
+    </div>
+    <nav class="nav">
+      <button class="nav-item"><span class="key">V</span>Venta</button>
+      <button class="nav-item active"><span class="key">C</span>Caja</button>
+      <button class="nav-item"><span class="key">P</span>Productos</button>
+      <button class="nav-item"><span class="key">H</span>Historial</button>
+      <button class="nav-item"><span class="key">U</span>Usuarios</button>
+      <button class="nav-item"><span class="key">G</span>Configuración</button>
+      <button class="nav-item"><span class="key">S</span>Respaldo</button>
+    </nav>
+    <div class="sidebar-foot">
+      <span class="badge-admin">ADMIN</span>
+      <button class="btn-logout" onclick="toast('Sesión cerrada (demo)')">Cerrar sesión</button>
+      <div class="offline"><span class="dot-pulse"></span> Modo fuera de línea</div>
+    </div>
+  </aside>
+
+  <!-- ═══════════ MAIN ═══════════ -->
+  <div class="main">
+    <div class="main-scroll">
+      <div class="main-inner">
+
+        <!-- ── HEADER ── -->
+        <header class="page-head">
+          <div>
+            <h1 class="t-display">Caja</h1>
+            <div class="head-sub">
+              <span id="sessionLabel">Sesión <strong>#0042</strong></span>
+              <span class="sep">·</span>
+              <span class="timer">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                <span id="sessionTime">Abierta hace 3h 47m</span>
+              </span>
+            </div>
+          </div>
+          <div class="head-right">
+            <span class="pill" id="headPill"><span class="dot-pulse" style="color:#14B8A6"></span> <span id="headPillTxt">Caja abierta</span></span>
+            <span class="pill">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+              Licencia vitalicia
+            </span>
+            <div class="user">
+              <div class="avatar">JD</div>
+              <div><div class="user-name">Jhoan Daniel</div><div class="user-role">Admin</div></div>
+            </div>
+            <button class="btn-danger-soft" id="closeBtn" onclick="openCloseModal()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+              Cerrar caja
+            </button>
+          </div>
+        </header>
+
+        <!-- ── PANEL SESIÓN ACTUAL ── -->
+        <section class="session" id="sessionPanel">
+          <div class="s-col">
+            <span class="lbl">Sesión actual</span>
+            <div class="s-val" id="sessionBadgeWrap">
+              <span class="badge-open"><span class="dot-pulse"></span> Abierta</span>
+            </div>
+          </div>
+          <div class="s-col">
+            <span class="lbl">Apertura</span>
+            <div class="s-val dim" id="openedAt">02/10/2026 · 11:35</div>
+          </div>
+          <div class="s-col">
+            <span class="lbl">Usuario</span>
+            <div class="s-val"><span class="avatar-sm">JD</span> Jhoan Daniel</div>
+          </div>
+          <div class="s-col">
+            <span class="lbl">Saldo inicial</span>
+            <div class="s-val">
+              <span class="money" id="saldoInicial">$ 10.000</span>
+              <button class="btn-outline btn-sm s-edit" onclick="openEditModal()">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+                Editar
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ── MÉTRICAS ── -->
+        <section class="metrics">
+          <div class="metric" style="--accent:#14B8A6;--accent-soft:#E6FAF5">
+            <div class="metric-top">
+              <span class="lbl">Ventas netas</span>
+              <span class="metric-ico">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5-5 4 3 8-8"/><path d="M15 7h5v5"/></svg>
+              </span>
+            </div>
+            <div class="metric-val money" id="mVentas">$ 240.000</div>
+            <div class="metric-sub" id="mVentasSub">1 venta</div>
+          </div>
+          <div class="metric" style="--accent:#10B981;--accent-soft:#ECFDF5">
+            <div class="metric-top">
+              <span class="lbl">Efectivo</span>
+              <span class="metric-ico">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg>
+              </span>
+            </div>
+            <div class="metric-val money">$ 240.000</div>
+            <div class="metric-sub">100% de las ventas</div>
+          </div>
+          <div class="metric" style="--accent:#3B82F6;--accent-soft:#EFF6FF">
+            <div class="metric-top">
+              <span class="lbl">Transferencia</span>
+              <span class="metric-ico">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg>
+              </span>
+            </div>
+            <div class="metric-val money">$ 0</div>
+            <div class="metric-sub">Sin movimientos</div>
+          </div>
+          <div class="metric" style="--accent:#F59E0B;--accent-soft:#FFFBEB">
+            <div class="metric-top">
+              <span class="lbl">Descuentos</span>
+              <span class="metric-ico">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 5L5 19"/><circle cx="7.5" cy="7.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/></svg>
+              </span>
+            </div>
+            <div class="metric-val money">$ 0</div>
+            <div class="metric-sub">0% sobre ventas</div>
+          </div>
+        </section>
+
+        <!-- ── KPI HERO ── -->
+        <section class="kpi" id="kpi">
+          <div class="kpi-left">
+            <div class="kpi-ico">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 10v4M18 10v4"/></svg>
+            </div>
+            <div>
+              <div class="kpi-label">
+                <span class="lbl" style="font-size:12px;color:#0F766E">Efectivo esperado</span>
+                <span class="kpi-badge" id="kpiBadge">
+                  <span class="dot-pulse" style="width:6px;height:6px;flex:0 0 6px"></span> Calculado en tiempo real
+                </span>
+              </div>
+              <div class="kpi-val money" id="kpiVal">$ 250.000</div>
+              <div class="kpi-note" id="kpiNote">Saldo inicial + ventas vigentes en efectivo</div>
+            </div>
+          </div>
+          <div class="kpi-break">
+            <div class="brow"><span class="bl">Saldo inicial</span><span class="bv money" id="brSaldo">$ 10.000</span></div>
+            <div class="brow"><span class="bl">Ventas en efectivo</span><span class="bv money">$ 240.000</span></div>
+            <div class="brow neg"><span class="bl">Descuentos del día</span><span class="bv money">−$ 0</span></div>
+            <div class="brow sum"><span class="bl">Efectivo esperado</span><span class="bv money" id="brTotal">$ 250.000</span></div>
+          </div>
+        </section>
+
+        <!-- ── BANNER ── -->
+        <section class="banner" id="banner">
+          <div class="banner-ico" id="bannerIco">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9.5 17H2.5z"/><path d="M12 9v5M12 17.5v.01"/></svg>
+          </div>
+          <div class="banner-body">
+            <div class="banner-title" id="bannerTitle">Antes de cerrar caja</div>
+            <div class="banner-text" id="bannerText">Al cerrar se conservará el resumen histórico del turno y la venta quedará bloqueada hasta una nueva apertura.</div>
+            <button class="banner-link" id="bannerLink" onclick="openDetailsModal()">
+              Ver detalles del cierre
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
+          </div>
+        </section>
+
+        <!-- ── ACCIONES RÁPIDAS ── -->
+        <section class="quick">
+          <button class="qcard" onclick="openMovementsModal()">
+            <span class="qico">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+            </span>
+            <span>
+              <span class="qtitle" style="display:block">Historial de movimientos</span>
+              <span class="qsub">2 registros en este turno</span>
+            </span>
+            <svg class="qchev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
+          <button class="qcard" onclick="toast('Generando reporte del turno (demo)')">
+            <span class="qico">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V9M9 21V4M15 21v-8M21 21v-5"/></svg>
+            </span>
+            <span>
+              <span class="qtitle" style="display:block">Reporte del turno</span>
+              <span class="qsub">Ventas, medios de pago y arqueo</span>
+            </span>
+            <svg class="qchev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
+          <button class="qcard" onclick="toast('Enviando cierre a impresora (demo)')">
+            <span class="qico">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6M6 18H4v-6h16v6h-2M8 14h8v7H8z"/></svg>
+            </span>
+            <span>
+              <span class="qtitle" style="display:block">Imprimir cierre</span>
+              <span class="qsub">Ticket de cierre para el cajón</span>
+            </span>
+            <svg class="qchev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
+        </section>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MODAL · CERRAR CAJA ═══════════ -->
+<div class="overlay" id="closeModal">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <div class="modal-ico danger">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+      </div>
+      <div>
+        <div class="modal-title">Cerrar caja · Sesión #0042</div>
+        <div class="modal-sub">Cuenta el efectivo del cajón y regístralo para el arqueo.</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('closeModal')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="recap">
+        <div class="brow"><span class="bl">Saldo inicial</span><span class="bv money" id="cSaldo">$ 10.000</span></div>
+        <div class="brow"><span class="bl">Ventas en efectivo</span><span class="bv money">$ 240.000</span></div>
+        <div class="brow"><span class="bl">Descuentos del día</span><span class="bv money">−$ 0</span></div>
+        <div class="brow sum"><span class="bl">Efectivo esperado</span><span class="bv money" id="cEsperado">$ 250.000</span></div>
+      </div>
+      <div class="field">
+        <label for="contado">Efectivo contado en el cajón</label>
+        <input class="input" id="contado" type="text" inputmode="numeric" placeholder="$ 0" oninput="calcDiff()">
+        <span class="hint">Ingresa el total contado (billetes + monedas). El sistema calcula la diferencia contra lo esperado.</span>
+      </div>
+      <div class="diff" id="diffBox">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 8v8M8 12h8"/><circle cx="12" cy="12" r="9"/></svg>
+        <span id="diffLabel">Esperando el conteo…</span>
+        <span class="dv money" id="diffVal"></span>
+      </div>
+      <div class="alert-dark">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9.5 17H2.5z"/><path d="M12 9v5M12 17.5v.01"/></svg>
+        <div>Al confirmar, el resumen del turno se guarda en el histórico y <strong>Venta queda bloqueada</strong> hasta que abras una nueva caja.</div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-ghost" onclick="closeModal('closeModal')">Cancelar</button>
+      <button class="btn-danger-soft" id="confirmClose" onclick="confirmClose()">Confirmar cierre</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MODAL · EDITAR SALDO INICIAL ═══════════ -->
+<div class="overlay" id="editModal">
+  <div class="modal" style="max-width:440px" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <div class="modal-ico teal">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+      </div>
+      <div>
+        <div class="modal-title">Editar saldo inicial</div>
+        <div class="modal-sub">Corrige el monto con el que se abrió la sesión.</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('editModal')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label for="editSaldo">Saldo inicial (COP)</label>
+        <input class="input" id="editSaldo" type="text" inputmode="numeric" value="10000">
+        <span class="hint">Se recalculará el efectivo esperado y el desglose del turno.</span>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-ghost" onclick="closeModal('editModal')">Cancelar</button>
+      <button class="btn-primary" style="height:38px" onclick="saveSaldo()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MODAL · DETALLES DEL CIERRE ═══════════ -->
+<div class="overlay" id="detailsModal">
+  <div class="modal" style="max-width:500px" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <div class="modal-ico" style="background:var(--amber-soft);color:#B45309">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9.5 17H2.5z"/><path d="M12 9v5M12 17.5v.01"/></svg>
+      </div>
+      <div>
+        <div class="modal-title">Qué ocurre al cerrar caja</div>
+        <div class="modal-sub">Resumen de consecuencias antes de confirmar.</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('detailsModal')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="mov"><span class="mov-ico" style="background:var(--green-soft);color:#047857">✓</span>
+        <span><span class="mov-name">Se guarda el resumen histórico</span><br><span class="mov-sub">Ventas, medios de pago, descuentos y arqueo quedan en Historial.</span></span></div>
+      <div class="mov"><span class="mov-ico" style="background:var(--teal-soft);color:var(--teal-700)">🔒</span>
+        <span><span class="mov-name">Venta queda bloqueada</span><br><span class="mov-sub">No se podrán registrar ventas hasta abrir una caja nueva.</span></span></div>
+      <div class="mov"><span class="mov-ico" style="background:var(--blue-soft);color:#1D4ED8">↺</span>
+        <span><span class="mov-name">Puedes reabrir cuando quieras</span><br><span class="mov-sub">Al abrir una nueva caja se registra el saldo inicial del cajón.</span></span></div>
+      <div class="alert-dark" style="background:#EFF6FF;border-color:#BFDBFE;color:#1E40AF">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/></svg>
+        <div>Trabajas en <strong>modo fuera de línea</strong>: el cierre se guarda localmente y se sincronizará automáticamente al recuperar conexión.</div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-outline" onclick="closeModal('detailsModal')">Entendido</button>
+      <button class="btn-danger-soft" onclick="closeModal('detailsModal');openCloseModal()">Ir a cerrar caja</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MODAL · MOVIMIENTOS ═══════════ -->
+<div class="overlay" id="movModal">
+  <div class="modal" style="max-width:540px" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <div class="modal-ico teal">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+      </div>
+      <div>
+        <div class="modal-title">Movimientos · Sesión #0042</div>
+        <div class="modal-sub">2 registros desde la apertura.</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('movModal')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="mov">
+        <span class="mov-ico in">↑</span>
+        <span><span class="mov-name">Apertura de caja</span><br><span class="mov-sub" id="movOpenTime">Hoy · 11:35 · Jhoan Daniel</span></span>
+        <span class="mov-amt pos money" id="movSaldo">+$ 10.000</span>
+      </div>
+      <div class="mov">
+        <span class="mov-ico in">↑</span>
+        <span><span class="mov-name">Venta #00124 · Efectivo</span><br><span class="mov-sub">Hoy · 15:02 · 1 ítem</span></span>
+        <span class="mov-amt pos money">+$ 240.000</span>
+      </div>
+      <div class="recap">
+        <div class="brow sum" style="border-top:none;padding-top:6px"><span class="bl">Neto del turno</span><span class="bv money" id="movNeto">$ 250.000</span></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-outline" onclick="closeModal('movModal');toast('Exportando movimientos (demo)')">Exportar CSV</button>
+      <button class="btn-ghost" onclick="closeModal('movModal')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span class="td"></span><span id="toastMsg"></span></div>
+
+<script>
+/* ============================================================
+   ESTADO
+   ============================================================ */
+const state = {
+  cajaAbierta: true,
+  saldoInicial: 10000,
+  ventasEfectivo: 240000,
+  ventas: 1,
+  transferencia: 0,
+  descuentos: 0,
+  apertura: new Date(Date.now() - (3 * 60 + 47) * 60 * 1000)  // hace 3h 47m
+};
+
+const fmtCO = n => "$ " + Math.round(n).toLocaleString("es-CO");
+const pad = n => String(n).padStart(2, "0");
+const fdate = d => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} · ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function render(){
+  const abierta = state.cajaAbierta;
+  const esperado = state.saldoInicial + state.ventasEfectivo - state.descuentos;
+
+  // Header
+  document.getElementById("headPillTxt").textContent = abierta ? "Caja abierta" : "Caja cerrada";
+  document.getElementById("headPill").style.background = abierta ? "var(--teal-soft)" : "#F1F5F9";
+  document.getElementById("headPill").style.color = abierta ? "var(--teal-700)" : "var(--text-sub)";
+  document.getElementById("headPill").querySelector(".dot-pulse").style.display = abierta ? "" : "none";
+  document.getElementById("sessionLabel").innerHTML = "Sesión <strong>#0042</strong>";
+
+  // Panel sesión
+  document.getElementById("sessionPanel").classList.toggle("state-closed", !abierta);
+  document.getElementById("sessionBadgeWrap").innerHTML = abierta
+    ? '<span class="badge-open"><span class="dot-pulse"></span> Abierta</span>'
+    : '<span class="badge-closed"><span class="dot"></span> Cerrada</span>';
+  document.getElementById("openedAt").textContent = fdate(state.apertura);
+  document.getElementById("saldoInicial").textContent = fmtCO(state.saldoInicial);
+
+  // Métricas
+  const ventasNetas = state.ventasEfectivo + state.transferencia - state.descuentos;
+  document.getElementById("mVentas").textContent = fmtCO(ventasNetas);
+  document.getElementById("mVentasSub").textContent =
+    state.ventas === 1 ? "1 venta" : state.ventas + " ventas";
+  document.querySelectorAll(".metric")[1].querySelector(".metric-val").textContent = fmtCO(state.ventasEfectivo);
+  document.querySelectorAll(".metric")[1].querySelector(".metric-sub").textContent =
+    ventasNetas > 0 ? Math.round(state.ventasEfectivo / ventasNetas * 100) + "% de las ventas" : "Sin ventas";
+  document.querySelectorAll(".metric")[2].querySelector(".metric-val").textContent = fmtCO(state.transferencia);
+  document.querySelectorAll(".metric")[2].querySelector(".metric-sub").textContent =
+    state.transferencia > 0 ? "Movimientos por datáfono" : "Sin movimientos";
+  document.querySelectorAll(".metric")[3].querySelector(".metric-val").textContent = fmtCO(state.descuentos);
+  document.querySelectorAll(".metric")[3].querySelector(".metric-sub").textContent =
+    ventasNetas > 0 ? Math.round(state.descuentos / (ventasNetas + state.descuentos) * 100) + "% sobre ventas" : "0% sobre ventas";
+
+  // KPI
+  document.getElementById("kpi").classList.toggle("state-closed", !abierta);
+  document.getElementById("kpiVal").textContent = fmtCO(esperado);
+  document.getElementById("brSaldo").textContent = fmtCO(state.saldoInicial);
+  document.querySelectorAll(".kpi-break .brow")[1].querySelector(".bv").textContent = fmtCO(state.ventasEfectivo);
+  const discRow = document.querySelectorAll(".kpi-break .brow")[2];
+  discRow.querySelector(".bv").textContent = "−" + fmtCO(state.descuentos);
+  discRow.classList.toggle("neg", state.descuentos > 0);   // en $0 es neutro, no alarma
+  document.getElementById("brTotal").textContent = fmtCO(esperado);
+  document.getElementById("kpiNote").textContent = abierta
+    ? "Saldo inicial + ventas vigentes en efectivo"
+    : "Cifra congelada al momento del cierre";
+  document.getElementById("kpiBadge").style.display = abierta ? "" : "none";
+
+  // Banner
+  const b = document.getElementById("banner");
+  b.classList.toggle("ok", !abierta);
+  document.getElementById("bannerIco").innerHTML = abierta
+    ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9.5 17H2.5z"/><path d="M12 9v5M12 17.5v.01"/></svg>'
+    : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
+  document.getElementById("bannerTitle").textContent = abierta ? "Antes de cerrar caja" : "Caja cerrada correctamente";
+  document.getElementById("bannerText").textContent = abierta
+    ? "Al cerrar se conservará el resumen histórico del turno y la venta quedará bloqueada hasta una nueva apertura."
+    : "El turno quedó en el histórico. Abre una nueva caja cuando vayas a registrar la siguiente venta.";
+  const bl = document.getElementById("bannerLink");
+  bl.style.display = abierta ? "" : "none";
+  bl.innerHTML = 'Ver detalles del cierre <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
+
+  // Acción principal
+  const cb = document.getElementById("closeBtn");
+  cb.className = abierta ? "btn-danger-soft" : "btn-primary";
+  cb.innerHTML = abierta
+    ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg> Cerrar caja'
+    : 'Abrir nueva caja';
+  cb.onclick = abierta ? openCloseModal : reopen;
+
+  // Modales
+  document.getElementById("cSaldo").textContent = fmtCO(state.saldoInicial);
+  document.getElementById("cEsperado").textContent = fmtCO(esperado);
+  document.getElementById("movSaldo").textContent = "+" + fmtCO(state.saldoInicial);
+  document.getElementById("movNeto").textContent = fmtCO(state.saldoInicial + state.ventasEfectivo);
+  document.getElementById("movOpenTime").textContent = "Hoy · " + fdate(state.apertura).split(" · ")[1] + " · Jhoan Daniel";
+  document.getElementById("sessionTime").textContent = abierta ? elapsed() : "Cerrada hace unos segundos";
+}
+
+function elapsed(){
+  const ms = Date.now() - state.apertura.getTime();
+  const h = Math.floor(ms / 3600000), m = Math.floor(ms % 3600000 / 60000);
+  return h > 0 ? `Abierta hace ${h}h ${m}m` : `Abierta hace ${m}m`;
+}
+
+/* ============================================================
+   MODALES
+   ============================================================ */
+function openModal(id){ document.getElementById(id).classList.add("show"); }
+function closeModal(id){ document.getElementById(id).classList.remove("show"); }
+document.querySelectorAll(".overlay").forEach(o => o.addEventListener("click", e => { if(e.target === o) o.classList.remove("show"); }));
+document.addEventListener("keydown", e => { if(e.key === "Escape") document.querySelectorAll(".overlay.show").forEach(o => o.classList.remove("show")); });
+
+function openCloseModal(){
+  document.getElementById("contado").value = "";
+  document.getElementById("contado").placeholder = fmtCO(0);
+  calcDiff();
+  openModal("closeModal");
+  setTimeout(() => document.getElementById("contado").focus(), 120);
+}
+function openEditModal(){
+  document.getElementById("editSaldo").value = state.saldoInicial;
+  openModal("editModal");
+  setTimeout(() => document.getElementById("editSaldo").select(), 120);
+}
+function openDetailsModal(){ openModal("detailsModal"); }
+function openMovementsModal(){ openModal("movModal"); }
+
+/* ============================================================
+   LÓGICA DE ARQUEO Y CIERRE
+   ============================================================ */
+function num(str){
+  const clean = String(str).replace(/[^\d]/g, "");
+  return clean ? parseInt(clean, 10) : null;
+}
+function calcDiff(){
+  const esperado = state.saldoInicial + state.ventasEfectivo - state.descuentos;
+  const contado = num(document.getElementById("contado").value);
+  const box = document.getElementById("diffBox");
+  const lbl = document.getElementById("diffLabel");
+  const val = document.getElementById("diffVal");
+
+  if(contado === null){
+    box.className = "diff"; lbl.textContent = "Esperando el conteo…"; val.textContent = ""; return;
+  }
+  const d = contado - esperado;
+  val.textContent = (d > 0 ? "+" : d < 0 ? "−" : "") + fmtCO(Math.abs(d));
+  if(d === 0){ box.className = "diff good"; lbl.textContent = "La caja cuadra ✓"; }
+  else if(d > 0){ box.className = "diff bad"; lbl.textContent = "Sobra efectivo en el cajón"; }
+  else { box.className = "diff bad"; lbl.textContent = "Falta efectivo en el cajón"; }
+}
+function confirmClose(){
+  state.cajaAbierta = false;
+  closeModal("closeModal");
+  render();
+  toast("Caja #0042 cerrada · resumen guardado");
+}
+function reopen(){
+  state.cajaAbierta = true;
+  state.apertura = new Date();
+  render();
+  toast("Nueva caja abierta · Sesión #0043");
+}
+function saveSaldo(){
+  const v = num(document.getElementById("editSaldo").value);
+  if(v === null) return toast("Ingresa un monto válido");
+  state.saldoInicial = v;
+  closeModal("editModal");
+  render();
+  toast("Saldo inicial actualizado a " + fmtCO(v));
+}
+
+/* ============================================================
+   UI
+   ============================================================ */
+let tt;
+function toast(msg){
+  const t = document.getElementById("toast");
+  document.getElementById("toastMsg").textContent = msg;
+  t.classList.add("show");
+  clearTimeout(tt);
+  tt = setTimeout(() => t.classList.remove("show"), 2100);
+}
+
+render();
+setInterval(() => { if(state.cajaAbierta) document.getElementById("sessionTime").textContent = elapsed(); }, 30000);
+</script>
+</body>
+</html>

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="iconos/frubber-pos-192.png">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Frubber POS · Rediseño — prototipos</title>
+<style>
+  :root{--teal:#14B8A6;--ink:#0F172A;--mid:#475569;--low:#94A3B8;--line:#E2E8F0;--surf:#fff}
+  *{box-sizing:border-box;margin:0}
+  body{font-family:"Inter",-apple-system,"Segoe UI",Roboto,sans-serif;background:#F7F8FA;color:var(--ink);
+       padding:56px 24px 72px;display:flex;justify-content:center}
+  .wrap{width:100%;max-width:920px}
+  .brand{display:flex;align-items:center;gap:12px;margin-bottom:26px}
+  .logo{width:44px;height:44px;border-radius:12px;background:linear-gradient(180deg,#14B8A6,#0F766E);color:#fff;font-weight:800;font-size:20px;
+        display:grid;place-items:center;box-shadow:0 6px 16px rgba(20,184,166,.28)}
+  h1{font-size:26px;letter-spacing:-.8px}
+  .sub{color:var(--mid);font-size:14.5px;margin-top:6px;line-height:1.5}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:30px}
+  .card{display:block;background:var(--surf);border:1px solid var(--line);border-radius:16px;padding:18px 20px;
+        text-decoration:none;color:inherit;transition:.15s;position:relative}
+  .card:hover{border-color:var(--teal);box-shadow:0 8px 24px rgba(15,23,42,.07);transform:translateY(-1px)}
+  .card .ico{width:34px;height:34px;border-radius:10px;background:#F0FDFA;color:#0F766E;display:grid;place-items:center;margin-bottom:12px}
+  .card .ico.big{background:#EEF2FF;color:#4338CA}
+  .card h2{font-size:15.5px;letter-spacing:-.3px}
+  .card p{font-size:12.8px;color:var(--mid);margin-top:5px;line-height:1.45}
+  .card .file{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:var(--low);margin-top:10px}
+  .card .tag{position:absolute;top:16px;right:16px;font-size:10.5px;font-weight:700;letter-spacing:.4px;
+             text-transform:uppercase;color:#0F766E;background:#CCFBF1;border-radius:999px;padding:3px 9px}
+  .card.init{grid-column:1 / -1;border-color:#99F6E4;background:linear-gradient(135deg,#F0FDFA,#fff 65%)}
+  footer{margin-top:30px;font-size:12.5px;color:var(--low);line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <div class="logo">F</div>
+    <div>
+      <h1>Frubber POS · Rediseño</h1>
+      <div class="sub">Prototipos funcionales por pantalla, con el mismo lenguaje visual y soporte de modo oscuro.</div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <a class="card init" href="frubber-pos.html">
+      <span class="tag">Empieza aquí</span>
+      <div class="ico big">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      </div>
+      <h2>Prototipo integrado · 7 pantallas + login</h2>
+      <p>Venta, Caja, Productos, Historial, Usuarios, Configuración y Respaldo con navegación real entre pantallas, caja compartida e impuestos/métodos de pago que se reflejan en el ticket.</p>
+      <div class="file">frubber-pos.html</div>
+    </a>
+
+    <a class="card" href="frubber-pos-login.html">
+      <span class="tag">Nuevo</span>
+      <div class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+      <h2>Inicio de sesión</h2>
+      <p>Lista de usuarios a la izquierda, PIN de 6 dígitos a la derecha. Un clic en el nombre basta; el teclado también funciona.</p>
+      <div class="file">frubber-pos-login.html</div>
+    </a>
+
+    <a class="card" href="frubber-pos-rediseno.html">
+      <div class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h9l3 3v17H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg></div>
+      <h2>Venta</h2>
+      <p>Ticket, búsqueda F2, atajos F2–F8, totales en vivo y cobro con cambio.</p>
+      <div class="file">frubber-pos-rediseno.html</div>
+    </a>
+
+    <a class="card" href="frubber-pos-caja.html">
+      <div class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18v13H3z"/><path d="M3 11h18M8 15h3"/></svg></div>
+      <h2>Caja</h2>
+      <p>Apertura, movimientos, arqueo por denominaciones y cierre de turno.</p>
+      <div class="file">frubber-pos-caja.html</div>
+    </a>
+
+    <a class="card" href="frubber-pos-productos.html">
+      <div class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7l8-4 8 4v10l-8 4-8-4z"/><path d="M4 7l8 4 8-4M12 21V11"/></svg></div>
+      <h2>Productos</h2>
+      <p>Catálogo de 24 productos, filtros, acciones por lote, stock bajo y edición por fila.</p>
+      <div class="file">frubber-pos-productos.html</div>
+    </a>
+
+    <a class="card" href="frubber-pos-historial.html">
+      <div class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 8v4l3 2"/></svg></div>
+      <h2>Historial</h2>
+      <p>12 ventas agrupadas por día, totales del período, detalle del ticket, cancelación y exportación.</p>
+      <div class="file">frubber-pos-historial.html</div>
+    </a>
+
+    <a class="card" href="frubber-pos-configuracion.html">
+      <div class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-2.7-1.1l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 4.6 15H4.5a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.1-2.7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 11 4.6V4.5a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.6 1.6 0 0 0 19.4 11h.1a2 2 0 1 1 0 4z"/></svg></div>
+      <h2>Configuración</h2>
+      <p>7 secciones, vista previa del ticket en vivo, guardado inteligente, tema, marca y densidad.</p>
+      <div class="file">frubber-pos-configuracion.html</div>
+    </a>
+
+    <a class="card init" href="Resumen-ejecutivo-Frubber-POS.pdf" style="border-color:#C7D2FE;background:linear-gradient(135deg,#EEF2FF,#fff 65%)">
+      <span class="tag" style="background:#E0E7FF;color:#4338CA">Para presentar</span>
+      <div class="ico big">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg>
+      </div>
+      <h2>Resumen ejecutivo · 18 páginas</h2>
+      <p>El recorrido completo del rediseño con capturas: qué cambió en cada pantalla, el sistema de diseño, el modo oscuro, el icono de la aplicación y las decisiones pendientes. Listo para imprimir o enviar.</p>
+      <div class="file">Resumen-ejecutivo-Frubber-POS.pdf</div>
+    </a>
+
+    <a class="card" href="frubber-pos-respaldo.html">
+      <div class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5h11l3.5 3.5v13.5H5z"/><path d="M9 3.5V9h6V3.5M9 20v-6h6v6"/></svg></div>
+      <h2>Respaldo</h2>
+      <p>Estado de tus datos, historial con filtros, copia en USB o disco (sin internet) y restauración con triple aviso.</p>
+      <div class="file">frubber-pos-respaldo.html</div>
+    </a>
+  </div>
+
+  <footer>
+    Cada archivo es independiente y funciona sin conexión. Haz clic en una tarjeta para abrirlo;
+    la última lleva al resumen ejecutivo en PDF.<br>
+    En el prototipo integrado el menú lateral cambia de pantalla; en los individuales, el resto del menú avisa que esa pantalla vive en otro archivo.
+  </footer>
+</div>
+</body>
+</html>

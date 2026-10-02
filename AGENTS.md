@@ -27,10 +27,16 @@ Leer en este orden ante cualquier duda. Lo local manda sobre la memoria del agen
 4. `Documentacion/Arquitectura Tecnica/Frubber POS — Documento de Arquitectura Técnica.pdf` (v1.0, ADR-001…ADR-020, §16 estructura)
 5. `Documentacion/Diseño Técnico Detallado/Frubber POS — Diseño Técnico Detallado.pdf` (v1.0, P-DD-001…P-DD-007)
 6. `Documentacion/Diseño de Base de Datos/Frubber POS — Documento de Diseño de Base de Datos.pdf` (v1.0) + `Documentacion/Diseño de Base de Datos/001_Initial.sql` (normativo)
-7. `Documentacion/Diseño de Interfaz y Experiencia de Usuario/Frubber POS — Diseño de Interfaz y Experiencia de Usuario.pdf` (v1.0, P-UX-001…P-UX-014 + `contact_sheet_high_fidelity.png` — manda sobre cualquier ventana: paleta, menú por rol, login con pad, wizard, TPV)
+7. `Documentacion/Diseño de Interfaz y Experiencia de Usuario/Frubber POS — Diseño de Interfaz y Experiencia de Usuario.pdf` (v1.0, P-UX-001…P-UX-014: menú por rol, login con pad, wizard, TPV)
 
-Diseño visual (NO normativo para JHO-16, solo referencia futura):
-`Diseño de Interfaz y Experiencia de Usuario/`
+**Diseño visual normativo (desde 2026-10-02, reemplaza a Stitch/contact sheet):**
+prototipos HTML funcionales del dueño en `Documentacion/Diseño de Interfaz y Experiencia de Usuario/`
+— `frubber-pos*.html` (integrado + login/venta/caja/productos/historial/configuración/respaldo),
+`splash_screen_frubber_pos.html`, capturas claro y oscuro (`pos-*`, `lg-*`, `caja-*`, `config-*`,
+`bk-*`, `dark-*`…), `.fonts/` (Inter), `iconos/` (SVG/ICO de marca). Decisiones del dueño:
+PIN 4 dígitos; sin exportación de historial ni restauración desde la UI; acciones masivas en
+Productos sí; splash al inicio; tema oscuro real (ronda final, JHO-71). Tokens v3 en código:
+`src/FrubberPOS.Desktop/Themes/FrubberTheme.xaml` (claro) + `FrubberTheme.Dark.xaml` (preparado).
 
 ## 3. Tarea en curso (vive en Linear, no aquí)
 

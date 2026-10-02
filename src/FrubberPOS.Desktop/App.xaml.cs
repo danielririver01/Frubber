@@ -32,17 +32,24 @@ public partial class App : System.Windows.Application, INavigationService
     private bool trialIsLicensed;
     private int trialDaysLeft = -1;
 
-    protected override void OnStartup(StartupEventArgs e)
+    protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
         DispatcherUnhandledException += OnDispatcherUnhandledException;
+
+        // Splash JHO-69 (diseño del dueño): se muestra mientras corre el
+        // arranque real y reporta la fase. Se cierra antes del login.
+        var splash = new SplashWindow();
+        splash.Show();
+        splash.SetStatus("Iniciando sistema...");
 
         IAppLogger? logger = null;
         try
         {
             if (!SingleInstanceGuard.TryAcquire(out instanceGuard))
             {
+                splash.Close();
                 MessageBox.Show(
                     "Frubber POS ya está abierto en este equipo.",
                     "Frubber POS",
@@ -52,13 +59,16 @@ public partial class App : System.Windows.Application, INavigationService
                 return;
             }
 
+            splash.SetStatus("Conectando a base de datos...");
             provider = ServiceConfiguration.BuildProvider(ServiceConfiguration.ProductionAppPaths(), this);
             logger = provider.GetRequiredService<IAppLogger>();
 
+            splash.SetStatus("Aplicando migraciones...");
             var database = provider.GetRequiredService<DatabaseOptions>();
-            var migrated = provider.GetRequiredService<MigrationRunner>().MigrateAsync(database, CancellationToken.None).GetAwaiter().GetResult();
+            var migrated = await provider.GetRequiredService<MigrationRunner>().MigrateAsync(database, CancellationToken.None);
             if (!migrated.IsSuccess)
             {
+                splash.Close();
                 MessageBox.Show(migrated.Error!.Message, "Frubber POS", MessageBoxButton.OK, MessageBoxImage.Error);
                 Shutdown();
                 return;
@@ -69,10 +79,12 @@ public partial class App : System.Windows.Application, INavigationService
             // Runs off the UI thread on purpose: the trial evaluation touches
             // thread-pool work (WMI) that must never resume on the blocked
             // startup thread (deadlock). Other startup calls stay direct.
-            var trial = Task.Run(() => provider.GetRequiredService<EvaluateTrialUseCase>()
-                .ExecuteAsync(new EvaluateTrialRequest(), CancellationToken.None)).GetAwaiter().GetResult();
+            splash.SetStatus("Validando licencia criptográfica...");
+            var trial = await Task.Run(() => provider.GetRequiredService<EvaluateTrialUseCase>()
+                .ExecuteAsync(new EvaluateTrialRequest(), CancellationToken.None));
             if (!trial.IsSuccess)
             {
+                splash.Close();
                 MessageBox.Show(trial.Error!.Message, "Frubber POS", MessageBoxButton.OK, MessageBoxImage.Error);
                 Shutdown();
                 return;
@@ -84,6 +96,7 @@ public partial class App : System.Windows.Application, INavigationService
             if (trial.Value.IsBlocked)
             {
                 logger.LogInformation("APP_TRIAL", $"Bloqueado: {trial.Value.Outcome}.");
+                splash.Close();
                 var blockedViewModel = Resolve<TrialBlockedViewModel>();
                 blockedViewModel.Setup(trial.Value.Outcome);
                 if (new TrialBlockedWindow(blockedViewModel).ShowDialog() != true)
@@ -101,14 +114,20 @@ public partial class App : System.Windows.Application, INavigationService
                 logger.LogInformation("APP_TRIAL", $"Prueba activa: quedan {trial.Value.DaysLeft} días.");
             }
 
-            var firstStart = provider.GetRequiredService<CheckFirstStartUseCase>()
-                .ExecuteAsync(new CheckFirstStartRequest(), CancellationToken.None).GetAwaiter().GetResult();
+            splash.SetStatus("Preparando interfaz del TPV...");
+            var firstStart = await provider.GetRequiredService<CheckFirstStartUseCase>()
+                .ExecuteAsync(new CheckFirstStartRequest(), CancellationToken.None);
             if (!firstStart.IsSuccess)
             {
+                splash.Close();
                 MessageBox.Show(firstStart.Error!.Message, "Frubber POS", MessageBoxButton.OK, MessageBoxImage.Error);
                 Shutdown();
                 return;
             }
+
+            // El splash se nota un instante y nunca oculta un error previo.
+            await Task.Delay(650);
+            splash.Close();
 
             if (firstStart.Value.IsFirstStart)
             {
@@ -121,6 +140,7 @@ public partial class App : System.Windows.Application, INavigationService
         }
         catch (Exception ex)
         {
+            splash.Close();
             // Last-resort handler: log BEFORE releasing anything, because
             // disposing the provider also disposes the logger singleton.
             // Logging itself may be what's broken, so the diagnostic write
@@ -170,13 +190,16 @@ public partial class App : System.Windows.Application, INavigationService
         var licenseBadge = trialIsLicensed
             ? "Licencia vitalicia"
             : trialDaysLeft is >= 0 ? $"Prueba · {trialDaysLeft} días" : null;
+        // Un solo TpvViewModel para la sesión: alimenta la página y el badge
+        // del menú Venta con las líneas del borrador (JHO-69).
+        var tpvViewModel = Resolve<TpvViewModel>();
         SwapWindow(new MainWindow(new MainViewModel(
             user,
             Resolve<SignOutUseCase>(),
             this,
             () => new ProductsView(Resolve<ProductsViewModel>()),
             () => new CashView(Resolve<CashViewModel>()),
-            () => new TpvView(Resolve<TpvViewModel>()),
+            () => new TpvView(tpvViewModel),
             () => new SalesHistoryView(Resolve<SalesHistoryViewModel>()),
             () => new BusinessSettingsView(Resolve<BusinessSettingsViewModel>()),
             () => new BackupView(Resolve<BackupViewModel>()),
@@ -188,7 +211,8 @@ public partial class App : System.Windows.Application, INavigationService
                 return open.IsSuccess && open.Value.Session is not null;
             },
             trialIsLicensed,
-            () => new UsersView(Resolve<UsersViewModel>()))));
+            () => new UsersView(Resolve<UsersViewModel>()),
+            tpvViewModel)));
     }
 
     public bool ShowProductEditor(ProductDto? existing)

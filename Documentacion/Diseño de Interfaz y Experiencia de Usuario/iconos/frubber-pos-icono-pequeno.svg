@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Frubber POS">
+  <title>Frubber POS · versión para tamaños pequeños (16 / 24 / 32 px)</title>
+  <defs>
+    <linearGradient id="teal" x1="0" y1="0" x2="0" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0"    stop-color="#35B2A6"/>
+      <stop offset="0.09" stop-color="#33B1A7"/>
+      <stop offset="0.30" stop-color="#35AA9F"/>
+      <stop offset="0.50" stop-color="#318F88"/>
+      <stop offset="0.70" stop-color="#2A7D76"/>
+      <stop offset="0.90" stop-color="#246E68"/>
+      <stop offset="1"    stop-color="#246E68"/>
+    </linearGradient>
+  </defs>
+  <!-- Dos ajustes ópticos para 16 / 24 / 32 px:
+       · la F engorda de 52 a 96 px de trazo (a 16 px los travesaños de 1,5 px desaparecían)
+       · las esquinas bajan de 146 a 120 px de radio (con 28,5 % la teja parecía un círculo) -->
+  <rect x="0" y="0" width="512" height="512" rx="120" fill="url(#teal)"/>
+  <g fill="#FFFFFF">
+    <rect x="162" y="122.5" width="96" height="285"/>
+    <rect x="162" y="122.5" width="188" height="96"/>
+    <rect x="162" y="218"   width="167" height="96"/>
+  </g>
+</svg>

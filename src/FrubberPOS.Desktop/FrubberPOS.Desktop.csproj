@@ -9,12 +9,19 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Marca y tipografía empaquetadas (JHO-69). Las fuentes se usan vía pack URI. -->
+    <Resource Include="Resources\Fonts\Inter-*.ttf" />
+    <Resource Include="Resources\frubber-pos.ico" />
+  </ItemGroup>
+
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <ApplicationIcon>Resources\frubber-pos.ico</ApplicationIcon>
   </PropertyGroup>
 
 </Project>

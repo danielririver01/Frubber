@@ -61,9 +61,9 @@ public sealed class ThemeTests
     {
         var theme = LoadTheme();
         Assert.Equal("#0F766E", ColorOf(theme, "PrimaryColor"));
-        // DESIGN.md (Stitch, dueño): canvas slate #F8FAFC.
-        Assert.Equal("#F8FAFC", ColorOf(theme, "AppBackgroundColor"));
-        Assert.Equal("#B91C1C", ColorOf(theme, "ErrorColor"));
+        // Prototipos HTML del dueño (2026-10-02): canvas #F7F8FA, danger #DC2626.
+        Assert.Equal("#F7F8FA", ColorOf(theme, "AppBackgroundColor"));
+        Assert.Equal("#DC2626", ColorOf(theme, "ErrorColor"));
     }
 
     [Fact]
@@ -94,9 +94,10 @@ public sealed class ThemeTests
     {
         var text = File.ReadAllText(ThemePath);
 
-        // Cards radio 8 (DESIGN.md: cards/panels = rounded-lg 8), pastillas
-        // 999 (full), acciones TPV 44–48 (§4.4).
-        Assert.Contains("CornerRadius\" Value=\"8\"", text, StringComparison.Ordinal);
+        // Cards radio 12 (r-l) y controles radio 10 (r-m) del prototipo,
+        // pastillas 999 (full), acciones TPV 44–48 (§4.4).
+        Assert.Contains("CornerRadius\" Value=\"12\"", text, StringComparison.Ordinal);
+        Assert.Contains("CornerRadius\" Value=\"10\"", text, StringComparison.Ordinal);
         Assert.Contains("CornerRadius\" Value=\"999\"", text, StringComparison.Ordinal);
         Assert.Contains("x:Key=\"PillMint\"", text, StringComparison.Ordinal);
         Assert.Contains("x:Key=\"KpiCard\"", text, StringComparison.Ordinal);
@@ -108,5 +109,42 @@ public sealed class ThemeTests
             AppContext.BaseDirectory, "..", "..", "..", "..", "..",
             "src", "FrubberPOS.Desktop", "Views", "TpvView.xaml"));
         Assert.Contains("FontSize=\"28\"", tpv, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RedesignV3Tokens_MarcaNavYEstados_Existen()
+    {
+        // Base visual del prototipo integrado del dueño (JHO-69).
+        var text = File.ReadAllText(ThemePath);
+
+        Assert.Contains("x:Key=\"BrandGradient\"", text, StringComparison.Ordinal);
+        Assert.Contains("x:Key=\"AvatarGradient\"", text, StringComparison.Ordinal);
+        Assert.Contains("x:Key=\"NavMenuItem\"", text, StringComparison.Ordinal);
+        Assert.Contains("x:Key=\"NavKeyChip\"", text, StringComparison.Ordinal);
+        Assert.Contains("x:Key=\"NavCountBadge\"", text, StringComparison.Ordinal);
+        Assert.Contains("x:Key=\"IconCheck\"", text, StringComparison.Ordinal);
+        Assert.Contains("<Color x:Key=\"MintColor\">#E6FAF5</Color>", text, StringComparison.Ordinal);
+        Assert.Contains("<Color x:Key=\"AccentColor\">#14B8A6</Color>", text, StringComparison.Ordinal);
+        Assert.Contains("<Color x:Key=\"BorderSoftColor\">#EEF1F4</Color>", text, StringComparison.Ordinal);
+        Assert.Contains("<Color x:Key=\"TextSubColor\">#64748B</Color>", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DarkTheme_EstaPreparadoPeroNoSeFusiona_Todavia()
+    {
+        var darkPath = Path.Combine(
+            AppContext.BaseDirectory, "..", "..", "..", "..", "..",
+            "src", "FrubberPOS.Desktop", "Themes", "FrubberTheme.Dark.xaml");
+        Assert.True(File.Exists(darkPath), $"Falta {darkPath}");
+
+        var dark = File.ReadAllText(darkPath);
+        Assert.Contains("#0B1220", dark, StringComparison.Ordinal); // app-bg oscuro
+        Assert.Contains("#E6EAF2", dark, StringComparison.Ordinal); // texto alto oscuro
+        Assert.Contains("MintColor", dark, StringComparison.Ordinal);
+        Assert.Contains("AccentColor", dark, StringComparison.Ordinal);
+
+        // El claro sigue siendo el tema activo: App.xaml solo fusiona FrubberTheme.xaml.
+        var app = File.ReadAllText(AppXamlPath);
+        Assert.DoesNotContain("FrubberTheme.Dark.xaml", app, StringComparison.Ordinal);
     }
 }

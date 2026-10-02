@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frubber POS - Splash Screen</title>
+    <style>
+        /* Reseteo básico y tipografía del sistema (similar a WPF en Windows) */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: #062F2B; /* Fondo verde oscuro profundo y elegante */
+            color: #F8FAFC;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* Contenedor principal de la ventana de Splash */
+        .splash-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        /* Recreación exacta del logo de Frubber POS según la imagen de diseño */
+        .logo-box {
+            width: 128px;
+            height: 128px;
+            background: linear-gradient(135deg, #35B2A6 0%, #246E68 100%);
+            /* 28.5% de radio en esquinas para un cuadrado de 128px es aprox 36px */
+            border-radius: 36.5px; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 15px 35px rgba(53, 178, 166, 0.25); /* Resplandor sutil para fondo oscuro */
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .logo-letter {
+            color: #ffffff;
+            font-size: 84px;
+            font-weight: 700;
+            line-height: 1;
+            margin-right: 8px; /* Pequeño ajuste óptico para centrar la F */
+            user-select: none;
+        }
+
+        /* Nombre de la aplicación */
+        .app-name {
+            font-size: 28px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: #FFFFFF; /* Texto blanco para fondo oscuro */
+            margin-bottom: 8px;
+        }
+
+        /* Versión */
+        .app-version {
+            font-size: 14px;
+            color: #94A3B8; /* Gris azulado claro */
+            margin-bottom: 32px;
+        }
+
+        /* Animación de carga tipo Ecualizador / Barras */
+        .loader-equalizer {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 4px;
+            height: 28px; /* Altura máxima de la barra más alta */
+            margin-bottom: 16px;
+        }
+
+        .bar {
+            width: 4px;
+            background-color: #35B2A6;
+            border-radius: 4px;
+            animation: equalize 1.2s infinite ease-in-out;
+        }
+
+        /* Desfases de tiempo para replicar la imagen de referencia (6 barras) */
+        .bar:nth-child(1) { animation-delay: -1.1s; }
+        .bar:nth-child(2) { animation-delay: -1.0s; }
+        .bar:nth-child(3) { animation-delay: -0.9s; }
+        .bar:nth-child(4) { animation-delay: -0.8s; }
+        .bar:nth-child(5) { animation-delay: -0.7s; }
+        .bar:nth-child(6) { animation-delay: -0.6s; }
+
+        @keyframes equalize {
+            0%, 100% { height: 8px; }
+            50% { height: 28px; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Texto dinámico de carga */
+        .loading-text {
+            font-size: 13px;
+            color: #94A3B8; /* Gris azulado claro */
+            font-weight: 500;
+            min-height: 20px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="splash-container">
+        <!-- Logo -->
+        <div class="logo-box">
+            <span class="logo-letter">F</span>
+        </div>
+
+        <!-- Títulos -->
+        <h1 class="app-name">Frubber POS</h1>
+        <span class="app-version">Versión 1.0.0</span>
+
+        <!-- Indicador de carga estilo barras -->
+        <div class="loader-equalizer">
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+        </div>
+
+        <!-- Texto de estado -->
+        <div class="loading-text" id="status-text">Iniciando sistema...</div>
+    </div>
+
+    <script>
+        // Simulador de los procesos de carga que definimos en la Arquitectura Técnica
+        const statusTextElement = document.getElementById('status-text');
+        
+        const loadingSteps = [
+            "Comprobando integridad del equipo...",
+            "Validando licencia criptográfica local...",
+            "Conectando a base de datos SQLite...",
+            "Aplicando migraciones estructurales...",
+            "Preparando interfaz del TPV..."
+        ];
+
+        let currentStep = 0;
+
+        // Cambiar el texto cada 800ms para simular la carga real en C#
+        const interval = setInterval(() => {
+            if (currentStep < loadingSteps.length) {
+                statusTextElement.style.opacity = 0;
+                
+                setTimeout(() => {
+                    statusTextElement.innerText = loadingSteps[currentStep];
+                    statusTextElement.style.opacity = 1;
+                    currentStep++;
+                }, 200); // Pequeño fade out/in del texto
+                
+            } else {
+                clearInterval(interval);
+                statusTextElement.innerText = "¡Listo!";
+                statusTextElement.style.color = "#35B2A6";
+                // Aquí en la app real de WPF, se cerraría el Splash y se abriría el TPV o Login.
+            }
+        }, 800);
+    </script>
+</body>
+</html>
