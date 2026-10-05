@@ -19,6 +19,8 @@ public sealed class FakeNavigator : INavigationService
 
     public int LicenseCount { get; private set; }
 
+    public int LockCount { get; private set; }
+
     public int ProductEditorCount { get; private set; }
 
     public int AdjustStockCount { get; private set; }
@@ -110,6 +112,8 @@ public sealed class FakeNavigator : INavigationService
     public void ShowLogin() => LoginCount++;
 
     public void ShowLicense() => LicenseCount++;
+
+    public void ShowLock() => LockCount++;
 
     public void ShowShell(SignedInUser user)
     {

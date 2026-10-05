@@ -1,0 +1,651 @@
+<UserControl x:Class="FrubberPOS.Desktop.Views.LoginCardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:FrubberPOS.Desktop.Views"
+             AutomationProperties.Name="Tarjeta de acceso">
+    <UserControl.Resources>
+        <local:UserRoleConverter x:Key="RoleConverter"/>
+        <local:AvatarColorConverter x:Key="AvatarColor"/>
+        <local:AtLeastConverter x:Key="AtLeast"/>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <local:InverseBoolToVisibilityConverter x:Key="InverseBoolToVis"/>
+
+        <!-- Dot del PIN (lg-3/lg-4): gris vacío, teal lleno (acumulativo), rojo en error -->
+        <Style x:Key="PinDot" TargetType="Ellipse">
+            <Setter Property="Width" Value="16"/>
+            <Setter Property="Height" Value="16"/>
+            <Setter Property="Fill" Value="Transparent"/>
+            <Setter Property="Stroke" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="StrokeThickness" Value="2"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding PinError}" Value="True">
+                    <Setter Property="Fill" Value="{DynamicResource ErrorBrush}"/>
+                    <Setter Property="Stroke" Value="{DynamicResource ErrorBrush}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="PinDot1" TargetType="Ellipse" BasedOn="{StaticResource PinDot}">
+            <Style.Triggers>
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding Pin.Length, Converter={StaticResource AtLeast}, ConverterParameter=1}"
+                                   Value="True"/>
+                        <Condition Binding="{Binding PinError}" Value="False"/>
+                    </MultiDataTrigger.Conditions>
+                    <Setter Property="Fill" Value="{DynamicResource AccentBrush}"/>
+                    <Setter Property="Stroke" Value="{DynamicResource AccentBrush}"/>
+                </MultiDataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="PinDot2" TargetType="Ellipse" BasedOn="{StaticResource PinDot}">
+            <Style.Triggers>
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding Pin.Length, Converter={StaticResource AtLeast}, ConverterParameter=2}"
+                                   Value="True"/>
+                        <Condition Binding="{Binding PinError}" Value="False"/>
+                    </MultiDataTrigger.Conditions>
+                    <Setter Property="Fill" Value="{DynamicResource AccentBrush}"/>
+                    <Setter Property="Stroke" Value="{DynamicResource AccentBrush}"/>
+                </MultiDataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="PinDot3" TargetType="Ellipse" BasedOn="{StaticResource PinDot}">
+            <Style.Triggers>
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding Pin.Length, Converter={StaticResource AtLeast}, ConverterParameter=3}"
+                                   Value="True"/>
+                        <Condition Binding="{Binding PinError}" Value="False"/>
+                    </MultiDataTrigger.Conditions>
+                    <Setter Property="Fill" Value="{DynamicResource AccentBrush}"/>
+                    <Setter Property="Stroke" Value="{DynamicResource AccentBrush}"/>
+                </MultiDataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="PinDot4" TargetType="Ellipse" BasedOn="{StaticResource PinDot}">
+            <Style.Triggers>
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding Pin.Length, Converter={StaticResource AtLeast}, ConverterParameter=4}"
+                                   Value="True"/>
+                        <Condition Binding="{Binding PinError}" Value="False"/>
+                    </MultiDataTrigger.Conditions>
+                    <Setter Property="Fill" Value="{DynamicResource AccentBrush}"/>
+                    <Setter Property="Stroke" Value="{DynamicResource AccentBrush}"/>
+                </MultiDataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Chip de atajo (kbd del prototipo): radio 6, doble borde inferior -->
+        <Style x:Key="Kbd" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource SubtleBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1,1,2,1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="7,2"/>
+        </Style>
+
+        <!-- Enlace de texto ("Activar licencia", "Elegir otro usuario") -->
+        <Style x:Key="LinkButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- "Continuar como … →" (lg-go): teal-500, radio 14, alto 46 -->
+        <Style x:Key="ContinueButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="MinHeight" Value="46"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="20,0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" CornerRadius="14"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource PrimaryActiveBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Píldora de licencia del encabezado (lg-license): pill 999 -->
+        <Style x:Key="LicensePillButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="{DynamicResource SubtleBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="12,5"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" CornerRadius="999"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource SubtleBrush}"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource MintBorderBrush}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <!-- Tarjeta del prototipo (lg-card): máx 1000, radio 22, sombra profunda -->
+    <Grid Margin="24">
+        <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1" CornerRadius="22" MaxWidth="1000" MinHeight="480"
+                VerticalAlignment="Center" HorizontalAlignment="Stretch">
+            <Border.Effect>
+                <DropShadowEffect Color="#0F172A" Opacity="0.18" BlurRadius="50" ShadowDepth="18"/>
+            </Border.Effect>
+
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- ══ Encabezado: marca + píldoras ══ -->
+                <Border Grid.Row="0" BorderBrush="{DynamicResource BorderSoftBrush}" BorderThickness="0,0,0,1"
+                        Padding="32,20">
+                    <Grid>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Border Width="38" Height="38" CornerRadius="11" Background="{DynamicResource BrandGradient}">
+                                <TextBlock Text="F" Foreground="White" FontWeight="ExtraBold" FontSize="17"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Margin="11,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="Frubber POS" FontSize="15" FontWeight="Bold"/>
+                                <TextBlock Text="Punto de venta" FontSize="11.5"
+                                           Foreground="{DynamicResource MutedTextBrush}" Margin="0,1,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <!-- Píldora de terminal (luces de caja) -->
+                            <Border Background="{DynamicResource SubtleBrush}" BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1" CornerRadius="999" Padding="12,5" VerticalAlignment="Center"
+                                    AutomationProperties.Name="Terminal">
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse Width="7" Height="7" Fill="{DynamicResource AccentBrush}"
+                                             VerticalAlignment="Center"/>
+                                    <TextBlock Text="Caja 1" FontSize="12" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                               Margin="7,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                            <!-- Píldora única de licencia/prueba; oculta en modo bloqueo -->
+                            <Button Style="{StaticResource LicensePillButton}" Margin="8,0,0,0"
+                                    Command="{Binding ShowLicenseCommand}"
+                                    AutomationProperties.Name="Estado de la licencia"
+                                    Visibility="{Binding IsLockMode, RelativeSource={RelativeSource AncestorType=local:LoginCardView}, Converter={StaticResource InverseBoolToVis}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <Image Source="{DynamicResource IconCheck}" Width="11" Height="11"
+                                           Margin="0,0,7,0" VerticalAlignment="Center"
+                                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                                    <TextBlock Text="{Binding LicensePillText}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- ══ Cuerpo: usuarios | PIN ══ -->
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1*"/>
+                        <ColumnDefinition Width="1.06*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- ── Izquierda · usuarios (mouse-first) ── -->
+                    <Border Grid.Column="0" BorderBrush="{DynamicResource BorderSoftBrush}" BorderThickness="0,0,1,0"
+                            Padding="32,24,32,32">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <StackPanel Grid.Row="0">
+                                <TextBlock Text="Selecciona tu usuario" FontSize="19" FontWeight="Bold"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                                    <TextBlock Text="Haz clic en tu nombre o usa las flechas" FontSize="12.5"
+                                               Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                                    <Border Style="{StaticResource Kbd}" Margin="6,0,2,0">
+                                        <TextBlock Text="↑" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+                                    </Border>
+                                    <Border Style="{StaticResource Kbd}">
+                                        <TextBlock Text="↓" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+                                    </Border>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <ListBox x:Name="UsersList" Grid.Row="1" ItemsSource="{Binding Users}"
+                                     SelectedItem="{Binding SelectedUser}" MaxHeight="330"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                     HorizontalContentAlignment="Stretch" Margin="0,20,0,0"
+                                     VerticalAlignment="Top"
+                                     PreviewMouseLeftButtonDown="OnUsersListMouseDown"
+                                     AutomationProperties.Name="Lista de usuarios">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <Setter Property="FocusVisualStyle" Value="{DynamicResource FocusVisual}"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="ListBoxItem">
+                                                    <Border x:Name="Bd" Background="{DynamicResource SurfaceBrush}"
+                                                            BorderBrush="{DynamicResource BorderBrush}"
+                                                            BorderThickness="1.5" CornerRadius="14"
+                                                            Padding="12,9" Margin="0,0,4,7"
+                                                            Cursor="Hand">
+                                                        <ContentPresenter VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="Bd" Property="Background"
+                                                                    Value="{DynamicResource MintHoverBrush}"/>
+                                                            <Setter TargetName="Bd" Property="BorderBrush"
+                                                                    Value="{DynamicResource MintBorderBrush}"/>
+                                                        </Trigger>
+                                                        <Trigger Property="IsSelected" Value="True">
+                                                            <Setter TargetName="Bd" Property="Background"
+                                                                    Value="{DynamicResource MintBrush}"/>
+                                                            <Setter TargetName="Bd" Property="BorderBrush"
+                                                                    Value="{DynamicResource AccentBrush}"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Width="36" Height="36" CornerRadius="10"
+                                                    Background="{Binding DisplayName, Converter={StaticResource AvatarColor}}">
+                                                <TextBlock Text="{Binding Initials}" FontWeight="Bold" FontSize="12.5"
+                                                           Foreground="{Binding DisplayName, Converter={StaticResource AvatarColor}, ConverterParameter=fg}"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <StackPanel Grid.Column="1" Margin="11,0,0,0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding DisplayName}" FontSize="13.5" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{Binding Role, Converter={StaticResource RoleConverter}}"
+                                                           FontSize="11.5" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                                            </StackPanel>
+                                            <!-- Check en círculo teal al seleccionar (lg-2) -->
+                                            <Border Grid.Column="2" Width="20" Height="20" CornerRadius="999"
+                                                    Background="{DynamicResource AccentBrush}" VerticalAlignment="Center">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"
+                                                                         Value="True">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <Image Source="{DynamicResource IconCheck}" Width="11" Height="11"
+                                                       RenderOptions.BitmapScalingMode="HighQuality"/>
+                                            </Border>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+
+                            <!-- "Continuar como X →" (lg-go) -->
+                            <Button Grid.Row="2" Style="{StaticResource ContinueButton}" Margin="0,16,0,0"
+                                    Command="{Binding GoToPinCommand}" IsEnabled="{Binding CanContinue}"
+                                    Visibility="{Binding ContinueButtonVisible, Converter={StaticResource BoolToVis}}"
+                                    AutomationProperties.Name="Continuar al PIN">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Continuar como "/>
+                                    <TextBlock Text="{Binding ContinueName}" FontWeight="ExtraBold"/>
+                                    <Path Data="M5,12 h14 M13,6 l6,6 -6,6" Stroke="White" StrokeThickness="2.4"
+                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                          Width="15" Height="15" Stretch="Uniform" Margin="8,0,0,0"
+                                          VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <!-- ── Derecha · PIN (4 dígitos, decisión del dueño) ── -->
+                    <StackPanel x:Name="PinColumn" Grid.Column="1" Focusable="True"
+                                Margin="32,24,32,32">
+
+                        <!-- Quién ingresa -->
+                        <StackPanel Orientation="Horizontal">
+                            <!-- Sin selección el avatar muestra "?" en menta (índice 0 de la paleta) -->
+                            <Border Width="44" Height="44" CornerRadius="13"
+                                    Background="{Binding SelectedUser.DisplayName, Converter={StaticResource AvatarColor}, Mode=OneWay}">
+                                <TextBlock Text="{Binding SelectedUser.Initials, TargetNullValue=?, FallbackValue=?}"
+                                           FontWeight="Bold" FontSize="15"
+                                           Foreground="{Binding SelectedUser.DisplayName, Converter={StaticResource AvatarColor}, ConverterParameter=fg, Mode=OneWay}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding SelectedUser.DisplayName, TargetNullValue=¿Quién va a ingresar?, FallbackValue=¿Quién va a ingresar?}"
+                                           FontSize="17" FontWeight="Bold"/>
+                                <TextBlock Text="{Binding SelectedUserLabel}" FontSize="12.5"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Dots con shake cuando el PIN falla (lg-4) -->
+                        <StackPanel x:Name="PinDots" Orientation="Horizontal" HorizontalAlignment="Center"
+                                    Margin="0,32,0,16" AutomationProperties.Name="PIN ingresado">
+                            <StackPanel.RenderTransform>
+                                <TranslateTransform/>
+                            </StackPanel.RenderTransform>
+                            <Ellipse Style="{StaticResource PinDot1}" Margin="7,0"/>
+                            <Ellipse Style="{StaticResource PinDot2}" Margin="7,0"/>
+                            <Ellipse Style="{StaticResource PinDot3}" Margin="7,0"/>
+                            <Ellipse Style="{StaticResource PinDot4}" Margin="7,0"/>
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding PinError}" Value="True">
+                                            <DataTrigger.EnterActions>
+                                                <BeginStoryboard>
+                                                    <Storyboard>
+                                                        <DoubleAnimationUsingKeyFrames
+                                                            Storyboard.TargetProperty="(StackPanel.RenderTransform).(TranslateTransform.X)"
+                                                            Duration="0:0:0.42">
+                                                            <EasingDoubleKeyFrame KeyTime="0:0:0.00" Value="0"/>
+                                                            <EasingDoubleKeyFrame KeyTime="0:0:0.05" Value="-2"/>
+                                                            <EasingDoubleKeyFrame KeyTime="0:0:0.14" Value="4"/>
+                                                            <EasingDoubleKeyFrame KeyTime="0:0:0.23" Value="-7"/>
+                                                            <EasingDoubleKeyFrame KeyTime="0:0:0.32" Value="7"/>
+                                                            <EasingDoubleKeyFrame KeyTime="0:0:0.42" Value="0"/>
+                                                        </DoubleAnimationUsingKeyFrames>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </DataTrigger.EnterActions>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+                        </StackPanel>
+
+                        <!-- Guía o error en línea (min-h 20) -->
+                        <Grid MinHeight="20">
+                            <TextBlock FontSize="13" TextAlignment="Center"
+                                       TextWrapping="Wrap">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                        <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasErrorMessage}" Value="True">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding HasSuccessLine}" Value="True">
+                                                <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style><Run Text="{Binding PinHintLead, Mode=OneWay}"/><Run Text="{Binding PinHintStrong, Mode=OneWay}" FontWeight="Bold"/><Run Text="{Binding PinHintTail, Mode=OneWay}"/>
+                            </TextBlock>
+                            <TextBlock Text="{Binding ErrorMessage}" FontSize="13" FontWeight="SemiBold"
+                                       TextAlignment="Center" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource ErrorBrush}"
+                                       AutomationProperties.Name="Error de acceso">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasErrorMessage}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
+
+                        <!-- Teclado en pantalla (máx 200) + guía del teclado físico -->
+                        <StackPanel HorizontalAlignment="Center" Margin="0,20,0,0">
+                            <!-- Píldora punteada "Usa el teclado físico" -->
+                            <Grid Width="200">
+                                <Rectangle RadiusX="999" RadiusY="999"
+                                           Fill="{DynamicResource SubtleBrush}"
+                                           Stroke="{DynamicResource BorderBrush}" StrokeThickness="1"
+                                           StrokeDashArray="3 3"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="12,6">
+                                    <Path Data="M4,5 h16 a2,2 0 0 1 2,2 v10 a2,2 0 0 1 -2,2 h-16 a2,2 0 0 1 -2,-2 v-10 a2,2 0 0 1 2,-2 z M6,9 h0.01 M10,9 h0.01 M14,9 h0.01 M18,9 h0.01 M6,13 h0.01 M18,13 h0.01 M9,13 h6 M9,16 h6"
+                                          Stroke="{DynamicResource SecondaryTextBrush}" StrokeThickness="1.9"
+                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Fill="Transparent"
+                                          Width="13" Height="13" Stretch="Uniform" Margin="0,0,7,0"
+                                          VerticalAlignment="Center"/>
+                                    <TextBlock Text="Usa el teclado físico" FontSize="12"
+                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <UniformGrid Width="200" Columns="3" Margin="0,9,0,0"
+                                         IsEnabled="{Binding KeypadEnabled}">
+                                <Button Content="1" Style="{StaticResource PadButton}" MinHeight="44" FontSize="15"
+                                        Command="{Binding EnterDigitCommand}" CommandParameter="1"/>
+                                <Button Content="2" Style="{StaticResource PadButton}" MinHeight="44" FontSize="15"
+                                        Command="{Binding EnterDigitCommand}" CommandParameter="2"/>
+                                <Button Content="3" Style="{StaticResource PadButton}" MinHeight="44" FontSize="15"
+                                        Command="{Binding EnterDigitCommand}" CommandParameter="3"/>
+                                <Button Content="4" Style="{StaticResource PadButton}" MinHeight="44" FontSize="15"
+                                        Command="{Binding EnterDigitCommand}" CommandParameter="4"/>
+                                <Button Content="5" Style="{StaticResource PadButton}" MinHeight="44" FontSize="15"
+                                        Command="{Binding EnterDigitCommand}" CommandParameter="5"/>
+                                <Button Content="6" Style="{StaticResource PadButton}" MinHeight="44" FontSize="15"
+                                        Command="{Binding EnterDigitCommand}" CommandParameter="6"/>
+                                <Button Content="7" Style="{StaticResource PadButton}" MinHeight="44" FontSize="15"
+                                        Command="{Binding EnterDigitCommand}" CommandParameter="7"/>
+                                <Button Content="8" Style="{StaticResource PadButton}" MinHeight="44" FontSize="15"
+                                        Command="{Binding EnterDigitCommand}" CommandParameter="8"/>
+                                <Button Content="9" Style="{StaticResource PadButton}" MinHeight="44" FontSize="15"
+                                        Command="{Binding EnterDigitCommand}" CommandParameter="9"/>
+                                <Button Content="⌫" Style="{StaticResource PadButton}" MinHeight="44" FontSize="16"
+                                        Command="{Binding BackspaceCommand}"
+                                        AutomationProperties.Name="Borrar dígito"/>
+                                <Button Content="0" Style="{StaticResource PadButton}" MinHeight="44" FontSize="15"
+                                        Command="{Binding EnterDigitCommand}" CommandParameter="0"/>
+                                <Button Content="Entrar" Style="{StaticResource PadButton}" MinHeight="44" FontSize="12"
+                                        Padding="2"
+                                        Command="{Binding LoginCommand}"
+                                        Background="{DynamicResource AccentBrush}"
+                                        BorderBrush="{DynamicResource AccentBrush}" Foreground="White"
+                                        AutomationProperties.Name="Entrar"/>
+                            </UniformGrid>
+
+                            <!-- "Elegir otro usuario" (lg-back-users): solo fase PIN -->
+                            <Button Style="{StaticResource LinkButton}" Margin="0,16,0,0"
+                                    HorizontalAlignment="Center"
+                                    Command="{Binding BackToUsersCommand}"
+                                    Visibility="{Binding BackUsersVisible, Converter={StaticResource BoolToVis}}"
+                                    AutomationProperties.Name="Elegir otro usuario">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="M15,6 l-6,6 6,6" Stroke="{DynamicResource SecondaryTextBrush}"
+                                          StrokeThickness="2.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                          Width="13" Height="13" Stretch="Uniform" Margin="0,0,7,0"
+                                          VerticalAlignment="Center"/>
+                                    <TextBlock Text="Elegir otro usuario"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+
+                <!-- ══ Pie: atajos del teclado físico (lg-foot) ══ -->
+                <Border Grid.Row="2" Background="{DynamicResource SubtleBrush}"
+                        BorderBrush="{DynamicResource BorderSoftBrush}" BorderThickness="0,1,0,0"
+                        Padding="32,16" CornerRadius="0,0,21,21">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Path Data="M12,2.5 a5,5 0 0 1 5,5 v9 a5,5 0 0 1 -5,5 a5,5 0 0 1 -5,-5 v-9 a5,5 0 0 1 5,-5 z M12,2.5 V8.5"
+                                  Stroke="{DynamicResource SecondaryTextBrush}" StrokeThickness="1.9"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Fill="Transparent"
+                                  Width="13" Height="13" Stretch="Uniform" Margin="0,0,7,0"
+                                  VerticalAlignment="Center"/>
+                            <TextBlock Text="Haz clic en tu nombre" FontSize="12"
+                                       Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="·" FontSize="12" Foreground="{DynamicResource BorderSoftBrush}"
+                                       Margin="11,0" VerticalAlignment="Center"/>
+                            <Border Style="{StaticResource Kbd}">
+                                <TextBlock Text="Enter" FontSize="11" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+                            </Border>
+                            <TextBlock Text="{Binding EnterHintText}" FontSize="12"
+                                       Foreground="{DynamicResource SecondaryTextBrush}"
+                                       Margin="7,0,0,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="·" FontSize="12" Foreground="{DynamicResource BorderSoftBrush}"
+                                       Margin="11,0" VerticalAlignment="Center"/>
+                            <Border Style="{StaticResource Kbd}">
+                                <TextBlock Text="Esc" FontSize="11" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+                            </Border>
+                            <TextBlock Text="{Binding EscapeHintText}" FontSize="12"
+                                       Foreground="{DynamicResource SecondaryTextBrush}"
+                                       Margin="7,0,0,0" VerticalAlignment="Center"/>
+                            <!-- Sugerencia 0–9: solo arranque, oculta en bloqueo -->
+                            <StackPanel Orientation="Horizontal"
+                                        Visibility="{Binding IsLockMode, RelativeSource={RelativeSource AncestorType=local:LoginCardView}, Converter={StaticResource InverseBoolToVis}}">
+                                <TextBlock Text="·" FontSize="12" Foreground="{DynamicResource BorderSoftBrush}"
+                                           Margin="11,0" VerticalAlignment="Center"/>
+                                <Border Style="{StaticResource Kbd}">
+                                    <TextBlock Text="0–9" FontSize="11" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                                </Border>
+                                <TextBlock Text="Escribir PIN" FontSize="12"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           Margin="7,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <Button Grid.Column="2" Style="{StaticResource LinkButton}" VerticalAlignment="Center"
+                                FontSize="12" Command="{Binding ShowLicenseCommand}"
+                                AutomationProperties.Name="Abrir licencia"
+                                Visibility="{Binding IsLockMode, RelativeSource={RelativeSource AncestorType=local:LoginCardView}, Converter={StaticResource InverseBoolToVis}}">
+                            <TextBlock Text="Activar licencia" TextDecorations="Underline"/>
+                        </Button>
+                    </Grid>
+                </Border>
+
+                <!-- ══ Overlay de éxito (lg-done): cubre la tarjeta al entrar ══ -->
+                <Border Grid.RowSpan="3" Background="{DynamicResource SurfaceBrush}" CornerRadius="21"
+                        Visibility="{Binding IsEntering, Converter={StaticResource BoolToVis}}">
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <Border Width="60" Height="60" CornerRadius="18"
+                                Background="{DynamicResource BrandGradient}" HorizontalAlignment="Center">
+                            <TextBlock Text="{Binding WelcomeInitials}" FontSize="21" FontWeight="Bold"
+                                       Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="{Binding WelcomeTitle}" FontSize="15" FontWeight="SemiBold"
+                                   HorizontalAlignment="Center" Margin="0,16,0,0"/>
+                        <TextBlock Text="{Binding WelcomeSubtitle}" FontSize="12.5"
+                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                   HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                        <Ellipse Width="22" Height="22" StrokeThickness="2.5"
+                                 Stroke="{DynamicResource AccentBrush}" StrokeDashArray="20 8"
+                                 HorizontalAlignment="Center" Margin="0,16,0,0"
+                                 RenderTransformOrigin="0.5,0.5">
+                            <Ellipse.RenderTransform>
+                                <RotateTransform Angle="0"/>
+                            </Ellipse.RenderTransform>
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsEntering}" Value="True">
+                                            <DataTrigger.EnterActions>
+                                                <BeginStoryboard x:Name="WelcomeSpinner">
+                                                    <Storyboard>
+                                                        <DoubleAnimation
+                                                            Storyboard.TargetProperty="(UIElement.RenderTransform).(RotateTransform.Angle)"
+                                                            From="0" To="360" Duration="0:0:0.7"
+                                                            RepeatBehavior="Forever"/>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </DataTrigger.EnterActions>
+                                            <DataTrigger.ExitActions>
+                                                <StopStoryboard BeginStoryboardName="WelcomeSpinner"/>
+                                            </DataTrigger.ExitActions>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                    </StackPanel>
+                </Border>
+
+                <!-- ══ Toast de bloqueo (mejora 2 del dueño): 2 s ══ -->
+                <Border Grid.RowSpan="3" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,14,0,0"
+                        Background="#0F172A" CornerRadius="999" Padding="16,9"
+                        Visibility="{Binding LockBannerVisible, Converter={StaticResource BoolToVis}}"
+                        AutomationProperties.Name="Sesión bloqueada">
+                    <TextBlock Text="🔒 Sesión bloqueada por seguridad" FontSize="12.5" Foreground="White"/>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

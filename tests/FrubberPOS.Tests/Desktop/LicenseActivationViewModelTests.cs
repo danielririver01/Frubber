@@ -101,6 +101,106 @@ public sealed class LicenseActivationViewModelTests
         Assert.Equal("Licencia vitalicia", second.ViewModel.StatusText);
     }
 
+    [Fact]
+    public async Task CanActivate_TracksKeyShapeAndBusy()
+    {
+        using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var (viewModel, _) = Build(Machine, ecdsa);
+        await viewModel.LoadAsync();
+
+        Assert.False(viewModel.CanActivate);
+
+        viewModel.LicenseText = "parcial";
+        Assert.False(viewModel.CanActivate);
+
+        viewModel.LicenseText = BuildLicenseText(Machine, new DateOnly(2026, 9, 29), ecdsa);
+        Assert.True(viewModel.CanActivate);
+    }
+
+    [Fact]
+    public async Task ActivateAsync_InvalidKey_FlagsInputErrorAndHelp()
+    {
+        using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        using var foreign = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var (viewModel, _) = Build(Machine, ecdsa);
+        await viewModel.LoadAsync();
+        viewModel.LicenseText = BuildLicenseText(Machine, new DateOnly(2026, 9, 29), foreign);
+
+        await viewModel.ActivateAsync();
+
+        Assert.True(viewModel.InputError);
+        Assert.False(viewModel.ShowHelp);
+        Assert.False(viewModel.IsBusy);
+    }
+
+    [Fact]
+    public async Task LicenseText_Edit_ClearsErrorState()
+    {
+        using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        using var foreign = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var (viewModel, _) = Build(Machine, ecdsa);
+        await viewModel.LoadAsync();
+        viewModel.LicenseText = BuildLicenseText(Machine, new DateOnly(2026, 9, 29), foreign);
+        await viewModel.ActivateAsync();
+
+        viewModel.LicenseText = "x";
+
+        Assert.False(viewModel.InputError);
+        Assert.Equal(string.Empty, viewModel.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task ActivateAsync_Valid_ShowsSuccessPanelAndBusyClears()
+    {
+        using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var (viewModel, _) = Build(Machine, ecdsa);
+        await viewModel.LoadAsync();
+        viewModel.LicenseText = BuildLicenseText(Machine, new DateOnly(2026, 9, 29), ecdsa);
+
+        await viewModel.ActivateAsync();
+
+        Assert.True(viewModel.ShowSuccess);
+        Assert.False(viewModel.IsBusy);
+        Assert.False(viewModel.InputError);
+    }
+
+    [Fact]
+    public async Task RequestClose_WithPendingCode_AskForConfirmation()
+    {
+        using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var (viewModel, _) = Build(Machine, ecdsa);
+        await viewModel.LoadAsync();
+
+        Assert.True(viewModel.TryRequestClose());
+
+        viewModel.LicenseText = "abc";
+        Assert.False(viewModel.TryRequestClose());
+        Assert.True(viewModel.ShowDiscardConfirm);
+
+        viewModel.KeepEditing();
+        Assert.False(viewModel.ShowDiscardConfirm);
+
+        Assert.False(viewModel.TryRequestClose());
+        viewModel.DiscardCode();
+        Assert.Equal(string.Empty, viewModel.LicenseText);
+        Assert.True(viewModel.TryRequestClose());
+    }
+
+    [Fact]
+    public async Task NotifyCopied_SwapsLabelAndRestores()
+    {
+        using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var (viewModel, _) = Build(Machine, ecdsa);
+        viewModel.CopyResetMs = 30;
+
+        Assert.Equal("Copiar", viewModel.CopyLabel);
+        viewModel.NotifyCopied();
+        Assert.Equal("Copiado", viewModel.CopyLabel);
+
+        await Task.Delay(150);
+        Assert.Equal("Copiar", viewModel.CopyLabel);
+    }
+
     private static (LicenseActivationViewModel ViewModel, FakeLicenseRepository Repository) Build(
         string machine, ECDsa signer, FakeLicenseRepository? repository = null)
     {

@@ -2,10 +2,15 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:FrubberPOS.Desktop.ViewModels"
+        xmlns:views="clr-namespace:FrubberPOS.Desktop.Views"
         Title="Frubber POS" Height="600" Width="900" MinWidth="880" MinHeight="480"
         WindowState="Maximized" WindowStartupLocation="CenterScreen"
         SizeChanged="OnSizeChanged"
-        KeyDown="OnKeyDown">
+        PreviewMouseLeftButtonDown="OnUserActivity"
+        PreviewMouseMove="OnUserActivity"
+        PreviewMouseWheel="OnUserActivity"
+        PreviewKeyDown="OnKeyDown"
+        Loaded="OnLoaded">
     <!--
         Shell JHO-69 = frubber-pos.html (prototipo integrado del dueño,
         2026-10-02): sidebar 220 con marca + menú de letras-chip y badge de
@@ -14,7 +19,8 @@
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
     </Window.Resources>
-    <DockPanel>
+    <Grid>
+        <DockPanel>
         <!-- ===== Barra lateral ===== -->
         <Border x:Name="Sidebar" DockPanel.Dock="Left" Width="220"
                 Background="{DynamicResource SurfaceBrush}"
@@ -111,7 +117,7 @@
             <!-- Encabezado sobre el lienzo: título + sub, píldoras y chip de usuario -->
             <Border DockPanel.Dock="Top" Padding="24,20,24,12"
                     AutomationProperties.Name="Encabezado de página">
-                <DockPanel>
+        <DockPanel>
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                         <Border Margin="8,0,0,0" CornerRadius="999" Height="30" Padding="12,0"
                                 Background="{DynamicResource MintBrush}"
@@ -202,4 +208,27 @@
             <ContentControl Content="{Binding CurrentPage}" Margin="24,4,24,20"/>
         </DockPanel>
     </DockPanel>
+
+        <!-- Aviso de inactividad (mejora 3): píldora ámbar 30 s antes del lock -->
+        <Border Background="{DynamicResource TrialBrush}" CornerRadius="999" Padding="14,8"
+                HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,24,24"
+                Visibility="{Binding IdleWarningVisible, Converter={StaticResource BoolToVis}}"
+                AutomationProperties.Name="Aviso de bloqueo por inactividad">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Ellipse Width="7" Height="7" Fill="{DynamicResource TrialTextBrush}"/>
+                <TextBlock Text="{Binding IdleWarningText}" FontSize="12" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TrialTextBrush}" Margin="7,0,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!--
+            Capa de bloqueo (JHO-64): overlay opaco nativo DENTRO del shell —
+            la ventana nunca se cierra ni se sustituye. El shell queda intacto
+            debajo y el LoginCardView (modo lock) pide el PIN para reanudar.
+        -->
+        <Grid x:Name="LockLayer" Visibility="Collapsed">
+            <Border Background="{DynamicResource LoginBackdrop}"/>
+            <views:LoginCardView x:Name="LockCard" IsLockMode="True"/>
+        </Grid>
+    </Grid>
 </Window>

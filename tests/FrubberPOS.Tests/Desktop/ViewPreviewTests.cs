@@ -34,22 +34,45 @@ public sealed class ViewPreviewTests
 
         StaViewHarness.Run(() =>
         {
-            // --- Login ---
-            var loginViewModel = new LoginViewModel(
-                new ListActiveUsersUseCase(authBed.Users, authBed.Units),
-                new AuthenticateUserUseCase(authBed.Users, authBed.Hasher, authBed.Session, authBed.Units),
-                new EvaluateTrialUseCase(
-                    new GetLicenseStatusUseCase(
-                        new FakeMachineCodeProvider("0123456789ABCDEF"),
-                        new FakeLicenseProtector(),
-                        new FakeLicenseRepository(),
-                        new FakeUnitOfWorkFactory()),
-                    new FakeTrialRepository(),
-                    new FakeUnitOfWorkFactory(),
-                    new FakeClock(new DateTimeOffset(2026, 9, 29, 12, 0, 0, TimeSpan.Zero))),
-                new FakeNavigator());
+            // --- Login: fase de usuario (lg-1) ---
+            var loginViewModel = BuildLoginViewModel(authBed);
             loginViewModel.LoadUsersAsync().GetAwaiter().GetResult();
             StaViewHarness.SavePng(new LoginWindow(loginViewModel), 1280, 800, "login.png");
+
+            // --- Login: fase PIN con dos dígitos (lg-3) ---
+            var pinViewModel = BuildLoginViewModel(authBed);
+            pinViewModel.LoadUsersAsync().GetAwaiter().GetResult();
+            pinViewModel.GoToPin();
+            pinViewModel.EnterDigit("2");
+            pinViewModel.EnterDigit("4");
+            StaViewHarness.SavePng(new LoginWindow(pinViewModel), 1280, 800, "login-pin.png");
+
+            // --- Login: modo bloqueo de sesión (lo-*) ---
+            var lockViewModel = BuildLoginViewModel(authBed);
+            lockViewModel.LoadUsersAsync().GetAwaiter().GetResult();
+            lockViewModel.ActivateLockMode();
+            StaViewHarness.SavePng(new LoginWindow(lockViewModel), 1280, 800, "login-lock.png");
+
+
+            // --- Licencia (modal compacto lic-*) ---
+            var licenseMachine = new FakeMachineCodeProvider("0123456789ABCDEF");
+            var licenseRepo = new FakeLicenseRepository();
+            var licenseViewModel = new LicenseActivationViewModel(
+                new GetMachineCodeUseCase(licenseMachine),
+                new ActivateLicenseUseCase(
+                    licenseMachine,
+                    new FakeLicenseSignatureVerifier((_, _, _, _) => true),
+                    new FakeLicenseProtector(),
+                    licenseRepo,
+                    new FakeUnitOfWorkFactory(),
+                    new FakeClock(new DateTimeOffset(2026, 9, 29, 12, 0, 0, TimeSpan.Zero))),
+                new GetLicenseStatusUseCase(
+                    licenseMachine,
+                    new FakeLicenseProtector(),
+                    licenseRepo,
+                    new FakeUnitOfWorkFactory()));
+            licenseViewModel.LoadAsync().GetAwaiter().GetResult();
+            StaViewHarness.SavePng(new LicenseWindow(licenseViewModel), 560, 640, "license.png");
 
             // --- Splash ---
             StaViewHarness.SavePng(new SplashWindow(), 440, 520, "splash.png");
@@ -78,12 +101,39 @@ public sealed class ViewPreviewTests
             StaViewHarness.SavePng(new FrubberPOS.Desktop.MainWindow(mainViewModel), 1600, 900, "shell.png");
             StaViewHarness.SavePng(new TpvView(tpv), 1180, 760, "tpv.png");
 
+            // --- Shell con overlay de bloqueo (JHO-64, lo-*) ---
+            var shellLockViewModel = BuildLoginViewModel(authBed);
+            shellLockViewModel.LoadUsersAsync().GetAwaiter().GetResult();
+            var shellWindow = new FrubberPOS.Desktop.MainWindow(mainViewModel);
+            shellWindow.ShowLock(shellLockViewModel);
+            StaViewHarness.SavePng(shellWindow, 1600, 900, "shell-lock.png");
+
+            // --- Shell: píldora de aviso de inactividad (20 s antes del lock) ---
+            mainViewModel.LastActivityUtc = DateTime.UtcNow - TimeSpan.FromSeconds(160);
+            mainViewModel.OnIdleTick();
+            StaViewHarness.SavePng(new FrubberPOS.Desktop.MainWindow(mainViewModel), 1600, 900, "shell-idle.png");
+
             // --- Cobro ---
             var checkout = new CheckoutViewModel();
             StaViewHarness.SavePng(new CheckoutDialog(checkout, 12_000, 0), 760, 560, "checkout.png");
         });
 
         var saved = Directory.GetFiles(Path.Combine(Path.GetTempPath(), "opencode", "frubber-preview"), "*.png");
-        Assert.True(saved.Length >= 4, $"Se esperaban 4 PNG, hay {saved.Length}.");
+        Assert.True(saved.Length >= 6, $"Se esperaban 6 PNG, hay {saved.Length}.");
     }
+
+    private static LoginViewModel BuildLoginViewModel(AuthenticationTestBed bed) =>
+        new(
+            new ListActiveUsersUseCase(bed.Users, bed.Units),
+            new AuthenticateUserUseCase(bed.Users, bed.Hasher, bed.Session, bed.Units),
+            new EvaluateTrialUseCase(
+                new GetLicenseStatusUseCase(
+                    new FakeMachineCodeProvider("0123456789ABCDEF"),
+                    new FakeLicenseProtector(),
+                    new FakeLicenseRepository(),
+                    new FakeUnitOfWorkFactory()),
+                new FakeTrialRepository(),
+                new FakeUnitOfWorkFactory(),
+                new FakeClock(new DateTimeOffset(2026, 9, 29, 12, 0, 0, TimeSpan.Zero))),
+            new FakeNavigator());
 }

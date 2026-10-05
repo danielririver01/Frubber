@@ -185,6 +185,30 @@ public partial class App : System.Windows.Application, INavigationService
         window.ShowDialog();
     }
 
+    /// <summary>
+    /// Bloqueo (JHO-64): en lugar de sustituir la ventana se monta una
+    /// tarjeta de acceso fresca sobre el shell. OnAuthenticated se redirige
+    /// al desbloqueo: revalida identidad/rol en el MainViewModel existente y
+    /// levanta la capa, sin recrear el shell (el borrador y la página viva
+    /// siguen intactos debajo).
+    /// </summary>
+    public void ShowLock()
+    {
+        if (currentWindow is not MainWindow main)
+        {
+            return;
+        }
+
+        var lockViewModel = Resolve<LoginViewModel>();
+        lockViewModel.OnAuthenticated = user =>
+        {
+            main.ApplySignedInUser(user);
+            main.HideLock();
+            return Task.CompletedTask;
+        };
+        main.ShowLock(lockViewModel);
+    }
+
     public void ShowShell(SignedInUser user)
     {
         var licenseBadge = trialIsLicensed

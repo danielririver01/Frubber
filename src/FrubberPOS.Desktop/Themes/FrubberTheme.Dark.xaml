@@ -75,6 +75,11 @@
         <GradientStop Color="#2DD4BF" Offset="0"/>
         <GradientStop Color="#0F766E" Offset="1"/>
     </LinearGradientBrush>
+    <!-- Fondo de login/bloqueo (body de frubber-pos-login.html, gradiente 165deg) -->
+    <LinearGradientBrush x:Key="LoginBackdrop" StartPoint="0.39,0" EndPoint="0.61,1">
+        <GradientStop Color="{StaticResource AppBackgroundColor}" Offset="0"/>
+        <GradientStop Color="#1C2230" Offset="1"/>
+    </LinearGradientBrush>
     <LinearGradientBrush x:Key="AvatarGradient" StartPoint="0,0" EndPoint="1,1">
         <GradientStop Color="#2DD4BF" Offset="0"/>
         <GradientStop Color="#0F766E" Offset="1"/>

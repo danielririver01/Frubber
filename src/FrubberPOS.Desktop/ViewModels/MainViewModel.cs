@@ -81,6 +81,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private readonly Func<object>? backupPageFactory;
     private readonly Func<CancellationToken, Task<bool>>? cashOpenProbe;
     private readonly Func<object>? usersPageFactory;
+    private readonly TpvViewModel? draftBadgeSource;
+    private readonly bool isLicensed;
 
     private MenuEntry? selectedEntry;
     private string pageTitle = string.Empty;
@@ -94,6 +96,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private object? backupPage;
     private object? usersPage;
     private bool cashPillVisible;
+    private string displayName;
+    private bool isAdmin;
+    private string roleBadgeText;
+    private string userInitials;
+    private bool signingOut;
+    private bool lockRequested;
+    private bool idleWarningVisible;
+    private string idleWarningText = string.Empty;
 
     public MainViewModel(SignedInUser user, SignOutUseCase signOut, INavigationService navigation, Func<object>? productsPageFactory = null, Func<object>? cashPageFactory = null, Func<object>? tpvPageFactory = null, Func<object>? historyPageFactory = null, Func<object>? settingsPageFactory = null, Func<object>? backupPageFactory = null, string? licenseBadgeText = null, Func<CancellationToken, Task<bool>>? cashOpenProbe = null, bool isLicensed = false, Func<object>? usersPageFactory = null, TpvViewModel? draftBadgeSource = null)
     {
@@ -110,17 +120,17 @@ public sealed class MainViewModel : INotifyPropertyChanged
         this.backupPageFactory = backupPageFactory;
         this.cashOpenProbe = cashOpenProbe;
         this.usersPageFactory = usersPageFactory;
+        this.isLicensed = isLicensed;
+        this.draftBadgeSource = draftBadgeSource;
 
-        DisplayName = user.DisplayName;
-        IsAdmin = user.Role == UserRole.Admin;
-        RoleBadgeText = IsAdmin ? "ADMIN" : "CAJERO";
-        UserInitials = ComputeInitials(user.DisplayName);
+        displayName = user.DisplayName;
+        isAdmin = user.Role == UserRole.Admin;
+        roleBadgeText = isAdmin ? "ADMIN" : "CAJERO";
+        userInitials = ComputeInitials(user.DisplayName);
         LicenseBadgeText = licenseBadgeText;
 
-        MenuItems = new ObservableCollection<MenuEntry>(
-            AllEntries.Where(e => !e.AdminOnly || IsAdmin)
-                      // Con licencia vitalicia activa el menú Licencia sobra (fig. 1: solo aparece si hay algo que gestionar).
-                      .Where(e => e.Title != "Licencia" || !isLicensed));
+        MenuItems = new ObservableCollection<MenuEntry>();
+        RebuildMenu();
 
         NavigateCommand = new RelayCommand(() => ShowSelected());
         SignOutCommand = new AsyncCommand(_ => SignOutAsync());
@@ -137,15 +147,31 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public string DisplayName { get; }
+    public string DisplayName
+    {
+        get => displayName;
+        private set => SetProperty(ref displayName, value);
+    }
 
-    public bool IsAdmin { get; }
+    public bool IsAdmin
+    {
+        get => isAdmin;
+        private set => SetProperty(ref isAdmin, value);
+    }
 
     /// <summary>Badge de rol en la barra lateral (diseño aprobado fig. 1).</summary>
-    public string RoleBadgeText { get; }
+    public string RoleBadgeText
+    {
+        get => roleBadgeText;
+        private set => SetProperty(ref roleBadgeText, value);
+    }
 
     /// <summary>Iniciales del avatar circular del encabezado.</summary>
-    public string UserInitials { get; }
+    public string UserInitials
+    {
+        get => userInitials;
+        private set => SetProperty(ref userInitials, value);
+    }
 
     /// <summary>Texto de la pastilla de licencia del encabezado; null la oculta.</summary>
     public string? LicenseBadgeText { get; }
@@ -202,8 +228,115 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public async Task SignOutAsync()
     {
-        await signOut.ExecuteAsync(new SignOutRequest(), CancellationToken.None);
-        navigation.ShowLogin();
+        signingOut = true;
+        try
+        {
+            await signOut.ExecuteAsync(new SignOutRequest(), CancellationToken.None);
+            navigation.ShowLock();
+        }
+        finally
+        {
+            signingOut = false;
+        }
+    }
+
+    /// <summary>
+    /// Desbloqueo (JHO-64): otro PIN puede entrar con rol distinto, así que la
+    /// identidad visible y el menú se refrescan sin recrear el shell.
+    /// </summary>
+    public void ApplyUser(SignedInUser user)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+
+        var admin = user.Role == UserRole.Admin;
+        var roleChanged = admin != isAdmin;
+
+        DisplayName = user.DisplayName;
+        IsAdmin = admin;
+        RoleBadgeText = admin ? "ADMIN" : "CAJERO";
+        UserInitials = ComputeInitials(user.DisplayName);
+
+        if (roleChanged)
+        {
+            RebuildMenu();
+            SelectedEntry = MenuItems.FirstOrDefault();
+        }
+    }
+
+    // ===== Auto-bloqueo por inactividad (JHO-64, mejora aprobada) =====
+
+    /// <summary>Umbral de auto-bloqueo; 3 min sin persistencia (follow-up).</summary>
+    internal TimeSpan IdleLockDelay { get; set; } = TimeSpan.FromMinutes(3);
+
+    /// <summary>Aviso visible antes del auto-bloqueo (30 s).</summary>
+    internal TimeSpan IdleWarnBefore { get; set; } = TimeSpan.FromSeconds(30);
+
+    internal DateTime LastActivityUtc { get; set; } = DateTime.UtcNow;
+
+    public bool IdleWarningVisible
+    {
+        get => idleWarningVisible;
+        private set => SetProperty(ref idleWarningVisible, value);
+    }
+
+    public string IdleWarningText
+    {
+        get => idleWarningText;
+        private set => SetProperty(ref idleWarningText, value);
+    }
+
+    /// <summary>Teclado/ratón del operador: reinicia el ciclo de inactividad.</summary>
+    public void NotifyUserActivity()
+    {
+        LastActivityUtc = DateTime.UtcNow;
+        lockRequested = false;
+        IdleWarningVisible = false;
+    }
+
+    /// <summary>
+    /// Tick del cronómetro de la ventana (1 s): avisa en la ventana de gracia
+    /// y pide el lock al superar el umbral. <paramref name="utcNow"/> solo
+    /// existe para tests deterministas.
+    /// </summary>
+    internal void OnIdleTick(DateTime? utcNow = null)
+    {
+        if (signingOut || lockRequested)
+        {
+            return;
+        }
+
+        var idle = (utcNow ?? DateTime.UtcNow) - LastActivityUtc;
+        if (idle >= IdleLockDelay)
+        {
+            lockRequested = true;
+            IdleWarningVisible = false;
+            navigation.ShowLock();
+            return;
+        }
+
+        if (idle >= IdleLockDelay - IdleWarnBefore)
+        {
+            var seconds = (int)Math.Ceiling((IdleLockDelay - idle).TotalSeconds);
+            IdleWarningText = $"La sesión se bloqueará en {seconds} s.";
+            IdleWarningVisible = true;
+        }
+    }
+
+    /// <summary>Rearma el menú según el rol actual (ctor y ApplyUser).</summary>
+    private void RebuildMenu()
+    {
+        MenuItems.Clear();
+        foreach (var entry in AllEntries.Where(e => !e.AdminOnly || isAdmin)
+                                        // Con licencia vitalicia activa el menú Licencia sobra (fig. 1).
+                                        .Where(e => e.Title != "Licencia" || !isLicensed))
+        {
+            MenuItems.Add(entry);
+        }
+
+        if (draftBadgeSource is not null)
+        {
+            UpdateVentaBadge(draftBadgeSource.Lines.Count);
+        }
     }
 
     private void ShowSelected()

@@ -100,7 +100,7 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
-    public async Task SignOut_ClearsSessionAndShowsLogin()
+    public async Task SignOut_ClearsSessionAndShowsLock()
     {
         var session = new FakeCurrentSession();
         session.SignIn(new SignedInUser(2, "Zed", UserRole.Cashier));
@@ -113,7 +113,81 @@ public sealed class MainViewModelTests
         await viewModel.SignOutAsync();
 
         Assert.Null(session.Current);
-        Assert.Equal(1, navigator.LoginCount);
+        Assert.Equal(1, navigator.LockCount);
+    }
+
+    [Fact]
+    public void ApplyUser_RefreshesIdentityAndAdminMenu()
+    {
+        // JHO-64: al desbloquear puede entrar otro PIN (rol distinto).
+        var viewModel = new MainViewModel(
+            new SignedInUser(1, "Ana María", UserRole.Admin),
+            new SignOutUseCase(new FakeCurrentSession()),
+            new FakeNavigator());
+
+        Assert.True(viewModel.IsAdmin);
+        Assert.Contains(viewModel.MenuItems, m => m.Title == "Productos");
+
+        viewModel.ApplyUser(new SignedInUser(2, "Zed Rivera", UserRole.Cashier));
+
+        Assert.Equal("Zed Rivera", viewModel.DisplayName);
+        Assert.Equal("CAJERO", viewModel.RoleBadgeText);
+        Assert.Equal("ZR", viewModel.UserInitials);
+        Assert.False(viewModel.IsAdmin);
+        Assert.DoesNotContain(viewModel.MenuItems, m => m.Title == "Productos");
+        Assert.Contains(viewModel.MenuItems, m => m.Title == "Venta");
+    }
+
+    [Fact]
+    public void IdleLock_WarnsBeforeLockingAndActivityResets()
+    {
+        var navigator = new FakeNavigator();
+        var viewModel = new MainViewModel(
+            new SignedInUser(1, "Ana", UserRole.Admin),
+            new SignOutUseCase(new FakeCurrentSession()),
+            navigator)
+        {
+            IdleLockDelay = TimeSpan.FromSeconds(100),
+            IdleWarnBefore = TimeSpan.FromSeconds(30)
+        };
+
+        var start = viewModel.LastActivityUtc;
+
+        viewModel.OnIdleTick(start + TimeSpan.FromSeconds(50));
+        Assert.False(viewModel.IdleWarningVisible);
+        Assert.Equal(0, navigator.LockCount);
+
+        viewModel.OnIdleTick(start + TimeSpan.FromSeconds(80));
+        Assert.True(viewModel.IdleWarningVisible);
+        Assert.Equal(0, navigator.LockCount);
+
+        viewModel.OnIdleTick(start + TimeSpan.FromSeconds(100));
+        Assert.Equal(1, navigator.LockCount);
+        Assert.False(viewModel.IdleWarningVisible);
+
+        // Un tick tardío no duplica el lock (hasta que haya actividad nueva).
+        viewModel.OnIdleTick(start + TimeSpan.FromSeconds(120));
+        Assert.Equal(1, navigator.LockCount);
+
+        viewModel.NotifyUserActivity();
+        viewModel.OnIdleTick(viewModel.LastActivityUtc + TimeSpan.FromSeconds(100));
+        Assert.Equal(2, navigator.LockCount);
+    }
+
+    [Fact]
+    public void IdleLock_ZeroDelayLocksOnFirstTick()
+    {
+        var navigator = new FakeNavigator();
+        var viewModel = new MainViewModel(
+            new SignedInUser(1, "Ana", UserRole.Admin),
+            new SignOutUseCase(new FakeCurrentSession()),
+            navigator)
+        {
+            IdleLockDelay = TimeSpan.Zero
+        };
+
+        viewModel.OnIdleTick(viewModel.LastActivityUtc);
+        Assert.Equal(1, navigator.LockCount);
     }
 
     [Fact]

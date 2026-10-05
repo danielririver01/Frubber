@@ -20,6 +20,12 @@ public interface INavigationService
 
     void ShowShell(SignedInUser user);
 
+    /// <summary>
+    /// Secures the shell behind the lock overlay (JHO-64): the session pauses
+    /// on this same window and the operator must re-enter the PIN to resume.
+    /// </summary>
+    void ShowLock();
+
     void ShowLicense();
 
     /// <summary>Product editor dialog (JHO-30); <c>null</c> creates. Returns true when saved.</summary>
