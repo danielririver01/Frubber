@@ -2,113 +2,278 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
-        Width="560" SizeToContent="Height"
+        Width="480" SizeToContent="Height"
         WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
-        MouseLeftButtonDown="OnDragMove">
+        PreviewKeyDown="OnWindowPreviewKeyDown" MouseDown="OnWindowMouseDown">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <!-- Chip de medio de pago (proto .pay-opt): borde slate, selección teal + fila mint -->
         <Style x:Key="PayChip" TargetType="RadioButton">
-            <Setter Property="MinHeight" Value="40"/>
-            <Setter Property="Padding" Value="16,6"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+            <Setter Property="FontSize" Value="13.5"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
-                        <Border x:Name="Bd" CornerRadius="6" BorderThickness="1"
+                        <Border x:Name="Bd" CornerRadius="8" BorderThickness="1"
                                 BorderBrush="{DynamicResource BorderBrush}"
-                                Background="Transparent" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                Background="Transparent" Padding="12,10">
+                            <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource BorderHoverBrush}"/>
+                            </Trigger>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource MintBrush}"/>
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource FocusBrush}"/>
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource MintRowBrush}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Chip rápido M2 (JHO-67): bajo el input de recibido -->
+        <Style x:Key="QuickChip" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+        </Style>
+
+        <!-- M1 (JHO-67): link "Aplicar descuento (F6)" que revela el editor -->
+        <Style x:Key="M1Link" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style x:Key="M1LinkButton" TargetType="Button" BasedOn="{StaticResource M1Link}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsDiscountEditorVisible}" Value="True">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="DiscountInput" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsDiscountEditorVisible}" Value="False">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Caja de cambio (proto .diff): neutral / good / bad por ChangeTone -->
+        <Style x:Key="ChangeBox" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource PillNeutralBrush}"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="Margin" Value="0,12,0,0"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding ChangeTone}" Value="good">
+                    <Setter Property="Background" Value="{DynamicResource SuccessSoftBrush}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding ChangeTone}" Value="bad">
+                    <Setter Property="Background" Value="{DynamicResource ErrorSoftBrush}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="ChangeToneText" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource PillNeutralTextBrush}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding ChangeTone}" Value="good">
+                    <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding ChangeTone}" Value="bad">
+                    <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
-    <Border Style="{DynamicResource DialogCard}" Margin="16">
+    <Border Style="{DynamicResource DialogCard}" Margin="16" MouseLeftButtonDown="OnDragMove">
         <StackPanel>
+            <!-- Cabecera: check verde + título + subtítulo "N ítems · total" (proto modal-head) -->
             <DockPanel>
                 <Button DockPanel.Dock="Right" Content="✕" Click="OnCancel"
                         Style="{DynamicResource SecondaryButton}" MinHeight="32" MinWidth="32" Padding="4"
                         AutomationProperties.Name="Cerrar cobro"/>
-                <TextBlock Text="Cobrar venta" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+                <StackPanel Orientation="Horizontal">
+                    <Border Width="34" Height="34" CornerRadius="17"
+                            Background="{DynamicResource SuccessSoftBrush}"
+                            Margin="0,0,12,0" VerticalAlignment="Center">
+                        <Viewbox Width="16" Height="16">
+                            <Path Data="M20,6 L9,17 L4,12"
+                                  Stroke="{DynamicResource SuccessBrush}" StrokeThickness="2.4"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                        </Viewbox>
+                    </Border>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Cobrar venta" FontSize="20" FontWeight="Bold"/>
+                        <TextBlock Text="{Binding ItemsSubtitleText}" Style="{DynamicResource PageSubtitle}"
+                                   Margin="0,1,0,0"/>
+                    </StackPanel>
+                </StackPanel>
             </DockPanel>
-            <TextBlock Text="Revise el descuento y registre el medio de pago." Style="{DynamicResource PageSubtitle}"
-                       Margin="0,2,0,14"/>
 
-            <Grid>
+            <!-- Recap (proto .recap) -->
+            <Border Background="{DynamicResource PillNeutralBrush}"
+                    BorderBrush="{DynamicResource BorderSoftBrush}" BorderThickness="1"
+                    CornerRadius="8" Padding="14,10" Margin="0,14,0,0">
+                <StackPanel>
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding ItemCountText}"
+                                   Style="{DynamicResource NumericText}"/>
+                        <TextBlock Text="Ítems" Style="{DynamicResource PageSubtitle}"/>
+                    </DockPanel>
+                    <DockPanel Margin="0,4,0,0">
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding SubtotalText}"
+                                   Style="{DynamicResource NumericText}"/>
+                        <TextBlock Text="Subtotal" Style="{DynamicResource PageSubtitle}"/>
+                    </DockPanel>
+                    <DockPanel Margin="0,4,0,0">
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding DiscountDisplayText}"
+                                   Style="{DynamicResource NumericText}"/>
+                        <TextBlock Text="Descuento" Style="{DynamicResource PageSubtitle}"/>
+                    </DockPanel>
+                    <Button Style="{StaticResource M1LinkButton}" HorizontalAlignment="Right"
+                            Margin="0,5,0,0" Click="OnRevealDiscount"
+                            AutomationProperties.Name="Aplicar descuento F6">
+                        <TextBlock Text="Aplicar descuento (F6)"/>
+                    </Button>
+                    <TextBox x:Name="DiscountBox" Style="{StaticResource DiscountInput}" Margin="0,6,0,0"
+                             Text="{Binding DiscountText, UpdateSourceTrigger=PropertyChanged}"
+                             PreviewKeyDown="OnAmountPreviewKeyDown"
+                             AutomationProperties.Name="Descuento"/>
+                    <Border Height="1" Background="{DynamicResource BorderSoftBrush}" Margin="0,9,0,7"/>
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding TotalText}"
+                                   FontSize="17" FontWeight="ExtraBold"
+                                   Foreground="{DynamicResource PrimaryBrush}"
+                                   AutomationProperties.Name="Total a cobrar"/>
+                        <TextBlock Text="Total a cobrar" VerticalAlignment="Center"
+                                   FontWeight="SemiBold" FontSize="13.5"/>
+                    </DockPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Medio de pago (proto .pay-options,2 columnas) -->
+            <TextBlock Text="Medio de pago" Style="{DynamicResource FieldLabel}" Margin="0,14,0,0"/>
+            <Grid Margin="0,2,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-
-                <!-- RESUMEN -->
-                <StackPanel>
-                    <TextBlock Text="RESUMEN" Style="{DynamicResource ColumnCaption}"/>
-                    <DockPanel Margin="0,8,0,0">
-                        <TextBlock Text="Subtotal" Style="{DynamicResource PageSubtitle}"/>
-                        <TextBlock Text="{Binding SubtotalText}" Style="{DynamicResource NumericText}"
-                                   HorizontalAlignment="Right"/>
-                    </DockPanel>
-                    <TextBlock Text="Descuento (pesos, 0 al subtotal):" Style="{DynamicResource PageSubtitle}" Margin="0,8,0,4"/>
-                    <TextBox x:Name="DiscountBox" Text="{Binding DiscountText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Descuento"/>
-                    <Border Background="{DynamicResource MintHoverBrush}" CornerRadius="8" Padding="14,10" Margin="0,10,0,0">
-                        <StackPanel>
-                            <TextBlock Text="TOTAL" Style="{DynamicResource ColumnCaption}"
-                                       Foreground="{DynamicResource PrimaryBrush}"/>
-                            <TextBlock Text="{Binding TotalText}" FontWeight="ExtraBold" FontSize="26"
-                                       Foreground="{DynamicResource PrimaryBrush}"
-                                       AutomationProperties.Name="Total a cobrar"/>
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
-
-                <!-- MEDIO DE PAGO -->
-                <StackPanel Grid.Column="1" Margin="20,0,0,0">
-                    <TextBlock Text="MEDIO DE PAGO" Style="{DynamicResource ColumnCaption}"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                        <RadioButton Content="Efectivo" IsChecked="{Binding IsCash}" GroupName="Payment"
-                                     Style="{DynamicResource PayChip}" AutomationProperties.Name="Pago en efectivo"/>
-                        <RadioButton Content="Transferencia" IsChecked="{Binding IsTransfer}" GroupName="Payment"
-                                     Style="{DynamicResource PayChip}" Margin="8,0,0,0"
-                                     AutomationProperties.Name="Pago por transferencia"/>
-                    </StackPanel>
-                    <StackPanel Visibility="{Binding ShowCashFields, Converter={StaticResource BoolToVis}}" Margin="0,12,0,0">
-                        <TextBlock Text="EFECTIVO RECIBIDO" Style="{DynamicResource ColumnCaption}" Margin="0,0,0,4"/>
-                        <DockPanel>
-                            <Border DockPanel.Dock="Right" Style="{DynamicResource ShortcutChip}" Padding="8,4" Margin="6,0,0,0">
-                                <TextBlock Text="COP" Style="{DynamicResource ShortcutText}" FontWeight="SemiBold"/>
-                            </Border>
-                            <TextBox x:Name="ReceivedBox" Text="{Binding ReceivedText, UpdateSourceTrigger=PropertyChanged}" MinHeight="44"
-                                     AutomationProperties.Name="Efectivo recibido"/>
-                        </DockPanel>
-                        <Border Background="{DynamicResource SuccessSoftBrush}" CornerRadius="8" Padding="12,8" Margin="0,10,0,0">
-                            <StackPanel>
-                                <TextBlock Text="CAMBIO" Style="{DynamicResource ColumnCaption}"
-                                           Foreground="{DynamicResource SuccessBrush}"/>
-                                <TextBlock Text="{Binding ChangeText}" FontWeight="ExtraBold" FontSize="22"
-                                           Foreground="{DynamicResource SuccessBrush}"
-                                           AutomationProperties.Name="Cambio"/>
-                            </StackPanel>
+                <RadioButton Grid.Column="0" GroupName="Payment" Style="{StaticResource PayChip}"
+                             IsChecked="{Binding IsCash}" AutomationProperties.Name="Pago en efectivo">
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="28" Height="28" CornerRadius="6"
+                                Background="{DynamicResource SuccessSoftBrush}">
+                            <Viewbox Width="15" Height="15">
+                                <Grid>
+                                    <Rectangle Width="20" Height="12"
+                                               Stroke="{DynamicResource SuccessBrush}" StrokeThickness="1.8"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <Ellipse Width="5" Height="5"
+                                             Stroke="{DynamicResource SuccessBrush}" StrokeThickness="1.8"
+                                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Viewbox>
                         </Border>
+                        <TextBlock Text="Efectivo" Margin="9,0,0,0" VerticalAlignment="Center"/>
                     </StackPanel>
-                </StackPanel>
+                </RadioButton>
+                <RadioButton Grid.Column="1" GroupName="Payment" Margin="8,0,0,0"
+                             Style="{StaticResource PayChip}"
+                             AutomationProperties.Name="Pago por transferencia">
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="28" Height="28" CornerRadius="6"
+                                Background="{DynamicResource PillNeutralBrush}">
+                            <Viewbox Width="15" Height="15">
+                                <Path Data="M4,8 L17,8 L14,5 M20,16 L7,16 L10,19"
+                                      Stroke="{DynamicResource PillNeutralTextBrush}" StrokeThickness="1.8"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                            </Viewbox>
+                        </Border>
+                        <TextBlock Text="Transferencia" Margin="9,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </RadioButton>
             </Grid>
+
+            <!-- Efectivo recibido + chips rápidos M2 -->
+            <StackPanel Visibility="{Binding ShowCashFields, Converter={StaticResource BoolToVis}}"
+                        Margin="0,14,0,0">
+                <TextBlock Text="Efectivo recibido" Style="{DynamicResource FieldLabel}"/>
+                <DockPanel>
+                    <Border DockPanel.Dock="Right" Style="{DynamicResource ShortcutChip}" Padding="8,4" Margin="6,0,0,0">
+                        <TextBlock Text="COP" Style="{DynamicResource ShortcutText}" FontWeight="SemiBold"/>
+                    </Border>
+                    <TextBox x:Name="ReceivedBox" MinHeight="44" FontSize="15"
+                             Text="{Binding ReceivedText, UpdateSourceTrigger=PropertyChanged}"
+                             PreviewKeyDown="OnAmountPreviewKeyDown"
+                             AutomationProperties.Name="Efectivo recibido"/>
+                </DockPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                    <Button Content="Exacto" Tag="exacto" Click="OnQuickAmount" Style="{StaticResource QuickChip}"
+                            AutomationProperties.Name="Monto exacto"/>
+                    <Button Content="20.000" Tag="20000" Click="OnQuickAmount" Style="{StaticResource QuickChip}"
+                            AutomationProperties.Name="Monto 20.000"/>
+                    <Button Content="50.000" Tag="50000" Click="OnQuickAmount" Style="{StaticResource QuickChip}"
+                            AutomationProperties.Name="Monto 50.000"/>
+                    <Button Content="100.000" Tag="100000" Click="OnQuickAmount" Style="{StaticResource QuickChip}"
+                            AutomationProperties.Name="Monto 100.000"/>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- Caja de cambio: neutral / good / bad (M7) -->
+            <Border Style="{StaticResource ChangeBox}"
+                    AutomationProperties.Name="Cambio">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding ChangeValueText}"
+                               Style="{StaticResource ChangeToneText}"
+                               FontWeight="Bold" FontSize="15" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding ChangeLabelText}" Style="{StaticResource ChangeToneText}"
+                               FontSize="13" FontWeight="SemiBold"
+                               VerticalAlignment="Center" TextWrapping="Wrap"/>
+                </DockPanel>
+            </Border>
+
+            <!-- Aviso de consecuencias (proto .warn-note) -->
+            <Border Background="{DynamicResource WarnSoftBrush}"
+                    BorderBrush="{DynamicResource WarnBorderBrush}" BorderThickness="1"
+                    CornerRadius="8" Padding="14,11" Margin="0,12,0,0"
+                    AutomationProperties.Name="Aviso de confirmación">
+                <StackPanel Orientation="Horizontal">
+                    <Viewbox Width="16" Height="16" Margin="0,2,10,0" VerticalAlignment="Top"
+                             HorizontalAlignment="Left">
+                        <Path Data="M12,3 L21.5,20 L2.5,20 Z"
+                              Stroke="{DynamicResource WarningBrush}" StrokeThickness="1.6" StrokeLineJoin="Round"/>
+                    </Viewbox>
+                    <TextBlock FontSize="12.5" TextWrapping="Wrap" LineHeight="18"
+                               Foreground="{DynamicResource WarningBrush}">
+                        <Run Text="Al confirmar: se "/><Run Text="descuenta el stock" FontWeight="Bold"/><Run Text=", la venta entra al Historial y suma al "/><Run Text="efectivo esperado de Caja" FontWeight="Bold"/><Run Text="."/>
+                    </TextBlock>
+                </StackPanel>
+            </Border>
 
             <TextBlock Text="{Binding ErrorMessage}" Style="{DynamicResource ErrorText}" Margin="0,10,0,0"/>
             <TextBlock Text="F9 confirma · Esc vuelve sin perder la venta" Style="{DynamicResource PageSubtitle}"
                        Foreground="{DynamicResource MutedTextBrush}" FontSize="12" Margin="0,10,0,0"/>
 
             <DockPanel Margin="0,8,0,0">
-                <Button DockPanel.Dock="Right" Content="Confirmar  F9" Command="{Binding ConfirmCommand}"
-                        IsDefault="True" Style="{DynamicResource BigPrimaryButton}" MinHeight="44"
+                <Button DockPanel.Dock="Right" x:Name="ConfirmButton" Content="Confirmar cobro"
+                        Command="{Binding ConfirmCommand}" IsDefault="True"
+                        Style="{DynamicResource BigPrimaryButton}" MinHeight="44"
                         AutomationProperties.Name="Confirmar cobro"/>
-                <Button Content="Cancelar" Click="OnCancel" IsCancel="True"
+                <Button Content="Cancelar" Click="OnCancel"
                         Style="{DynamicResource SecondaryButton}" HorizontalAlignment="Left"/>
             </DockPanel>
         </StackPanel>

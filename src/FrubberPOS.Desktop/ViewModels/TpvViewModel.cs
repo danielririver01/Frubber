@@ -26,6 +26,9 @@ namespace FrubberPOS.Desktop.ViewModels;
 /// ticket print (JHO-45): the ticket is built from the historical
 /// snapshots and a print failure never touches the saved sale (P-UX §9.6,
 /// RN-IMP-001/005).
+/// Rediseño R2 (JHO-67): floating confirmation toast (M4), header
+/// counters + empty states (M6), no-cash banner link to open the cash
+/// drawer (M5) and the prototype discount display −$ X (pct%).
 /// </summary>
 public sealed class TpvViewModel : INotifyPropertyChanged
 {
@@ -46,10 +49,15 @@ public sealed class TpvViewModel : INotifyPropertyChanged
     private string searchText = string.Empty;
     private string errorMessage = string.Empty;
     private CancellationTokenSource? searchCts;
+    private CancellationTokenSource? toastCts;
+    private string toastText = string.Empty;
+    private bool toastVisible;
     private TpvSearchItemViewModel? selectedResult;
     private TpvLineItemViewModel? selectedLine;
     private bool? cashOpen;
     private bool submitting;
+    private bool isFinalizing;
+    private long? pendingPrintSaleNumber;
 
     public TpvViewModel(
         SearchProductsForSaleUseCase search,
@@ -78,13 +86,19 @@ public sealed class TpvViewModel : INotifyPropertyChanged
         RemoveLineCommand = new AsyncCommand(_ => RemoveSelectedLine(), () => SelectedLine is not null);
         ClearDraftCommand = new AsyncCommand(_ => ClearDraftWithProtectionAsync());
         OpenDiscountCommand = new AsyncCommand(_ => OpenDiscountAsync(), () => !draft.IsEmpty);
-        OpenCheckoutCommand = new AsyncCommand(_ => OpenCheckoutAsync(), () => !draft.IsEmpty && IsCashOpen);
+        OpenCheckoutCommand = new AsyncCommand(_ => OpenCheckoutAsync(), () => !draft.IsEmpty && IsCashOpen && !IsFinalizing);
+        OpenCashCommand = new RelayCommand(() => OpenCashRequested?.Invoke(this, EventArgs.Empty));
+        RemoveDiscountCommand = new RelayCommand(RemoveDiscount, () => draft.DiscountCop > 0);
+        RetryPrintCommand = new AsyncCommand(_ => RetryPrintAsync(), () => pendingPrintSaleNumber is not null);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
     /// <summary>Fired to ask the view to focus + select the search box (F2).</summary>
     public event EventHandler? FocusSearchRequested;
+
+    /// <summary>Fired when the P-UX-010 banner link asks the shell to open the cash screen (M5).</summary>
+    public event EventHandler? OpenCashRequested;
 
     public DraftSale Draft => draft;
 
@@ -107,8 +121,42 @@ public sealed class TpvViewModel : INotifyPropertyChanged
     public string ErrorMessage
     {
         get => errorMessage;
-        private set => SetProperty(ref errorMessage, value);
+        private set
+        {
+            if (SetProperty(ref errorMessage, value))
+            {
+                OnPropertyChanged(nameof(HasErrorMessage));
+            }
+        }
     }
+
+    /// <summary>B2: banner visible while any error message is set.</summary>
+    public bool HasErrorMessage => !string.IsNullOrEmpty(errorMessage);
+
+    /// <summary>
+    /// B2 (JHO-67): true while the confirmed sale is committing; Cobrar is
+    /// disabled and reads "Registrando la venta…" so the operator never
+    /// charges twice (RN-VEN-002).
+    /// </summary>
+    public bool IsFinalizing
+    {
+        get => isFinalizing;
+        private set
+        {
+            if (SetProperty(ref isFinalizing, value))
+            {
+                OnPropertyChanged(nameof(CanCharge));
+                OnPropertyChanged(nameof(ChargeText));
+                OpenCheckoutCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    /// <summary>B2: Cobrar label while finalizing.</summary>
+    public string ChargeText => IsFinalizing ? "Registrando la venta…" : "Cobrar";
+
+    /// <summary>B2: retry appears only while a saved ticket failed to print (RN-IMP-005).</summary>
+    public bool RetryPrintVisible => pendingPrintSaleNumber is not null;
 
     /// <summary>True only after a refresh confirmed an open session; null before the first check.</summary>
     public bool IsCashOpen => cashOpen == true;
@@ -155,6 +203,66 @@ public sealed class TpvViewModel : INotifyPropertyChanged
 
     public string TotalText => MoneyText.FormatCop(draft.TotalCop);
 
+    /// <summary>Header counter of RESULTADOS (prototype: "N productos").</summary>
+    public string ResultsCountText => results.Count == 1 ? "1 producto" : $"{results.Count} productos";
+
+    public bool ResultsEmptyVisible => results.Count == 0;
+
+    public bool ResultsTableVisible => results.Count > 0;
+
+    /// <summary>Header counter of VENTA EN PREPARACIÓN (prototype: "N ítems").</summary>
+    public string LineCountText => lines.Count == 1 ? "1 ítem" : $"{lines.Count} ítems";
+
+    public bool TicketEmptyVisible => lines.Count == 0;
+
+    public bool TicketTableVisible => lines.Count > 0;
+
+    /// <summary>Cobrar only with draft lines and an open cash session (P-UX-010).</summary>
+    public bool CanCharge => !draft.IsEmpty && IsCashOpen;
+
+    public bool DiscountAppliedVisible => draft.DiscountCop > 0;
+
+    /// <summary>Applied discount percent rounded down (display only, M6).</summary>
+    public string DiscountPercentText
+    {
+        get
+        {
+            if (draft.DiscountCop <= 0 || draft.SubtotalCop <= 0)
+            {
+                return "0%";
+            }
+
+            return $"{draft.DiscountCop * 100 / draft.SubtotalCop}%";
+        }
+    }
+
+    /// <summary>Prototype discount line: "−$ X (pct%)" while applied, "−$ 0" otherwise.</summary>
+    public string DiscountDisplayText
+    {
+        get
+        {
+            var amount = "−" + MoneyText.FormatCop(draft.DiscountCop);
+            return draft.DiscountCop > 0 && draft.SubtotalCop > 0
+                ? $"{amount} ({draft.DiscountCop * 100 / draft.SubtotalCop}%)"
+                : amount;
+        }
+    }
+
+    /// <summary>Toast lifetime for the floating confirmation pill (M4).</summary>
+    public static readonly TimeSpan ToastDuration = TimeSpan.FromMilliseconds(2400);
+
+    public string ToastText
+    {
+        get => toastText;
+        private set => SetProperty(ref toastText, value);
+    }
+
+    public bool ToastVisible
+    {
+        get => toastVisible;
+        private set => SetProperty(ref toastVisible, value);
+    }
+
     public AsyncCommand SearchCommand { get; }
 
     public AsyncCommand AddSelectedCommand { get; }
@@ -168,6 +276,13 @@ public sealed class TpvViewModel : INotifyPropertyChanged
     public AsyncCommand OpenDiscountCommand { get; }
 
     public AsyncCommand OpenCheckoutCommand { get; }
+
+    public RelayCommand OpenCashCommand { get; }
+
+    public RelayCommand RemoveDiscountCommand { get; }
+
+    /// <summary>B2: reprints the last saved ticket without re-running the cobro.</summary>
+    public AsyncCommand RetryPrintCommand { get; }
 
     public CheckoutResultDto? LastConfirmedCheckout { get; private set; }
 
@@ -186,6 +301,7 @@ public sealed class TpvViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(IsCashOpen));
         OnPropertyChanged(nameof(CashWarningVisible));
         OnPropertyChanged(nameof(CashWarningText));
+        OnPropertyChanged(nameof(CanCharge));
         OpenCheckoutCommand.RaiseCanExecuteChanged();
     }
 
@@ -222,6 +338,9 @@ public sealed class TpvViewModel : INotifyPropertyChanged
             // JHO-60: la pantalla abre con todo el catálogo activo (consulta
             // vacía = todo) y el primer resultado listo para Enter.
             SelectedResult = results.FirstOrDefault();
+            OnPropertyChanged(nameof(ResultsCountText));
+            OnPropertyChanged(nameof(ResultsEmptyVisible));
+            OnPropertyChanged(nameof(ResultsTableVisible));
         }
         catch (OperationCanceledException)
         {
@@ -256,6 +375,7 @@ public sealed class TpvViewModel : INotifyPropertyChanged
 
         // §8.5: the table re-selects the line just added/accumulated.
         SyncLines(item.Source.ProductId);
+        ShowToast($"{item.Source.Name} agregado");
         return Task.CompletedTask;
     }
 
@@ -284,6 +404,7 @@ public sealed class TpvViewModel : INotifyPropertyChanged
 
         ErrorMessage = string.Empty;
         SyncLines(line.ProductId);
+        ShowToast("Cantidad actualizada");
         return Task.CompletedTask;
     }
 
@@ -295,10 +416,12 @@ public sealed class TpvViewModel : INotifyPropertyChanged
             return Task.CompletedTask;
         }
 
+        var name = selected.Line.Name;
         draft.RemoveLine(selected.Line.ProductId);
         SelectedLine = null;
         ErrorMessage = string.Empty;
         SyncLines();
+        ShowToast($"{name} eliminado");
         return Task.CompletedTask;
     }
 
@@ -322,6 +445,7 @@ public sealed class TpvViewModel : INotifyPropertyChanged
         draft.Clear();
         SelectedLine = null;
         SyncLines();
+        ShowToast("Venta limpiada");
         return Task.CompletedTask;
     }
 
@@ -367,7 +491,8 @@ public sealed class TpvViewModel : INotifyPropertyChanged
 
     private async Task RunCheckoutAsync(bool finalize)
     {
-        var result = navigation.ShowCheckout(draft.SubtotalCop, draft.DiscountCop);
+        var result = navigation.ShowCheckout(
+            draft.SubtotalCop, draft.DiscountCop, draft.Lines.Count, discountMode: !finalize);
         if (result is null || !result.Confirmed)
         {
             return;
@@ -385,30 +510,49 @@ public sealed class TpvViewModel : INotifyPropertyChanged
 
         if (!finalize)
         {
+            if (draft.DiscountCop > 0)
+            {
+                ShowToast($"Descuento del {DiscountPercentText}");
+            }
+
             return;
         }
 
-        var finalized = await finalizeSale.ExecuteAsync(
-            new FinalizeSaleRequest(
-                draft.Lines.ToList(),
-                result.DiscountCop,
-                result.PaymentMethod,
-                result.PaymentMethod == "CASH" ? result.ReceivedCop : (long?)null),
-            CancellationToken.None);
-
-        if (!finalized.IsSuccess)
+        // B2: from the confirmed cobro until the sale is fully settled the
+        // Cobrar button reads "Registrando la venta…" and stays disabled.
+        IsFinalizing = true;
+        try
         {
-            ErrorMessage = finalized.Error!.Message;
-            return;
-        }
+            var finalized = await finalizeSale.ExecuteAsync(
+                new FinalizeSaleRequest(
+                    draft.Lines.ToList(),
+                    result.DiscountCop,
+                    result.PaymentMethod,
+                    result.PaymentMethod == "CASH" ? result.ReceivedCop : (long?)null),
+                CancellationToken.None);
 
-        LastConfirmedCheckout = result;
-        LastSaleNumber = finalized.Value.SaleNumber;
-        draft.Clear();
-        SelectedLine = null;
-        SyncLines();
-        await OfferTicketPrintingAsync(finalized.Value.SaleNumber, result, finalized.Value.TotalCop);
-        await RefreshCashStateAsync();
+            if (!finalized.IsSuccess)
+            {
+                ErrorMessage = finalized.Error!.Message;
+                return;
+            }
+
+            LastConfirmedCheckout = result;
+            LastSaleNumber = finalized.Value.SaleNumber;
+            draft.Clear();
+            SelectedLine = null;
+            SyncLines();
+            await OfferTicketPrintingAsync(finalized.Value.SaleNumber, result, finalized.Value.TotalCop);
+            await RefreshCashStateAsync();
+
+            // B2: the floating pill reinforces the sale right after the
+            // confirmation dialog closes (M4).
+            ShowToast($"Venta {SaleNumberText(finalized.Value.SaleNumber)} guardada");
+        }
+        finally
+        {
+            IsFinalizing = false;
+        }
     }
 
     /// <summary>
@@ -419,7 +563,6 @@ public sealed class TpvViewModel : INotifyPropertyChanged
     /// </summary>
     private async Task OfferTicketPrintingAsync(long saleNumber, CheckoutResultDto checkout, long totalCop)
     {
-        var saleNumberText = $"V-{saleNumber:D6}";
         var wantsTicket = navigation.ShowSaleSaved(new SaleSavedSummary(
             saleNumber,
             totalCop,
@@ -428,31 +571,128 @@ public sealed class TpvViewModel : INotifyPropertyChanged
             checkout.PaymentMethod == "CASH" ? checkout.ChangeCop : null));
         if (!wantsTicket)
         {
+            ClearPrintFailure();
             return;
         }
 
+        await PrintTicketAsync(saleNumber);
+    }
+
+    /// <summary>
+    /// Shared print attempt (B2): success and picker-cancel clear the
+    /// banner; a build/print failure arms <see cref="RetryPrintCommand"/>
+    /// without ever touching the saved sale (RN-IMP-005).
+    /// </summary>
+    private async Task PrintTicketAsync(long saleNumber)
+    {
         var ticket = await getTicketForSale.ExecuteAsync(new GetTicketForSaleRequest(saleNumber), CancellationToken.None);
         if (!ticket.IsSuccess)
         {
-            ErrorMessage = PrintFailureText(saleNumberText);
+            SetPrintFailure(saleNumber);
             return;
         }
 
         var printerName = navigation.AskPrinter(ticket.Value.ConfiguredPrinterName);
         if (printerName is null)
         {
+            ClearPrintFailure();
             return;
         }
 
         if (ticketPrinter.Print(ticket.Value, printerName) is not null)
         {
-            ErrorMessage = PrintFailureText(saleNumberText);
+            SetPrintFailure(saleNumber);
+            return;
         }
+
+        ClearPrintFailure();
+        ShowToast("Ticket impreso");
     }
+
+    /// <summary>B2: arms the banner + retry for the given saved sale.</summary>
+    private void SetPrintFailure(long saleNumber)
+    {
+        pendingPrintSaleNumber = saleNumber;
+        ErrorMessage = PrintFailureText(SaleNumberText(saleNumber));
+        OnPropertyChanged(nameof(RetryPrintVisible));
+        RetryPrintCommand.RaiseCanExecuteChanged();
+    }
+
+    private void ClearPrintFailure()
+    {
+        pendingPrintSaleNumber = null;
+        ErrorMessage = string.Empty;
+        OnPropertyChanged(nameof(RetryPrintVisible));
+        RetryPrintCommand.RaiseCanExecuteChanged();
+    }
+
+    /// <summary>
+    /// B2: retries the print of the saved sale that failed (RN-IMP-005) —
+    /// the cobro itself is never re-executed.
+    /// </summary>
+    private Task RetryPrintAsync()
+    {
+        if (pendingPrintSaleNumber is not { } saleNumber)
+        {
+            return Task.CompletedTask;
+        }
+
+        return PrintTicketAsync(saleNumber);
+    }
+
+    private static string SaleNumberText(long saleNumber) => $"V-{saleNumber:D6}";
 
     /// <summary>P-UX §9.6: the print failure never blames the sale.</summary>
     private static string PrintFailureText(string saleNumberText) =>
         $"La venta {saleNumberText} quedó guardada, pero el ticket no pudo imprimirse.";
+
+    /// <summary>M6 quick remove of the applied discount without opening F6.</summary>
+    private void RemoveDiscount()
+    {
+        var result = draft.SetDiscount(0);
+        if (!result.IsSuccess)
+        {
+            ErrorMessage = result.Error!.Message;
+            return;
+        }
+
+        ErrorMessage = string.Empty;
+        SyncLines();
+        ShowToast("Descuento retirado");
+    }
+
+    /// <summary>
+    /// M4: shows the floating confirmation pill for <see cref="ToastDuration"/>
+    /// and hides it unless a newer toast replaced it meanwhile. Never takes
+    /// keyboard focus (the search keeps it for fast entry).
+    /// </summary>
+    private void ShowToast(string message)
+    {
+        ToastText = message;
+        ToastVisible = true;
+        toastCts?.Cancel();
+        toastCts?.Dispose();
+        var cts = new CancellationTokenSource();
+        toastCts = cts;
+        _ = HideToastAsync(cts);
+    }
+
+    private async Task HideToastAsync(CancellationTokenSource cts)
+    {
+        try
+        {
+            await Task.Delay(ToastDuration, cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (ReferenceEquals(toastCts, cts))
+        {
+            ToastVisible = false;
+        }
+    }
 
     private void SyncLines(long? selectProductId = null)
     {
@@ -474,6 +714,13 @@ public sealed class TpvViewModel : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SubtotalCop)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DiscountText)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TotalText)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LineCountText)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TicketEmptyVisible)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TicketTableVisible)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DiscountAppliedVisible)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DiscountPercentText)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DiscountDisplayText)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CanCharge)));
         ClearDraftCommand.RaiseCanExecuteChanged();
         OpenDiscountCommand.RaiseCanExecuteChanged();
         OpenCheckoutCommand.RaiseCanExecuteChanged();
@@ -504,6 +751,25 @@ public sealed record TpvSearchItemViewModel(
     string PriceText,
     string StockText)
 {
+    /// <summary>Initial of the product shown in the mint avatar cell (proto).</summary>
+    public string FirstLetter => Name.Length == 0 ? "?" : char.ToUpperInvariant(Name[0]).ToString();
+
+    /// <summary>
+    /// JHO-67: umbral fijo de stock bajo aprobado por el dueño — la DB no
+    /// trae columna de mínimo por producto (001_Initial.sql es inmutable):
+    /// 0 &lt; stock ≤ 5 KG/LB/UND ⇒ "bajo"; stock = 0 ⇒ "agotado".
+    /// </summary>
+    public const long LowStockThresholdMilli = 5_000;
+
+    public long StockMilli => Source.StockMilli;
+
+    public bool IsOutOfStock => StockMilli <= 0;
+
+    public bool IsLowStock => StockMilli > 0 && StockMilli <= LowStockThresholdMilli;
+
+    /// <summary>Text of the amber/red badge next to the stock, or empty when healthy.</summary>
+    public string StockStatusText => IsOutOfStock ? "agotado" : IsLowStock ? "bajo" : string.Empty;
+
     public static TpvSearchItemViewModel From(TpvSearchItemDto dto)
     {
         ArgumentNullException.ThrowIfNull(dto);
@@ -537,6 +803,12 @@ public sealed record TpvLineItemViewModel(int Number, DraftSaleLine Line)
         QtyFormat.Format(Line.QuantityMilli, Line.Unit) + " " + Domain.Products.ProductUnits.ToCode(Line.Unit);
 
     public string PriceText => MoneyText.FormatCop(Line.UnitPriceCop);
+
+    /// <summary>" /KG" or " /LB" after the unit price of weighed products (proto .per).</summary>
+    public string UnitPriceSuffix =>
+        Line.Unit is Domain.Products.ProductUnit.Kg or Domain.Products.ProductUnit.Lb
+            ? " /" + Domain.Products.ProductUnits.ToCode(Line.Unit)
+            : string.Empty;
 
     public string TotalText => MoneyText.FormatCop(Line.LineTotalCop);
 }

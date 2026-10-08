@@ -40,6 +40,19 @@
     <Color x:Key="TrialTextColor">#FCD34D</Color>
     <Color x:Key="OfflineTextColor">#FCD34D</Color>
 
+    <!--
+        JHO-67 · rediseño R2: contrapartes oscuras (bloque .dark del prototipo:
+        banner.warn border #4A3A12, .btn-cobrar:disabled #2A3648, toast de
+        superficie oscura #131C29, .pill.off = slate-100/text-sub oscuros).
+    -->
+    <Color x:Key="WarnBorderColor">#4A3A12</Color>
+    <Color x:Key="DisabledSurfaceColor">#2A3648</Color>
+    <Color x:Key="DisabledTextColor">#FFFFFF</Color>
+    <Color x:Key="ToastSurfaceColor">#131C29</Color>
+    <Color x:Key="ToastTextColor">#FFFFFF</Color>
+    <Color x:Key="PillNeutralColor">#1B2534</Color>
+    <Color x:Key="PillNeutralTextColor">#94A3B8</Color>
+
     <SolidColorBrush x:Key="AppBackground" Color="{StaticResource AppBackgroundColor}"/>
     <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}"/>
     <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource PrimaryColor}"/>
@@ -70,6 +83,13 @@
     <SolidColorBrush x:Key="SuccessSoftBrush" Color="{StaticResource SuccessSoftColor}"/>
     <SolidColorBrush x:Key="TrialBrush" Color="{StaticResource TrialColor}"/>
     <SolidColorBrush x:Key="TrialTextBrush" Color="{StaticResource TrialTextColor}"/>
+    <SolidColorBrush x:Key="WarnBorderBrush" Color="{StaticResource WarnBorderColor}"/>
+    <SolidColorBrush x:Key="DisabledSurfaceBrush" Color="{StaticResource DisabledSurfaceColor}"/>
+    <SolidColorBrush x:Key="DisabledTextBrush" Color="{StaticResource DisabledTextColor}"/>
+    <SolidColorBrush x:Key="ToastSurfaceBrush" Color="{StaticResource ToastSurfaceColor}"/>
+    <SolidColorBrush x:Key="ToastTextBrush" Color="{StaticResource ToastTextColor}"/>
+    <SolidColorBrush x:Key="PillNeutralBrush" Color="{StaticResource PillNeutralColor}"/>
+    <SolidColorBrush x:Key="PillNeutralTextBrush" Color="{StaticResource PillNeutralTextColor}"/>
 
     <LinearGradientBrush x:Key="BrandGradient" StartPoint="0,0" EndPoint="0,1">
         <GradientStop Color="#2DD4BF" Offset="0"/>

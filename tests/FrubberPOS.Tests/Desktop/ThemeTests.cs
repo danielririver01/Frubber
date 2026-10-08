@@ -130,6 +130,39 @@ public sealed class ThemeTests
     }
 
     [Fact]
+    public void RedesignR2Tokens_ExistentEnClaroYOscuro()
+    {
+        // JHO-67 · B1: tokens del rediseño Venta/TPV + cobro, con paridad
+        // claro/oscuro (los diccionarios deben declarar las mismas llaves).
+        var light = File.ReadAllText(ThemePath);
+        var darkPath = Path.Combine(
+            AppContext.BaseDirectory, "..", "..", "..", "..", "..",
+            "src", "FrubberPOS.Desktop", "Themes", "FrubberTheme.Dark.xaml");
+        var dark = File.ReadAllText(darkPath);
+
+        Assert.Contains("<Color x:Key=\"WarnBorderColor\">#FDE68A</Color>", light, StringComparison.Ordinal);
+        Assert.Contains("<Color x:Key=\"DisabledSurfaceColor\">#CBD5E1</Color>", light, StringComparison.Ordinal);
+        Assert.Contains("<Color x:Key=\"ToastSurfaceColor\">#0F172A</Color>", light, StringComparison.Ordinal);
+        Assert.Contains("<Color x:Key=\"PillNeutralColor\">#F1F5F9</Color>", light, StringComparison.Ordinal);
+        Assert.Contains("<Color x:Key=\"OnBrandColor\">#FFFFFF</Color>", light, StringComparison.Ordinal);
+
+        foreach (var key in new[]
+                 {
+                     "WarnBorderBrush", "DisabledSurfaceBrush", "DisabledTextBrush",
+                     "ToastSurfaceBrush", "ToastTextBrush", "PillNeutralBrush",
+                     "PillNeutralTextBrush", "OnBrandBrush",
+                 })
+        {
+            Assert.Contains($"x:Key=\"{key}\"", light, StringComparison.Ordinal);
+            Assert.Contains($"x:Key=\"{key}\"", dark, StringComparison.Ordinal);
+        }
+
+        // El deshabilitado de la acción principal es sólido, sin atenuar.
+        Assert.Contains("x:Key=\"BigPrimaryButton\"", light, StringComparison.Ordinal);
+        Assert.Contains("DisabledSurfaceBrush", light, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void DarkTheme_EstaPreparadoPeroNoSeFusiona_Todavia()
     {
         var darkPath = Path.Combine(

@@ -6,11 +6,7 @@
         Title="Frubber POS" Height="600" Width="900" MinWidth="880" MinHeight="480"
         WindowState="Maximized" WindowStartupLocation="CenterScreen"
         SizeChanged="OnSizeChanged"
-        PreviewMouseLeftButtonDown="OnUserActivity"
-        PreviewMouseMove="OnUserActivity"
-        PreviewMouseWheel="OnUserActivity"
-        PreviewKeyDown="OnKeyDown"
-        Loaded="OnLoaded">
+        PreviewKeyDown="OnKeyDown">
     <!--
         Shell JHO-69 = frubber-pos.html (prototipo integrado del dueño,
         2026-10-02): sidebar 220 con marca + menú de letras-chip y badge de
@@ -119,6 +115,17 @@
                     AutomationProperties.Name="Encabezado de página">
         <DockPanel>
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- JHO-67 (pos-2): caja cerrada = pastilla gris neutra. -->
+                        <Border Margin="8,0,0,0" CornerRadius="999" Height="30" Padding="12,0"
+                                Background="{DynamicResource PillNeutralBrush}"
+                                Visibility="{Binding CashClosedPillVisible, Converter={StaticResource BoolToVis}}"
+                                AutomationProperties.Name="Estado de caja cerrada">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Ellipse Width="6" Height="6" Fill="{DynamicResource PillNeutralTextBrush}"/>
+                                <TextBlock Text="Caja cerrada" Foreground="{DynamicResource PillNeutralTextBrush}"
+                                           FontSize="12" FontWeight="SemiBold" Margin="7,0,0,0"/>
+                            </StackPanel>
+                        </Border>
                         <Border Margin="8,0,0,0" CornerRadius="999" Height="30" Padding="12,0"
                                 Background="{DynamicResource MintBrush}"
                                 Visibility="{Binding CashPillVisible, Converter={StaticResource BoolToVis}}"
@@ -209,22 +216,11 @@
         </DockPanel>
     </DockPanel>
 
-        <!-- Aviso de inactividad (mejora 3): píldora ámbar 30 s antes del lock -->
-        <Border Background="{DynamicResource TrialBrush}" CornerRadius="999" Padding="14,8"
-                HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,24,24"
-                Visibility="{Binding IdleWarningVisible, Converter={StaticResource BoolToVis}}"
-                AutomationProperties.Name="Aviso de bloqueo por inactividad">
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <Ellipse Width="7" Height="7" Fill="{DynamicResource TrialTextBrush}"/>
-                <TextBlock Text="{Binding IdleWarningText}" FontSize="12" FontWeight="SemiBold"
-                           Foreground="{DynamicResource TrialTextBrush}" Margin="7,0,0,0"/>
-            </StackPanel>
-        </Border>
-
         <!--
             Capa de bloqueo (JHO-64): overlay opaco nativo DENTRO del shell —
             la ventana nunca se cierra ni se sustituye. El shell queda intacto
             debajo y el LoginCardView (modo lock) pide el PIN para reanudar.
+            Se activa solo con el botón "Cerrar sesión" (dueño: sin auto-lock).
         -->
         <Grid x:Name="LockLayer" Visibility="Collapsed">
             <Border Background="{DynamicResource LoginBackdrop}"/>

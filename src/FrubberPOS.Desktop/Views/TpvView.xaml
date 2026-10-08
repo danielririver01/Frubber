@@ -3,195 +3,617 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <!-- Entrada de texto sin borde propio: la caseta vecina pinta el foco. -->
+        <Style x:Key="SearchInput" TargetType="TextBox">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="MinHeight" Value="46"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"
+                                      VerticalAlignment="Center"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Placeholder del buscador (proto: escribe el nombre o código…). -->
+        <Style x:Key="SearchPlaceholder" TargetType="TextBlock">
+            <Setter Property="Visibility" Value="Collapsed"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="IsHitTestVisible" Value="False"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding SearchText}" Value="">
+                    <Setter Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Caseta del buscador: borde suave que se enciende en teal con anillo. -->
+        <Style x:Key="SearchShell" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="14,0"/>
+            <Setter Property="MinHeight" Value="48"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsKeyboardFocusWithin, ElementName=SearchBox}" Value="True">
+                    <Setter Property="BorderBrush" Value="{DynamicResource FocusBrush}"/>
+                    <Setter Property="Effect">
+                        <Setter.Value>
+                            <DropShadowEffect Color="{DynamicResource AccentColor}" Opacity="0.35"
+                                              BlurRadius="16" ShadowDepth="0"/>
+                        </Setter.Value>
+                    </Setter>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Enlace del banner ámbar: abre la caja desde el propio aviso (M5). -->
+        <Style x:Key="BannerLink" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{DynamicResource WarningBrush}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusVisual}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Opacity" Value="0.78"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Botón plano de la banda (proto .btn): sin borde, hover menta. -->
+        <Style x:Key="PlainButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+
+        <!-- Proto .btn-teal-outline: pastilla menta con borde teal y texto teal. -->
+        <Style x:Key="TealOutlineButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+            <Setter Property="Background" Value="{DynamicResource MintBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource MintBorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource MintBorderBrush}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource PrimaryActiveBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Chip pequeño que retira el descuento aplicado con un clic (M6). -->
+        <Style x:Key="DiscountChip" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Padding" Value="9,3"/>
+            <Setter Property="Background" Value="{DynamicResource MintBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource MintBorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="8,0,0,0"/>
+            <Setter Property="AutomationProperties.Name" Value="Quitar descuento"/>
+        </Style>
+
+        <!-- Fila del TPV: hover menta suave; al seleccionar, menta pálida + barra teal. -->
+        <Style x:Key="TpvGridRow" TargetType="DataGridRow">
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource MintHoverBrush}"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource MintRowBrush}"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                    <Setter Property="BorderThickness" Value="3,0,0,0"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="TpvGridCell" TargetType="DataGridCell">
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource MintRowBrush}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Estado vacío de resultados (proto .empty): lupa trazo suave + textos. -->
+        <Style x:Key="EmptyCaption" TargetType="TextBlock">
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+        </Style>
+
+        <Style x:Key="EmptyHint" TargetType="TextBlock">
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}"/>
+            <Setter Property="Margin" Value="0,4,0,0"/>
+        </Style>
     </UserControl.Resources>
-    <DockPanel>
-        <!-- Buscador: 42px, lupa a la izquierda, chip F2 a la derecha (DESIGN.md §1) -->
-        <Border DockPanel.Dock="Top" Style="{DynamicResource Card}" Padding="4" Margin="0,0,0,10">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="2*"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- ZONA 3 · BUSCADOR: lupa, placeholder y chip F2 (DESIGN.md §1). -->
+        <Border Grid.Row="0" Style="{StaticResource SearchShell}" Margin="0,0,0,10">
             <DockPanel>
                 <TextBlock DockPanel.Dock="Left" Text="⌕" FontSize="16"
                            Foreground="{DynamicResource MutedTextBrush}"
-                           VerticalAlignment="Center" Margin="8,0,0,0"/>
-                <Border DockPanel.Dock="Right" Style="{DynamicResource ShortcutChip}" Margin="4">
+                           VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <Border DockPanel.Dock="Right" Style="{DynamicResource ShortcutChip}" Margin="10,0,0,0">
                     <TextBlock Text="F2" Style="{DynamicResource ShortcutText}"/>
                 </Border>
-                <TextBox x:Name="SearchBox" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                         BorderThickness="0" MinHeight="42"
-                         AutomationProperties.Name="Buscar producto"
-                         ToolTip="Buscar por PLU o nombre (F2)"/>
+                <Grid>
+                    <TextBox x:Name="SearchBox" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource SearchInput}"
+                             AutomationProperties.Name="Buscar producto"
+                             ToolTip="Buscar por PLU o nombre (F2)"/>
+                    <TextBlock Text="Escribe el nombre o código del producto..."
+                               Style="{StaticResource SearchPlaceholder}"/>
+                </Grid>
             </DockPanel>
         </Border>
 
-        <!-- Aviso persistente sin caja (P-UX-010, JHO-44): solo bloquea cobrar -->
-        <Border DockPanel.Dock="Top" Background="{DynamicResource WarnSoftBrush}"
-                BorderBrush="#FDE68A" BorderThickness="1"
-                CornerRadius="6" Padding="12,8" Margin="0,0,0,10"
-                Visibility="{Binding CashWarningVisible, Converter={StaticResource BoolToVis}}"
-                AutomationProperties.Name="Aviso de caja cerrada">
-            <TextBlock Text="{Binding CashWarningText}" Foreground="{DynamicResource WarningBrush}"
-                       FontWeight="SemiBold" TextWrapping="Wrap"/>
-        </Border>
-
-        <Grid>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="2*"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-
-            <!-- RESULTADOS -->
-            <Border Grid.Row="0" Style="{DynamicResource Card}" Padding="0,10,0,8" Margin="0,0,0,10">
+        <!-- Avisos: banner de error con reintento de impresión (B2) sobre el
+             aviso persistente sin caja (P-UX-010, JHO-44) + enlace (M5). -->
+        <StackPanel Grid.Row="1">
+            <Border Background="{DynamicResource ErrorSoftBrush}"
+                    BorderBrush="{DynamicResource ErrorBorderBrush}" BorderThickness="1"
+                    CornerRadius="6" Padding="12,7" Margin="0,0,0,10"
+                    Visibility="{Binding HasErrorMessage, Converter={StaticResource BoolToVis}}"
+                    AutomationProperties.Name="Aviso de error">
                 <DockPanel>
-                    <TextBlock DockPanel.Dock="Top" Text="RESULTADOS" Style="{DynamicResource ColumnCaption}"
-                               Margin="16,0,16,6"/>
-                    <DataGrid ItemsSource="{Binding Results}" SelectedItem="{Binding SelectedResult}"
-                              AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
-                              HeadersVisibility="Column" CanUserAddRows="False"
-                              AutomationProperties.Name="Resultados de búsqueda">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="PLU" Binding="{Binding Plu}" Width="90"/>
-                            <DataGridTextColumn Header="PRODUCTO" Binding="{Binding Name}" Width="*"/>
-                            <DataGridTextColumn Header="UNIDAD" Binding="{Binding UnitCode}" Width="90"/>
-                            <DataGridTextColumn Header="PRECIO" Binding="{Binding PriceText}" Width="110">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="HorizontalAlignment" Value="Right"/>
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Header="EXISTENCIA" Binding="{Binding StockText}" Width="120">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="HorizontalAlignment" Value="Right"/>
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                        </DataGrid.Columns>
-                    </DataGrid>
+                    <Button DockPanel.Dock="Right" Command="{Binding RetryPrintCommand}"
+                            Style="{StaticResource BannerLink}"
+                            Visibility="{Binding RetryPrintVisible, Converter={StaticResource BoolToVis}}"
+                            AutomationProperties.Name="Reintentar impresión">
+                        <TextBlock Text="Reintentar impresión →"/>
+                    </Button>
+                    <TextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource ErrorBrush}"
+                               FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center"
+                               Margin="0,0,8,0"/>
                 </DockPanel>
             </Border>
-
-            <!-- Venta en preparación -->
-            <Border Grid.Row="1" Style="{DynamicResource Card}" Padding="0,10,0,0">
+            <Border Background="{DynamicResource WarnSoftBrush}"
+                    BorderBrush="{DynamicResource WarnBorderBrush}" BorderThickness="1"
+                    CornerRadius="6" Padding="12,7" Margin="0,0,0,10"
+                    Visibility="{Binding CashWarningVisible, Converter={StaticResource BoolToVis}}"
+                    AutomationProperties.Name="Aviso de caja cerrada">
                 <DockPanel>
-                    <TextBlock DockPanel.Dock="Top" Text="VENTA EN PREPARACIÓN" Style="{DynamicResource ColumnCaption}"
-                               Margin="16,0,16,6"/>
+                    <Button DockPanel.Dock="Right" Command="{Binding OpenCashCommand}"
+                            Style="{StaticResource BannerLink}"
+                            AutomationProperties.Name="Abrir nueva caja">
+                        <TextBlock Text="Abrir nueva caja →"/>
+                    </Button>
+                    <TextBlock Text="{Binding CashWarningText}" Foreground="{DynamicResource WarningBrush}"
+                               FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center"
+                               Margin="0,0,8,0"/>
+                </DockPanel>
+            </Border>
+        </StackPanel>
 
-                    <!-- Banda inferior: acciones outline con chips + totales + Cobrar (DESIGN.md TPV) -->
-                    <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0"
-                            Padding="16,10">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
+        <!-- ZONA 4 · RESULTADOS: contador, tabla menta o estado vacío. -->
+        <Border Grid.Row="2" Style="{DynamicResource Card}" Padding="0,12,0,8" Margin="0,0,0,12">
+            <DockPanel>
+                <Grid DockPanel.Dock="Top" Margin="16,0,16,8">
+                    <TextBlock Text="RESULTADOS" Style="{DynamicResource ColumnCaption}"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding ResultsCountText}" HorizontalAlignment="Right"
+                               VerticalAlignment="Center" FontSize="12"
+                               Foreground="{DynamicResource MutedTextBrush}"/>
+                </Grid>
+                <Grid>
+                    <DataGrid x:Name="ResultsGrid" ItemsSource="{Binding Results}" SelectedItem="{Binding SelectedResult}"
+                              AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
+                              HeadersVisibility="Column" CanUserAddRows="False" Margin="8,0,8,4"
+                              RowStyle="{StaticResource TpvGridRow}" CellStyle="{StaticResource TpvGridCell}"
+                              Visibility="{Binding ResultsTableVisible, Converter={StaticResource BoolToVis}}"
+                              AutomationProperties.Name="Resultados de búsqueda">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="PLU" Binding="{Binding Plu}" Width="80">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTemplateColumn Header="PRODUCTO" Width="420">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <DockPanel>
+                                            <Border DockPanel.Dock="Left" Width="28" Height="28" CornerRadius="8"
+                                                    Background="{DynamicResource MintBrush}" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding FirstLetter}" HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center" FontSize="13"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource PrimaryBrush}"/>
+                                            </Border>
+                                            <TextBlock DockPanel.Dock="Right" Text="›" FontSize="15" Margin="10,0,0,0"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource MutedTextBrush}">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Value="True" Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Value="True" Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=DataGridRow}}">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center" Margin="10,0,0,0"
+                                                       FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Width="140">
+                                <DataGridTemplateColumn.Header>
+                                    <TextBlock Text="UNIDAD" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                </DataGridTemplateColumn.Header>
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{DynamicResource SubtleBrush}" CornerRadius="6"
+                                                Padding="9,3" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding UnitCode}" FontSize="12"
+                                                       Foreground="{DynamicResource SecondaryTextBrush}"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Binding="{Binding PriceText}" Width="150">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="PRECIO" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                </DataGridTextColumn.Header>
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTemplateColumn Width="200">
+                                <DataGridTemplateColumn.Header>
+                                    <TextBlock Text="EXISTENCIA" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                </DataGridTemplateColumn.Header>
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <!-- JHO-67: umbral fijo del dueño (≤5 = "bajo";0 = "agotado"). -->
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
+                                                    VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding StockText}" VerticalAlignment="Center"/>
+                                            <Border Margin="6,0,0,0" Padding="4,1" CornerRadius="4"
+                                                    Background="{DynamicResource WarnSoftBrush}"
+                                                    BorderBrush="{DynamicResource WarnBorderBrush}" BorderThickness="1"
+                                                    Visibility="{Binding IsLowStock, Converter={StaticResource BoolToVis}}"
+                                                    AutomationProperties.Name="Existencia baja">
+                                                <TextBlock Text="bajo" FontSize="11"
+                                                           Foreground="{DynamicResource TrialTextBrush}"/>
+                                            </Border>
+                                            <Border Margin="6,0,0,0" Padding="4,1" CornerRadius="4"
+                                                    Background="{DynamicResource ErrorSoftBrush}"
+                                                    BorderBrush="{DynamicResource ErrorBorderBrush}" BorderThickness="1"
+                                                    Visibility="{Binding IsOutOfStock, Converter={StaticResource BoolToVis}}"
+                                                    AutomationProperties.Name="Producto agotado">
+                                                <TextBlock Text="agotado" FontSize="11"
+                                                           Foreground="{DynamicResource ErrorBrush}"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
 
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <Button Command="{Binding ClearDraftCommand}" Style="{DynamicResource SecondaryButton}"
-                                        MinHeight="40" ToolTip="Descartar la venta (P-UX-013)"
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="16,24,16,32"
+                                Visibility="{Binding ResultsEmptyVisible, Converter={StaticResource BoolToVis}}">
+                        <Viewbox Width="44" Height="44" HorizontalAlignment="Center">
+                            <Canvas Width="24" Height="24">
+                                <Ellipse Width="14" Height="14" Canvas.Left="4" Canvas.Top="4"
+                                         Stroke="{DynamicResource BorderHoverBrush}" StrokeThickness="1.6"/>
+                                <Line X1="20" Y1="20" X2="16.6" Y2="16.6"
+                                      Stroke="{DynamicResource BorderHoverBrush}" StrokeThickness="1.6"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                            </Canvas>
+                        </Viewbox>
+                        <TextBlock Text="Busca un producto para empezar" Style="{StaticResource EmptyCaption}"
+                                   Margin="0,12,0,0"/>
+                        <TextBlock Text="Usa el nombre, el PLU o escanea el código de barras"
+                                   Style="{StaticResource EmptyHint}"/>
+                    </StackPanel>
+                </Grid>
+            </DockPanel>
+        </Border>
+
+        <!-- ZONA 5 · TICKET: contador, líneas menta con barra o estado vacío. -->
+        <Border Grid.Row="3" Style="{StaticResource Card}" Padding="0,12,0,10">
+            <DockPanel>
+                <!-- Banda inferior: acciones con chips + atajos + totales + Cobrar (M1, M7, §8.6). -->
+                <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="0,1,0,0" Padding="16,10">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,24,0">
+                            <StackPanel Orientation="Horizontal">
+                                <Button Command="{Binding ClearDraftCommand}" Style="{StaticResource SecondaryButton}"
+                                        ToolTip="Descartar la venta (P-UX-013)"
                                         AutomationProperties.Name="Limpiar venta">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="Limpiar"/>
-                                    </StackPanel>
+                                    <TextBlock Text="Limpiar" VerticalAlignment="Center"/>
                                 </Button>
-                                <Button Command="{Binding EditQuantityCommand}" Style="{DynamicResource SecondaryButton}"
-                                        MinHeight="40" Margin="8,0" AutomationProperties.Name="Editar cantidad">
+                                <Button Command="{Binding EditQuantityCommand}" Style="{StaticResource PlainButton}"
+                                        Margin="8,0,0,0" AutomationProperties.Name="Editar cantidad">
                                     <DockPanel>
-                                        <Border DockPanel.Dock="Right" Style="{DynamicResource ShortcutChip}" Margin="6,0,0,0">
-                                            <TextBlock Text="F4" Style="{DynamicResource ShortcutText}"/>
+                                        <Border DockPanel.Dock="Right" Style="{StaticResource ShortcutChip}" Margin="6,0,0,0">
+                                            <TextBlock Text="F4" Style="{StaticResource ShortcutText}"/>
                                         </Border>
                                         <TextBlock Text="Cantidad" VerticalAlignment="Center"/>
                                     </DockPanel>
                                 </Button>
-                                <Button Command="{Binding RemoveLineCommand}" Style="{DynamicResource SecondaryButton}"
-                                        MinHeight="40" AutomationProperties.Name="Quitar línea">
+                                <Button Command="{Binding RemoveLineCommand}" Style="{StaticResource PlainButton}"
+                                        Margin="8,0,0,0" AutomationProperties.Name="Quitar línea">
                                     <DockPanel>
-                                        <Border DockPanel.Dock="Right" Style="{DynamicResource ShortcutChip}" Margin="6,0,0,0">
-                                            <TextBlock Text="SUPR" Style="{DynamicResource ShortcutText}"/>
+                                        <Border DockPanel.Dock="Right" Style="{StaticResource ShortcutChip}" Margin="6,0,0,0">
+                                            <TextBlock Text="SUPR" Style="{StaticResource ShortcutText}"/>
                                         </Border>
                                         <TextBlock Text="Quitar" VerticalAlignment="Center"/>
                                     </DockPanel>
                                 </Button>
-                                <Button Command="{Binding OpenDiscountCommand}" Style="{DynamicResource SecondaryButton}"
-                                        MinHeight="40" Margin="8,0,0,0" AutomationProperties.Name="Descuento de la venta">
+                                <Button Command="{Binding OpenDiscountCommand}" Style="{StaticResource PlainButton}"
+                                        Margin="8,0,0,0" AutomationProperties.Name="Descuento de la venta">
                                     <DockPanel>
-                                        <Border DockPanel.Dock="Right" Style="{DynamicResource ShortcutChip}" Margin="6,0,0,0">
-                                            <TextBlock Text="F6" Style="{DynamicResource ShortcutText}"/>
+                                        <Border DockPanel.Dock="Right" Style="{StaticResource ShortcutChip}" Margin="6,0,0,0">
+                                            <TextBlock Text="F6" Style="{StaticResource ShortcutText}"/>
                                         </Border>
                                         <TextBlock Text="Descuento" VerticalAlignment="Center"/>
                                     </DockPanel>
                                 </Button>
-                                <Button Command="{Binding AddSelectedCommand}" Style="{DynamicResource SecondaryButton}"
-                                        MinHeight="40" Margin="8,0,0,0" AutomationProperties.Name="Agregar producto">
+                                <Button Command="{Binding AddSelectedCommand}" Style="{StaticResource TealOutlineButton}"
+                                        Margin="8,0,0,0" AutomationProperties.Name="Agregar producto">
                                     <DockPanel>
-                                        <Border DockPanel.Dock="Right" Style="{DynamicResource ShortcutChip}" Margin="6,0,0,0">
-                                            <TextBlock Text="ENTER" Style="{DynamicResource ShortcutText}"/>
+                                        <Border DockPanel.Dock="Right" Style="{StaticResource ShortcutChip}" Margin="6,0,0,0"
+                                                Background="Transparent" BorderBrush="{DynamicResource MintBorderBrush}">
+                                            <TextBlock Text="ENTER" Style="{StaticResource ShortcutText}"
+                                                       Foreground="{DynamicResource PrimaryBrush}"/>
                                         </Border>
                                         <TextBlock Text="Agregar" VerticalAlignment="Center"/>
                                     </DockPanel>
                                 </Button>
                             </StackPanel>
+                            <TextBlock Margin="0,8,0,0" FontSize="11.5" FontWeight="Medium"
+                                       Foreground="{DynamicResource MutedTextBrush}"
+                                       Text="Atajos: F2 buscar · ↑↓ seleccionar · ENTER agregar · F4 cantidad · SUPR quitar · F6 descuento · F8 cobrar"/>
+                        </StackPanel>
 
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                <StackPanel Margin="0,0,16,0" VerticalAlignment="Center">
-                                    <DockPanel MinWidth="190">
-                                        <TextBlock Text="Subtotal" Style="{DynamicResource PageSubtitle}" FontSize="12"/>
-                                        <TextBlock Text="{Binding SubtotalText}" Style="{DynamicResource NumericText}"
-                                                   HorizontalAlignment="Right"/>
-                                    </DockPanel>
-                                    <DockPanel MinWidth="190">
-                                        <TextBlock Text="Descuento" Style="{DynamicResource PageSubtitle}" FontSize="12"/>
-                                        <TextBlock Text="{Binding DiscountText}" Style="{DynamicResource NumericText}"
-                                                   HorizontalAlignment="Right"/>
-                                    </DockPanel>
-                                    <DockPanel MinWidth="190">
-                                        <TextBlock Text="TOTAL" Style="{DynamicResource PageSubtitle}" FontWeight="Bold" FontSize="12"/>
-                                        <TextBlock Text="{Binding TotalText}" Style="{DynamicResource NumericText}"
-                                                   FontSize="28" FontWeight="Bold" HorizontalAlignment="Right"
-                                                   AutomationProperties.Name="Total de la venta"/>
-                                    </DockPanel>
-                                </StackPanel>
-                                <Button Command="{Binding OpenCheckoutCommand}"
-                                        Style="{DynamicResource BigPrimaryButton}" MinWidth="150"
-                                        AutomationProperties.Name="Cobrar venta">
-                                    <DockPanel>
-                                        <Border DockPanel.Dock="Right" Style="{DynamicResource ShortcutChip}"
-                                                Background="{DynamicResource PrimaryActiveBrush}" BorderThickness="0" Margin="8,0,0,0">
-                                            <TextBlock Text="F8" Style="{DynamicResource ShortcutText}" Foreground="White"/>
-                                        </Border>
-                                        <TextBlock Text="Cobrar" VerticalAlignment="Center"/>
-                                    </DockPanel>
-                                </Button>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <StackPanel Margin="0,0,16,0" VerticalAlignment="Center">
+                                <DockPanel MinWidth="190">
+                                    <TextBlock Text="Subtotal" Style="{StaticResource PageSubtitle}" FontSize="12"/>
+                                    <TextBlock Text="{Binding SubtotalText}" Style="{StaticResource NumericText}"
+                                               HorizontalAlignment="Right"/>
+                                </DockPanel>
+                                <DockPanel MinWidth="190">
+                                    <Button DockPanel.Dock="Right" Command="{Binding RemoveDiscountCommand}"
+                                            Style="{StaticResource DiscountChip}"
+                                            Visibility="{Binding DiscountAppliedVisible, Converter={StaticResource BoolToVis}}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding DiscountPercentText}" VerticalAlignment="Center"/>
+                                            <TextBlock Text="×" Margin="4,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding DiscountDisplayText}"
+                                               Style="{StaticResource NumericText}"
+                                               Foreground="{DynamicResource SuccessBrush}"
+                                               Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Descuento" Style="{StaticResource PageSubtitle}" FontSize="12"
+                                               VerticalAlignment="Center"/>
+                                </DockPanel>
+                                <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,6,0,6"/>
+                                <DockPanel MinWidth="190">
+                                    <TextBlock Text="Total" Style="{StaticResource PageSubtitle}" FontWeight="Bold" FontSize="12"/>
+                                    <TextBlock Text="{Binding TotalText}" Style="{StaticResource NumericText}"
+                                               FontSize="28" FontWeight="Bold" HorizontalAlignment="Right"
+                                               AutomationProperties.Name="Total de la venta"/>
+                                </DockPanel>
                             </StackPanel>
-                        </Grid>
-                    </Border>
+                            <Button Command="{Binding OpenCheckoutCommand}"
+                                    Style="{StaticResource BigPrimaryButton}" MinWidth="170"
+                                    AutomationProperties.Name="Cobrar venta">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding ChargeText}" VerticalAlignment="Center"/>
+                                    <Border Style="{StaticResource ShortcutChip}" Margin="10,0,0,0"
+                                            Background="{DynamicResource PrimaryActiveBrush}" BorderThickness="0">
+                                        <TextBlock Text="F8" Style="{StaticResource ShortcutText}"
+                                                   Foreground="{DynamicResource OnBrandBrush}"/>
+                                    </Border>
+                                    <Border Width="1" Margin="10,4" Opacity="0.4"
+                                            Background="{DynamicResource OnBrandBrush}"/>
+                                    <TextBlock Text="{Binding TotalText}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
 
-                    <!-- §8.6: número, producto, cantidad con unidad, precio, importe -->
-                    <DataGrid ItemsSource="{Binding Lines}" SelectedItem="{Binding SelectedLine}"
+                <Grid DockPanel.Dock="Top" Margin="16,0,16,8">
+                    <TextBlock Text="VENTA EN PREPARACIÓN" Style="{DynamicResource ColumnCaption}"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding LineCountText}" HorizontalAlignment="Right"
+                               VerticalAlignment="Center" FontSize="12"
+                               Foreground="{DynamicResource MutedTextBrush}"/>
+                </Grid>
+                <Grid>
+                    <!-- §8.6: número, producto, cantidad, precio con sufijo /KG, importe. -->
+                    <DataGrid x:Name="TicketGrid" ItemsSource="{Binding Lines}" SelectedItem="{Binding SelectedLine}"
                               AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
-                              HeadersVisibility="Column" CanUserAddRows="False"
-                              Margin="8,0,8,6"
+                              HeadersVisibility="Column" CanUserAddRows="False" Margin="8,0,8,4"
+                              RowStyle="{StaticResource TpvGridRow}" CellStyle="{StaticResource TpvGridCell}"
+                              Visibility="{Binding TicketTableVisible, Converter={StaticResource BoolToVis}}"
                               AutomationProperties.Name="Líneas de la venta">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="#" Binding="{Binding Number}" Width="48"/>
-                            <DataGridTextColumn Header="PRODUCTO" Binding="{Binding Name}" Width="*"/>
-                            <DataGridTextColumn Header="CANTIDAD" Binding="{Binding QuantityText}" Width="130"/>
-                            <DataGridTextColumn Header="PRECIO" Binding="{Binding PriceText}" Width="110">
+                            <DataGridTextColumn Header="#" Binding="{Binding Number}" Width="56">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
-                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="IMPORTE" Binding="{Binding TotalText}" Width="120">
+                            <DataGridTextColumn Header="PRODUCTO" Binding="{Binding Name}" Width="420">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
-                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding QuantityText}" Width="130">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="CANTIDAD" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                </DataGridTextColumn.Header>
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTemplateColumn Width="140">
+                                <DataGridTemplateColumn.Header>
+                                    <TextBlock Text="PRECIO" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                </DataGridTemplateColumn.Header>
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
+                                                    VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding PriceText}" FontWeight="SemiBold"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding UnitPriceSuffix}" FontSize="11"
+                                                       Foreground="{DynamicResource MutedTextBrush}"
+                                                       VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Binding="{Binding TotalText}" Width="150">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="IMPORTE" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                </DataGridTextColumn.Header>
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <!-- M7/B3: editar y quitar por línea, objetivo mínimo 36px, select-then-execute. -->
+                            <DataGridTemplateColumn Width="96">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Button Width="36" Height="36" Padding="0"
+                                                    Style="{StaticResource PlainButton}"
+                                                    CommandParameter="{Binding}" Click="OnEditLineClick"
+                                                    ToolTip="Editar cantidad (F4)"
+                                                    AutomationProperties.Name="Editar cantidad">
+                                                <Path Width="16" Height="16" Stretch="Uniform" StrokeThickness="2"
+                                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                                      StrokeLineJoin="Round" Stroke="{DynamicResource SecondaryTextBrush}"
+                                                      Data="M12,20 L21,20 M16.5,3.5 A2.1,2.1 0 0,1 19.5,6.5 L7,19 L3,20 L4,16 Z"/>
+                                            </Button>
+                                            <Button Width="36" Height="36" Padding="0"
+                                                    Style="{StaticResource PlainButton}"
+                                                    CommandParameter="{Binding}" Click="OnRemoveLineClick"
+                                                    ToolTip="Quitar (SUPR)"
+                                                    AutomationProperties.Name="Quitar línea">
+                                                <Path Width="16" Height="16" Stretch="Uniform" StrokeThickness="2"
+                                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                                      StrokeLineJoin="Round" Stroke="{DynamicResource SecondaryTextBrush}"
+                                                      Data="M3,6 L21,6 M8,6 L8,4 L16,4 L16,6 M6,6 L7,20 L17,20 L18,6"/>
+                                            </Button>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
-                </DockPanel>
-            </Border>
-        </Grid>
-    </DockPanel>
+
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="16,20,16,28"
+                                Visibility="{Binding TicketEmptyVisible, Converter={StaticResource BoolToVis}}">
+                        <Viewbox Width="44" Height="44" HorizontalAlignment="Center">
+                            <Canvas Width="24" Height="24">
+                                <Path Data="M2,3 L4.2,3 L6.8,15.2 A2,2 0 0 0 8.8,16.8 L17.7,16.8 A2,2 0 0 0 19.7,15.25 L21,7 L5,7"
+                                      Stroke="{DynamicResource BorderHoverBrush}" StrokeThickness="1.6"
+                                      StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                                <Ellipse Width="2.8" Height="2.8" Canvas.Left="7.6" Canvas.Top="18.6"
+                                         Stroke="{DynamicResource BorderHoverBrush}" StrokeThickness="1.6"/>
+                                <Ellipse Width="2.8" Height="2.8" Canvas.Left="16.6" Canvas.Top="18.6"
+                                         Stroke="{DynamicResource BorderHoverBrush}" StrokeThickness="1.6"/>
+                            </Canvas>
+                        </Viewbox>
+                        <TextBlock Text="Tu ticket está vacío" Style="{StaticResource EmptyCaption}"
+                                   Margin="0,12,0,0"/>
+                        <TextBlock Text="Selecciona productos arriba para comenzar la venta"
+                                   Style="{StaticResource EmptyHint}"/>
+                    </StackPanel>
+                </Grid>
+            </DockPanel>
+        </Border>
+
+        <!-- Toast flotante (M4): pastilla oscura centrada sobre la banda, sin foco. -->
+        <Border Grid.Row="0" Grid.RowSpan="4" HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                Margin="0,0,0,16" Panel.ZIndex="50" IsHitTestVisible="False"
+                Background="{DynamicResource ToastSurfaceBrush}" CornerRadius="999" Padding="16,10"
+                Visibility="{Binding ToastVisible, Converter={StaticResource BoolToVis}}"
+                AutomationProperties.Name="{Binding ToastText}">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Ellipse Width="7" Height="7" Fill="{DynamicResource AccentBrush}" VerticalAlignment="Center"
+                         Margin="0,0,10,0"/>
+                <TextBlock Text="{Binding ToastText}" Foreground="{DynamicResource ToastTextBrush}"
+                           FontSize="13" FontWeight="Medium"
+                           AutomationProperties.LiveSetting="Polite"
+                           AutomationProperties.Name="{Binding ToastText}"/>
+            </StackPanel>
+        </Border>
+    </Grid>
 </UserControl>

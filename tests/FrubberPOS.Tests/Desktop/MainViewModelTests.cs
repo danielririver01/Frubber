@@ -139,58 +139,6 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
-    public void IdleLock_WarnsBeforeLockingAndActivityResets()
-    {
-        var navigator = new FakeNavigator();
-        var viewModel = new MainViewModel(
-            new SignedInUser(1, "Ana", UserRole.Admin),
-            new SignOutUseCase(new FakeCurrentSession()),
-            navigator)
-        {
-            IdleLockDelay = TimeSpan.FromSeconds(100),
-            IdleWarnBefore = TimeSpan.FromSeconds(30)
-        };
-
-        var start = viewModel.LastActivityUtc;
-
-        viewModel.OnIdleTick(start + TimeSpan.FromSeconds(50));
-        Assert.False(viewModel.IdleWarningVisible);
-        Assert.Equal(0, navigator.LockCount);
-
-        viewModel.OnIdleTick(start + TimeSpan.FromSeconds(80));
-        Assert.True(viewModel.IdleWarningVisible);
-        Assert.Equal(0, navigator.LockCount);
-
-        viewModel.OnIdleTick(start + TimeSpan.FromSeconds(100));
-        Assert.Equal(1, navigator.LockCount);
-        Assert.False(viewModel.IdleWarningVisible);
-
-        // Un tick tardío no duplica el lock (hasta que haya actividad nueva).
-        viewModel.OnIdleTick(start + TimeSpan.FromSeconds(120));
-        Assert.Equal(1, navigator.LockCount);
-
-        viewModel.NotifyUserActivity();
-        viewModel.OnIdleTick(viewModel.LastActivityUtc + TimeSpan.FromSeconds(100));
-        Assert.Equal(2, navigator.LockCount);
-    }
-
-    [Fact]
-    public void IdleLock_ZeroDelayLocksOnFirstTick()
-    {
-        var navigator = new FakeNavigator();
-        var viewModel = new MainViewModel(
-            new SignedInUser(1, "Ana", UserRole.Admin),
-            new SignOutUseCase(new FakeCurrentSession()),
-            navigator)
-        {
-            IdleLockDelay = TimeSpan.Zero
-        };
-
-        viewModel.OnIdleTick(viewModel.LastActivityUtc);
-        Assert.Equal(1, navigator.LockCount);
-    }
-
-    [Fact]
     public async Task VentaBadge_ReflejaLineasDelBorrador()
     {
         // JHO-69: la píldora del menú Venta muestra las líneas en preparación.
@@ -222,5 +170,61 @@ public sealed class MainViewModelTests
 
         Assert.Equal(1, venta.BadgeCount);
         Assert.True(venta.BadgeVisible);
+    }
+
+    private static MainViewModel BuildWithCashProbe(Func<CancellationToken, Task<int?>> probe) =>
+        new(
+            new SignedInUser(1, "Admin", UserRole.Admin),
+            new SignOutUseCase(new FakeCurrentSession()),
+            new FakeNavigator(),
+            tpvPageFactory: () => new object(),
+            cashPageFactory: () => new object(),
+            cashSessionProbe: probe);
+
+    [Fact]
+    public async Task CashOpen_MuestraPastillaYSubtituloDeSesion()
+    {
+        // JHO-67 pos-1: "Ticket nuevo · Sesión #0042" + pastilla verde.
+        var viewModel = BuildWithCashProbe(_ => Task.FromResult<int?>(42));
+
+        await viewModel.RefreshBadgesAsync();
+
+        Assert.True(viewModel.CashPillVisible);
+        Assert.False(viewModel.CashClosedPillVisible);
+        Assert.Equal("Ticket nuevo · Sesión #0042", viewModel.PageDescription);
+    }
+
+    [Fact]
+    public async Task CashClosed_MuestraPastillaGrisYSubtituloBloqueado()
+    {
+        // JHO-67 pos-2: "Caja cerrada · venta bloqueada" + pastilla gris.
+        var viewModel = BuildWithCashProbe(_ => Task.FromResult<int?>(null));
+
+        await viewModel.RefreshBadgesAsync();
+
+        Assert.False(viewModel.CashPillVisible);
+        Assert.True(viewModel.CashClosedPillVisible);
+        Assert.Equal("Caja cerrada · venta bloqueada", viewModel.PageDescription);
+    }
+
+    [Fact]
+    public async Task VentaSubtitle_SigueElEstadoAlNavegar()
+    {
+        var cashOpen = false;
+        var viewModel = BuildWithCashProbe(_ => Task.FromResult(cashOpen ? 7 : (int?)null));
+
+        await viewModel.RefreshBadgesAsync();
+        Assert.Equal("Caja cerrada · venta bloqueada", viewModel.PageDescription);
+
+        // Fuera de Venta el subtítulo no se toca...
+        viewModel.SelectedEntry = viewModel.MenuItems.Single(m => m.Title == "Caja");
+        Assert.Equal(string.Empty, viewModel.PageDescription);
+
+        // ...y al volver refleja el último estado leído.
+        cashOpen = true;
+        await viewModel.RefreshBadgesAsync();
+        viewModel.SelectedEntry = viewModel.MenuItems.Single(m => m.Title == "Venta");
+        Assert.Equal("Ticket nuevo · Sesión #0007", viewModel.PageDescription);
+        Assert.True(viewModel.CashPillVisible);
     }
 }

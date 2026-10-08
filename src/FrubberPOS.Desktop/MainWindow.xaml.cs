@@ -1,6 +1,5 @@
 ﻿using System.Windows;
 using System.Windows.Input;
-using System.Windows.Threading;
 using FrubberPOS.Application.Authentication;
 using FrubberPOS.Desktop.ViewModels;
 
@@ -11,8 +10,8 @@ namespace FrubberPOS.Desktop;
 /// <see cref="App"/> with its ViewModel; pages (products, cash) bind
 /// <see cref="MainViewModel.CurrentPage"/> to the ContentControl.
 /// F10 opens the cash screen (P-UX-011). Also hosts the JHO-64 lock
-/// overlay (opaque, same window — never swapped) and the idle timer that
-/// drives the approved auto-lock (3 min, warning at 30 s).
+/// overlay (opaque, same window — never swapped). The lock is only
+/// triggered manually via "Cerrar sesión" (dueño: no auto-lock).
 /// </summary>
 public partial class MainWindow : Window
 {
@@ -23,7 +22,6 @@ public partial class MainWindow : Window
     private const double SidebarCompactWidth = 64;
 
     private readonly MainViewModel viewModel;
-    private readonly DispatcherTimer idleTimer;
 
     public MainWindow(MainViewModel viewModel)
     {
@@ -32,9 +30,6 @@ public partial class MainWindow : Window
         DataContext = viewModel;
         InitializeComponent();
         Focusable = true;
-
-        idleTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        idleTimer.Tick += OnIdleTick;
     }
 
     private void OnSizeChanged(object sender, SizeChangedEventArgs e)
@@ -46,25 +41,6 @@ public partial class MainWindow : Window
         // la información crítica (menú) sigue operable sin ocultarse.
         BrandText.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
         RoleBadge.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
-    }
-
-    private void OnLoaded(object sender, RoutedEventArgs e)
-    {
-        if (LockLayer.Visibility == Visibility.Collapsed)
-        {
-            idleTimer.Start();
-        }
-    }
-
-    private void OnIdleTick(object? sender, EventArgs e) => viewModel.OnIdleTick();
-
-    /// <summary>Cualquier gesto del operador reinicia el ciclo de inactividad.</summary>
-    private void OnUserActivity(object sender, EventArgs e)
-    {
-        if (LockLayer.Visibility == Visibility.Collapsed)
-        {
-            viewModel.NotifyUserActivity();
-        }
     }
 
     private void OnKeyDown(object sender, KeyEventArgs e)
@@ -93,12 +69,12 @@ public partial class MainWindow : Window
     /// <summary>
     /// Overlay de bloqueo (JHO-64): pausa el shell sin cerrarlo, monta una
     /// tarjeta de acceso fresca en modo lock y lanza su banner de 2 s.
+    /// Solo se activa manualmente con "Cerrar sesión".
     /// </summary>
     public void ShowLock(LoginViewModel lockViewModel)
     {
         ArgumentNullException.ThrowIfNull(lockViewModel);
 
-        idleTimer.Stop();
         LockCard.DataContext = lockViewModel;
         LockLayer.Visibility = Visibility.Visible;
         lockViewModel.ActivateLockMode();
@@ -112,12 +88,10 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>Desbloqueo: reanuda el shell y reinicia el ciclo de inactividad.</summary>
+    /// <summary>Desbloqueo: reanuda el shell.</summary>
     public void HideLock()
     {
         LockLayer.Visibility = Visibility.Collapsed;
-        viewModel.NotifyUserActivity();
-        idleTimer.Start();
     }
 
     /// <summary>El PIN que desbloquea pudo ser de otro rol (JHO-64).</summary>

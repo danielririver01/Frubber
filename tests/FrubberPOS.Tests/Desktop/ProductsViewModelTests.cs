@@ -77,7 +77,7 @@ public sealed class ProductsViewModelTests
 
         var row = Assert.Single(vm.Products);
         Assert.True(row.IsNegativeStock);
-        Assert.Equal("-1.25 KG", row.StockText);
+        Assert.Equal("-1,25 KG", row.StockText);
         Assert.StartsWith("Existencia negativa", row.StockA11yText);
     }
 

@@ -60,13 +60,13 @@ public sealed class TicketComposerTests
     {
         var document = TicketComposer.Compose(Sale(), null);
 
-        // Snapshot values surface exactly: 1.250 KG at $ 6.000 = $ 7.500,
-        // 2 UNIT at $ 4.200 = $ 8.400 — the sum equals the header subtotal.
+        // JHO-67 N4 (formato aprobado): "1,25 kg × $ 6.000/kg = $ 7.500" y
+        // "2 unit × $ 4.200 = $ 8.400" — la suma iguala el subtotal del encabezado.
         Assert.Contains(document.Lines, line => line.Contains("Manzana Gala"));
         Assert.Contains(document.Lines, line =>
-            line.Contains("1.25 KG") && line.Contains("$ 6.000") && line.Contains("$ 7.500"));
+            line.Contains("1,25 kg × $ 6.000/kg = $ 7.500"));
         Assert.Contains(document.Lines, line =>
-            line.Contains("2 UNIT") && line.Contains("$ 4.200") && line.Contains("$ 8.400"));
+            line.Contains("2 unit × $ 4.200 = $ 8.400"));
     }
 
     [Fact]

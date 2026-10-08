@@ -61,9 +61,9 @@ public sealed class GetTicketForSaleUseCaseTests
         Assert.Equal("V-000001", ticket.SaleNumberText);
         Assert.Contains(ticket.Lines, line => line.Contains("Cajero: Admin"));
         Assert.Contains(ticket.Lines, line => line.Contains("Mango"));
-        // 1.250 KG at $ 6.000 = $ 7.500 exact whole COP (RN-IMP-004, ADR-009).
+        // JHO-67 N4 (formato aprobado): 1,25 kg × $ 6.000/kg = $ 7.500 (RN-IMP-004, ADR-009).
         Assert.Contains(ticket.Lines, line =>
-            line.Contains("1.25 KG") && line.Contains("$ 6.000") && line.Contains("$ 7.500"));
+            line.Contains("1,25 kg × $ 6.000/kg = $ 7.500"));
         Assert.Contains(ticket.Lines, line => line.Contains("TOTAL") && line.Contains("$ 7.500"));
         Assert.Contains(ticket.Lines, line => line.Contains("Recibido") && line.Contains("$ 10.000"));
         Assert.Contains(ticket.Lines, line => line.Contains("Cambio") && line.Contains("$ 2.500"));

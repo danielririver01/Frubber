@@ -31,6 +31,9 @@ public sealed class ViewPreviewTests
         var create = new CreateProductUseCase(prodBed.Products, prodBed.Units, ProductTestBed.AdminSession());
         await create.ExecuteAsync(new CreateProductRequest("4011", "Aguacate", Domain.Products.ProductUnit.Kg, 12_000, 10_000), CancellationToken.None);
         await create.ExecuteAsync(new CreateProductRequest("L1", "Leche x1", Domain.Products.ProductUnit.Unit, 4_200, 24_000), CancellationToken.None);
+        // JHO-67: umbral fijo de stock (≤5 = "bajo";0 = "agotado") para el preview.
+        await create.ExecuteAsync(new CreateProductRequest("P1", "Platan", Domain.Products.ProductUnit.Kg, 3_500, 5_000), CancellationToken.None);
+        await create.ExecuteAsync(new CreateProductRequest("U1", "Uvas", Domain.Products.ProductUnit.Kg, 8_000, 0), CancellationToken.None);
 
         StaViewHarness.Run(() =>
         {
@@ -96,10 +99,30 @@ public sealed class ViewPreviewTests
                 new FakeNavigator(),
                 tpvPageFactory: () => new TpvView(tpv),
                 licenseBadgeText: "Licencia vitalicia",
+                cashSessionProbe: _ => Task.FromResult<int?>(42),
                 isLicensed: true,
                 draftBadgeSource: tpv);
-            StaViewHarness.SavePng(new FrubberPOS.Desktop.MainWindow(mainViewModel), 1600, 900, "shell.png");
-            StaViewHarness.SavePng(new TpvView(tpv), 1180, 760, "tpv.png");
+            string openShellText = string.Empty;
+            StaViewHarness.SavePng(new FrubberPOS.Desktop.MainWindow(mainViewModel), 1600, 900, "shell.png",
+                beforeRender: el => openShellText = StaViewHarness.CaptureText(el));
+            Assert.Contains("Ticket nuevo · Sesión #0042", openShellText, StringComparison.Ordinal);
+            StaViewHarness.SavePng(new TpvView(tpv), 1600, 900, "tpv.png");
+
+            // --- Shell con caja cerrada (JHO-67 pos-2): pastilla gris + "Caja cerrada · venta bloqueada" ---
+            var closedShellViewModel = new MainViewModel(
+                new SignedInUser(1, "Jhoan Daniel", UserRole.Admin),
+                new SignOutUseCase(new FakeCurrentSession()),
+                new FakeNavigator(),
+                tpvPageFactory: () => new TpvView(tpv),
+                licenseBadgeText: "Licencia vitalicia",
+                cashSessionProbe: _ => Task.FromResult<int?>(null),
+                isLicensed: true,
+                draftBadgeSource: tpv);
+            string closedShellText = string.Empty;
+            StaViewHarness.SavePng(new FrubberPOS.Desktop.MainWindow(closedShellViewModel), 1600, 900, "shell-cash-closed.png",
+                beforeRender: el => closedShellText = StaViewHarness.CaptureText(el));
+            Assert.Contains("Caja cerrada · venta bloqueada", closedShellText, StringComparison.Ordinal);
+            Assert.DoesNotContain("#0042", closedShellText, StringComparison.Ordinal);
 
             // --- Shell con overlay de bloqueo (JHO-64, lo-*) ---
             var shellLockViewModel = BuildLoginViewModel(authBed);
@@ -108,18 +131,38 @@ public sealed class ViewPreviewTests
             shellWindow.ShowLock(shellLockViewModel);
             StaViewHarness.SavePng(shellWindow, 1600, 900, "shell-lock.png");
 
-            // --- Shell: píldora de aviso de inactividad (20 s antes del lock) ---
-            mainViewModel.LastActivityUtc = DateTime.UtcNow - TimeSpan.FromSeconds(160);
-            mainViewModel.OnIdleTick();
-            StaViewHarness.SavePng(new FrubberPOS.Desktop.MainWindow(mainViewModel), 1600, 900, "shell-idle.png");
-
-            // --- Cobro ---
+            // --- Cobro: tres estados (JHO-67 M7) ---
             var checkout = new CheckoutViewModel();
-            StaViewHarness.SavePng(new CheckoutDialog(checkout, 12_000, 0), 760, 560, "checkout.png");
+            var checkoutDialog = new CheckoutDialog(checkout, 12_000, 0, itemCount: 2);
+            Assert.True(checkout.IsCash, "el diálogo debe mantener efectivo por defecto");
+            checkout.ReceivedText = "15000"; // estado "Cambio a entregar" en la captura
+            Assert.Contains("Cambio", checkout.ChangeLabelText, StringComparison.Ordinal);
+            StaViewHarness.SavePng(checkoutDialog, 760, 720, "checkout.png");
+
+            var checkoutFaltan = new CheckoutViewModel();
+            var faltanDialog = new CheckoutDialog(checkoutFaltan, 12_000, 0, itemCount: 2);
+            checkoutFaltan.ReceivedText = "5000"; // estado "Faltan $ 7.000"
+            Assert.Contains("Faltan", checkoutFaltan.ChangeLabelText, StringComparison.Ordinal);
+            StaViewHarness.SavePng(faltanDialog, 760, 720, "checkout-faltan.png");
+
+            var checkoutExacto = new CheckoutViewModel();
+            var exactoDialog = new CheckoutDialog(checkoutExacto, 12_000, 0, itemCount: 2);
+            checkoutExacto.ReceivedText = "12000"; // estado "Pago exacto ✓"
+            Assert.Contains("Pago exacto", checkoutExacto.ChangeLabelText, StringComparison.Ordinal);
+            StaViewHarness.SavePng(exactoDialog, 760, 720, "checkout-exacto.png");
         });
 
-        var saved = Directory.GetFiles(Path.Combine(Path.GetTempPath(), "opencode", "frubber-preview"), "*.png");
+        var outDir = Path.Combine(Path.GetTempPath(), "opencode", "frubber-preview");
+        var saved = Directory.GetFiles(outDir, "*.png");
         Assert.True(saved.Length >= 6, $"Se esperaban 6 PNG, hay {saved.Length}.");
+        foreach (var required in new[]
+                 {
+                     "shell.png", "shell-cash-closed.png", "tpv.png", "checkout.png",
+                     "checkout-faltan.png", "checkout-exacto.png"
+                 })
+        {
+            Assert.True(File.Exists(Path.Combine(outDir, required)), $"Falta el preview {required}.");
+        }
     }
 
     private static LoginViewModel BuildLoginViewModel(AuthenticationTestBed bed) =>

@@ -51,13 +51,14 @@ public static class TicketComposer
         lines.Add($"Cajero: {sale.CashierName}");
         lines.Add(Separator);
 
-        // Historical lines (RN-IMP-004): quantity + unit, unit price and
-        // line total come from the frozen snapshots.
+        // Historical lines (RN-IMP-004): JHO-67 N4 formato aprobado por el
+        // dueño — "1,35 kg × $ 12.000/kg = $ 16.200" (comas es-CO, minúsculas,
+        // sufijo /kg solo en pesados). Si no cabe en el ancho, se parte en
+        // detalle + total alineado a la derecha (formato previo).
         foreach (var line in sale.Lines)
         {
             lines.Add(TrimTo(line.Name, Width));
-            var detail = $"  {FormatQuantity(line.QuantityMilli, line.UnitCode)} {line.UnitCode} x {FormatCop(line.UnitPriceCop)}";
-            lines.Add(WithRight(detail, FormatCop(line.LineTotalCop)));
+            lines.Add(FormatLineDetail(line));
         }
 
         lines.Add(Separator);
@@ -93,6 +94,24 @@ public static class TicketComposer
         return local.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
     }
 
+    // JHO-67 N4: "1,35 kg × $ 12.000/kg = $ 16.200" (comas es-CO, unidades
+    // en minúsculas, sufijo /unit solo en pesados como el proto .per). Si no
+    // cabe en el ancho, se parte en detalle + total alineado a la derecha.
+    private static string FormatLineDetail(TicketLineData line)
+    {
+        var quantity = FormatQuantity(line.QuantityMilli, line.UnitCode);
+        var price = FormatCop(line.UnitPriceCop);
+        var total = FormatCop(line.LineTotalCop);
+        var unit = line.UnitCode.ToLowerInvariant();
+        var detail = line.UnitCode == "UNIT"
+            ? $"{quantity} unit × {price} = {total}"
+            : $"{quantity} {unit} × {price}/{unit} = {total}";
+        return detail.Length <= Width
+            ? detail
+            : WithRight($"  {quantity} {line.UnitCode} x {price}", total);
+    }
+
+    // JHO-67 N4: fracción con coma decimal (es-CO), como en pantalla.
     private static string FormatQuantity(long milli, string unitCode)
     {
         if (unitCode == "UNIT")
@@ -104,7 +123,7 @@ public static class TicketComposer
         var fraction = (milli % ProductQuantities.Scale).ToString("000", CultureInfo.InvariantCulture).TrimEnd('0');
         return fraction.Length == 0
             ? integerPart.ToString(CultureInfo.InvariantCulture)
-            : integerPart.ToString(CultureInfo.InvariantCulture) + "." + fraction;
+            : integerPart.ToString(CultureInfo.InvariantCulture) + "," + fraction;
     }
 
     // Same whole-COP format as Desktop MoneyText ("$ 6.000", es-CO
