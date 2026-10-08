@@ -45,6 +45,23 @@
     <Color x:Key="TrialTextColor">#92400E</Color>
     <Color x:Key="OfflineTextColor">#D97706</Color>
 
+    <!--
+        JHO-67 · rediseño R2 (Venta/TPV + cobro): tokens derivados de los
+        prototipos del dueño. WarnBorder = borde del banner ámbar
+        (.health-banner warning / #FDE68A); Disabled* = .btn-cobrar:disabled
+        (#CBD5E1 con texto blanco); Toast = pastilla flotante (.toast);
+        PillNeutral = .pill.off (slate-100 + text-sub); OnBrand = texto sobre
+        acción primaria sólida.
+    -->
+    <Color x:Key="WarnBorderColor">#FDE68A</Color>
+    <Color x:Key="DisabledSurfaceColor">#CBD5E1</Color>
+    <Color x:Key="DisabledTextColor">#FFFFFF</Color>
+    <Color x:Key="ToastSurfaceColor">#0F172A</Color>
+    <Color x:Key="ToastTextColor">#FFFFFF</Color>
+    <Color x:Key="PillNeutralColor">#F1F5F9</Color>
+    <Color x:Key="PillNeutralTextColor">#64748B</Color>
+    <Color x:Key="OnBrandColor">#FFFFFF</Color>
+
     <SolidColorBrush x:Key="AppBackground" Color="{StaticResource AppBackgroundColor}"/>
     <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}"/>
     <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource PrimaryColor}"/>
@@ -75,6 +92,14 @@
     <SolidColorBrush x:Key="SuccessSoftBrush" Color="{StaticResource SuccessSoftColor}"/>
     <SolidColorBrush x:Key="TrialBrush" Color="{StaticResource TrialColor}"/>
     <SolidColorBrush x:Key="TrialTextBrush" Color="{StaticResource TrialTextColor}"/>
+    <SolidColorBrush x:Key="WarnBorderBrush" Color="{StaticResource WarnBorderColor}"/>
+    <SolidColorBrush x:Key="DisabledSurfaceBrush" Color="{StaticResource DisabledSurfaceColor}"/>
+    <SolidColorBrush x:Key="DisabledTextBrush" Color="{StaticResource DisabledTextColor}"/>
+    <SolidColorBrush x:Key="ToastSurfaceBrush" Color="{StaticResource ToastSurfaceColor}"/>
+    <SolidColorBrush x:Key="ToastTextBrush" Color="{StaticResource ToastTextColor}"/>
+    <SolidColorBrush x:Key="PillNeutralBrush" Color="{StaticResource PillNeutralColor}"/>
+    <SolidColorBrush x:Key="PillNeutralTextBrush" Color="{StaticResource PillNeutralTextColor}"/>
+    <SolidColorBrush x:Key="OnBrandBrush" Color="{StaticResource OnBrandColor}"/>
 
     <!-- ===== Marca: degradados del logo "F" (sidebar/splash) ===== -->
     <LinearGradientBrush x:Key="BrandGradient" StartPoint="0,0" EndPoint="0,1">
@@ -310,12 +335,45 @@
         </Style.Triggers>
     </Style>
 
-    <!-- Acción principal del TPV/modal: 44–48 DIPs -->
+    <!--
+        Acción principal del TPV/modal: 44–48 DIPs. Plantilla propia porque el
+        deshabilitado del prototipo es sólido (#CBD5E1 + texto blanco,
+        .btn-cobrar:disabled) y el trigger de plantilla base (Opacidad 0.55)
+        lavaría el texto; el hover deshabilitado no pinta nada.
+    -->
     <Style x:Key="BigPrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
         <Setter Property="MinHeight" Value="48"/>
         <Setter Property="FontSize" Value="16"/>
         <Setter Property="FontWeight" Value="Bold"/>
         <Setter Property="Padding" Value="28,10"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" CornerRadius="10"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource DisabledSurfaceBrush}"/>
+                            <Setter Property="Foreground" Value="{StaticResource DisabledTextBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{StaticResource PrimaryActiveBrush}"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Cursor" Value="No"/>
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
     <!-- Secundario: blanco con borde slate, hover #F8FAFC + #CBD5E1 -->

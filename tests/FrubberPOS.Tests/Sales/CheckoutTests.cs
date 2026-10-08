@@ -81,6 +81,176 @@ public sealed class CheckoutViewModelTests
 
         Assert.False(vm.Result.Confirmed);
     }
+
+    [Fact]
+    public void Confirm_RepeatedEnterAndLateCancel_NeverCloseTwice()
+    {
+        var vm = new CheckoutViewModel();
+        vm.Load(10_000, 0);
+        vm.ReceivedText = "10.000";
+        var closes = new List<bool>();
+        vm.RequestClose += (_, confirmed) => closes.Add(confirmed);
+
+        vm.Confirm();
+        vm.Confirm(); // Enter/F9 repetido (B2)
+        vm.Cancel();  // Esc tardío tras confirmar (B2)
+
+        Assert.True(vm.IsConfirming);
+        Assert.False(vm.ConfirmCommand.CanExecute(null));
+        Assert.Equal(new[] { true }, closes); // RequestClose una sola vez (RN-VEN-002)
+        Assert.True(vm.Result.Confirmed);
+    }
+
+    [Fact]
+    public void Load_ResetsConfirming_SoTheDialogCanBeConfirmedAgain()
+    {
+        var vm = new CheckoutViewModel();
+        vm.Load(10_000, 0);
+        vm.ReceivedText = "10.000";
+        vm.Confirm();
+        Assert.True(vm.IsConfirming);
+
+        vm.Load(8_000, 0);
+        vm.ReceivedText = "8.000";
+        vm.Confirm();
+
+        Assert.True(vm.IsConfirming);
+        Assert.Equal(8_000, vm.Result.ReceivedCop);
+    }
+
+    [Fact]
+    public void ChangeBox_CashEmpty_ShowsNeutralPrompt()
+    {
+        var vm = new CheckoutViewModel();
+        vm.Load(10_000, 0);
+
+        Assert.Equal("neutral", vm.ChangeTone);
+        Assert.Equal("Escribe el efectivo recibido", vm.ChangeLabelText);
+        Assert.Equal(string.Empty, vm.ChangeValueText);
+    }
+
+    [Fact]
+    public void ChangeBox_CashExact_ShowsPagoExacto()
+    {
+        var vm = new CheckoutViewModel();
+        vm.Load(10_000, 0);
+        vm.ReceivedText = "10000";
+
+        Assert.Equal("good", vm.ChangeTone);
+        Assert.Equal("Pago exacto ✓", vm.ChangeLabelText);
+        Assert.Equal("$ 0", vm.ChangeValueText);
+    }
+
+    [Fact]
+    public void ChangeBox_CashOverTotal_ShowsCambioAEntregar()
+    {
+        var vm = new CheckoutViewModel();
+        vm.Load(10_000, 0);
+        vm.ReceivedText = "15000";
+
+        Assert.Equal("good", vm.ChangeTone);
+        Assert.Equal("Cambio a entregar", vm.ChangeLabelText);
+        Assert.Equal("$ 5.000", vm.ChangeValueText);
+    }
+
+    [Fact]
+    public void ChangeBox_CashShort_ShowsFaltan()
+    {
+        var vm = new CheckoutViewModel();
+        vm.Load(10_000, 0);
+        vm.ReceivedText = "6000";
+
+        Assert.Equal("bad", vm.ChangeTone);
+        Assert.Equal("Faltan", vm.ChangeLabelText);
+        Assert.Equal("$ 4.000", vm.ChangeValueText);
+    }
+
+    [Fact]
+    public void ChangeBox_Transfer_ShowsPagoExactoPorTransferencia()
+    {
+        var vm = new CheckoutViewModel();
+        vm.Load(10_000, 0);
+        vm.IsCash = false;
+
+        Assert.Equal("neutral", vm.ChangeTone);
+        Assert.Equal("Pago exacto por transferencia", vm.ChangeLabelText);
+        Assert.Equal("$ 10.000", vm.ChangeValueText);
+        Assert.False(vm.ShowCashFields);
+    }
+
+    [Fact]
+    public void ChangeBox_DiscountEdit_RefreshesTone()
+    {
+        var vm = new CheckoutViewModel();
+        vm.Load(10_000, 0);
+        vm.ReceivedText = "6000";
+        Assert.Equal("bad", vm.ChangeTone);
+
+        vm.DiscountText = "4000"; // total = 6.000 = recibido
+
+        Assert.Equal("good", vm.ChangeTone);
+        Assert.Equal("Pago exacto ✓", vm.ChangeLabelText);
+    }
+
+    [Fact]
+    public void QuickAmount_Exacto_UsesCurrentTotal()
+    {
+        var vm = new CheckoutViewModel();
+        vm.Load(10_000, 1_000);
+
+        vm.ApplyQuickAmount("exacto");
+
+        Assert.Equal("9000", vm.ReceivedText);
+        Assert.Equal("good", vm.ChangeTone);
+        Assert.Equal("Pago exacto ✓", vm.ChangeLabelText);
+    }
+
+    [Fact]
+    public void QuickAmount_Number_SetsReceived()
+    {
+        var vm = new CheckoutViewModel();
+        vm.Load(10_000, 0);
+
+        vm.ApplyQuickAmount("20000");
+
+        Assert.Equal("20000", vm.ReceivedText);
+        Assert.Equal("Cambio a entregar", vm.ChangeLabelText);
+        Assert.Equal("$ 10.000", vm.ChangeValueText);
+    }
+
+    [Fact]
+    public void RevealDiscountEditor_HiddenByDefault_ShownAfterLinkOrF6()
+    {
+        var vm = new CheckoutViewModel();
+        vm.Load(10_000, 0);
+        Assert.False(vm.IsDiscountEditorVisible);
+
+        vm.RevealDiscountEditor();
+        Assert.True(vm.IsDiscountEditorVisible);
+
+        vm.Load(10_000, 0, revealDiscountEditor: true); // F6 abre revelado
+        Assert.True(vm.IsDiscountEditorVisible);
+
+        vm.Load(10_000, 0);
+        Assert.False(vm.IsDiscountEditorVisible);
+    }
+
+    [Fact]
+    public void ItemsSubtitle_CountAndDiscountDisplay_FollowProto()
+    {
+        var vm = new CheckoutViewModel();
+        vm.Load(12_000, 0, itemCount: 1);
+
+        Assert.Equal("1", vm.ItemCountText);
+        Assert.Equal("1 ítem · $ 12.000", vm.ItemsSubtitleText);
+        Assert.Equal("-$ 0", vm.DiscountDisplayText);
+
+        vm.Load(20_000, 1_090, itemCount: 2);
+
+        Assert.Equal("2", vm.ItemCountText);
+        Assert.Equal("2 ítems · $ 18.910", vm.ItemsSubtitleText);
+        Assert.Equal("-$ 1.090", vm.DiscountDisplayText);
+    }
 }
 
 public sealed class TpvViewModelCheckoutTests
@@ -130,6 +300,8 @@ public sealed class TpvViewModelCheckoutTests
         Assert.Equal(3_200, vm.TotalCop);
         Assert.Equal("$ 3.200", vm.TotalText);
         Assert.Null(vm.LastConfirmedCheckout);
+        Assert.True(nav.LastCheckoutDiscountMode); // F6 abre el modal con el editor (N2)
+        Assert.Equal(1, nav.LastCheckoutItemCount);
     }
 
     [Fact]
@@ -151,6 +323,8 @@ public sealed class TpvViewModelCheckoutTests
 
         Assert.NotNull(vm.LastConfirmedCheckout);
         Assert.Equal("TRANSFER", vm.LastConfirmedCheckout!.PaymentMethod);
+        Assert.False(nav.LastCheckoutDiscountMode); // F8 no revela el descuento
+        Assert.Equal(1, nav.LastCheckoutItemCount);
     }
 
     [Fact]

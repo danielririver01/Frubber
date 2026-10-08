@@ -132,7 +132,7 @@
                 </Grid>
             </Border>
 
-            <Border Background="{DynamicResource WarnSoftBrush}" BorderBrush="#FDE68A" BorderThickness="1"
+            <Border Background="{DynamicResource WarnSoftBrush}" BorderBrush="{DynamicResource WarnBorderBrush}" BorderThickness="1"
                     CornerRadius="6" Padding="12,8" Margin="0,0,0,0">
                 <TextBlock Text="Al cerrar se conservará el resumen histórico y la venta quedará bloqueada hasta una nueva apertura."
                            Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap" FontWeight="SemiBold"/>

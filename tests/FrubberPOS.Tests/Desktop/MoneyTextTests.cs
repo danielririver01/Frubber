@@ -45,7 +45,7 @@ public sealed class ProductRowViewModelTests
         var row = ProductRowViewModel.From(
             new ProductDto(1, "M1", "Mango", ProductUnit.Kg, 6000, -1250, true, true, false));
 
-        Assert.Equal("-1.25 KG", row.StockText);
+        Assert.Equal("-1,25 KG", row.StockText);
         Assert.True(row.IsNegativeStock);
         Assert.Contains("Existencia negativa", row.StockA11yText);
     }

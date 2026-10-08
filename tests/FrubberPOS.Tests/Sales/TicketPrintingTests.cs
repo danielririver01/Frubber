@@ -178,4 +178,75 @@ public sealed class TicketPrintingTests
         Assert.True(vm.Draft.IsEmpty);
         Assert.Equal(1, vm.LastSaleNumber);
     }
+
+    [Fact]
+    public async Task PrintFailure_ArmsRetryBanner_RetryPrintsWithoutNewSale()
+    {
+        await using var bed = await BedWithLecheAsync();
+        var (vm, nav, printer) = Build(bed);
+        await vm.RefreshCashStateAsync();
+        await vm.SearchAsync();
+        vm.SelectedResult = vm.Results.Single();
+        await vm.AddSelectedAsync();
+
+        nav.NextCheckout = new CheckoutResultDto(true, "TRANSFER", 0, 0, 0);
+        nav.NextSaleSavedPrintRequested = true;
+        nav.NextPrinterName = "HP LaserJet";
+        printer.NextError = "La impresora seleccionada no está disponible.";
+        await vm.OpenCheckoutAsync();
+
+        // B2: banner armado + reintento disponible (RN-IMP-005).
+        Assert.True(vm.RetryPrintVisible);
+        Assert.True(vm.HasErrorMessage);
+        Assert.True(vm.RetryPrintCommand.CanExecute(null));
+        Assert.Contains("no pudo imprimirse", vm.ErrorMessage);
+        Assert.Equal(1, await CountSalesAsync(bed));
+
+        printer.NextError = null; // la impresora se arregló
+        vm.RetryPrintCommand.Execute(null);
+
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while (DateTime.UtcNow < deadline && vm.RetryPrintVisible)
+        {
+            await Task.Delay(25);
+        }
+
+        Assert.False(vm.RetryPrintVisible);
+        Assert.False(vm.HasErrorMessage);
+        Assert.Equal(string.Empty, vm.ErrorMessage);
+        Assert.Equal(2, printer.PrintCount);
+        Assert.Equal("HP LaserJet", printer.LastPrinterName);
+        Assert.Equal(1, await CountSalesAsync(bed)); // el cobro nunca se repite
+        Assert.True(vm.ToastVisible);
+    }
+
+    [Fact]
+    public async Task WhileFinalizing_CobrarReadsRegistrandoAndClosesBackAfter()
+    {
+        await using var bed = await BedWithLecheAsync();
+        var (vm, nav, _) = Build(bed);
+        await vm.RefreshCashStateAsync();
+        await vm.SearchAsync();
+        vm.SelectedResult = vm.Results.Single();
+        await vm.AddSelectedAsync();
+
+        var finalizingDuringDialog = false;
+        var chargeTextDuringDialog = string.Empty;
+        nav.OnShowSaleSaved = () =>
+        {
+            finalizingDuringDialog = vm.IsFinalizing;
+            chargeTextDuringDialog = vm.ChargeText;
+        };
+        nav.NextCheckout = new CheckoutResultDto(true, "TRANSFER", 0, 0, 0);
+        nav.NextSaleSavedPrintRequested = false;
+        await vm.OpenCheckoutAsync();
+
+        Assert.True(finalizingDuringDialog); // la venta seguía comprometiéndose
+        Assert.Equal("Registrando la venta…", chargeTextDuringDialog);
+        Assert.False(vm.IsFinalizing); // B2: vuelve al estado normal
+        Assert.Equal("Cobrar", vm.ChargeText);
+        Assert.False(vm.HasErrorMessage);
+        Assert.True(vm.ToastVisible); // refuerzo "Venta V-000001 guardada" (M4)
+        Assert.Contains("guardada", vm.ToastText);
+    }
 }

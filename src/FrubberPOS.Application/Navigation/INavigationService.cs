@@ -46,8 +46,13 @@ public interface INavigationService
     /// <summary>Quantity dialog for the product (P-UX-009). <c>null</c> = canceled.</summary>
     long? AskQuantity(ProductDto product);
 
-    /// <summary>Checkout modal (P-UX-008, JHO-41). Confirmed = vender; otherwise canceled.</summary>
-    CheckoutResultDto ShowCheckout(long subtotalCop, long pendingDiscountCop);
+    /// <summary>
+    /// Checkout modal (P-UX-008, JHO-41). Confirmed = vender; otherwise
+    /// canceled. <paramref name="itemCount"/> feeds the header recap and
+    /// <paramref name="discountMode"/> (F6, JHO-67 N2) opens the modal with
+    /// the discount editor revealed.
+    /// </summary>
+    CheckoutResultDto ShowCheckout(long subtotalCop, long pendingDiscountCop, int itemCount, bool discountMode);
 
     /// <summary>
     /// Post-sale confirmation (P-UX §9.5, JHO-45): shows the saved sale and

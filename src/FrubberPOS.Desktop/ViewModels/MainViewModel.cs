@@ -79,7 +79,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private readonly Func<object>? historyPageFactory;
     private readonly Func<object>? settingsPageFactory;
     private readonly Func<object>? backupPageFactory;
-    private readonly Func<CancellationToken, Task<bool>>? cashOpenProbe;
+    private readonly Func<CancellationToken, Task<int?>>? cashSessionProbe;
     private readonly Func<object>? usersPageFactory;
     private readonly TpvViewModel? draftBadgeSource;
     private readonly bool isLicensed;
@@ -96,16 +96,15 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private object? backupPage;
     private object? usersPage;
     private bool cashPillVisible;
+    private bool cashClosedPillVisible;
+    private int? openCashSessionId;
+    private bool cashStateKnown;
     private string displayName;
     private bool isAdmin;
     private string roleBadgeText;
     private string userInitials;
-    private bool signingOut;
-    private bool lockRequested;
-    private bool idleWarningVisible;
-    private string idleWarningText = string.Empty;
 
-    public MainViewModel(SignedInUser user, SignOutUseCase signOut, INavigationService navigation, Func<object>? productsPageFactory = null, Func<object>? cashPageFactory = null, Func<object>? tpvPageFactory = null, Func<object>? historyPageFactory = null, Func<object>? settingsPageFactory = null, Func<object>? backupPageFactory = null, string? licenseBadgeText = null, Func<CancellationToken, Task<bool>>? cashOpenProbe = null, bool isLicensed = false, Func<object>? usersPageFactory = null, TpvViewModel? draftBadgeSource = null)
+    public MainViewModel(SignedInUser user, SignOutUseCase signOut, INavigationService navigation, Func<object>? productsPageFactory = null, Func<object>? cashPageFactory = null, Func<object>? tpvPageFactory = null, Func<object>? historyPageFactory = null, Func<object>? settingsPageFactory = null, Func<object>? backupPageFactory = null, string? licenseBadgeText = null, Func<CancellationToken, Task<int?>>? cashSessionProbe = null, bool isLicensed = false, Func<object>? usersPageFactory = null, TpvViewModel? draftBadgeSource = null)
     {
         ArgumentNullException.ThrowIfNull(user);
         ArgumentNullException.ThrowIfNull(signOut);
@@ -118,7 +117,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         this.historyPageFactory = historyPageFactory;
         this.settingsPageFactory = settingsPageFactory;
         this.backupPageFactory = backupPageFactory;
-        this.cashOpenProbe = cashOpenProbe;
+        this.cashSessionProbe = cashSessionProbe;
         this.usersPageFactory = usersPageFactory;
         this.isLicensed = isLicensed;
         this.draftBadgeSource = draftBadgeSource;
@@ -140,6 +139,16 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             UpdateVentaBadge(draftBadgeSource.Lines.Count);
             draftBadgeSource.Lines.CollectionChanged += (_, _) => UpdateVentaBadge(draftBadgeSource.Lines.Count);
+
+            // JHO-67 (M5): el enlace del banner sin caja navega a Caja.
+            draftBadgeSource.OpenCashRequested += (_, _) =>
+            {
+                var caja = MenuItems.FirstOrDefault(e => e.Title == "Caja");
+                if (caja is not null)
+                {
+                    SelectedEntry = caja;
+                }
+            };
         }
 
         SelectedEntry = MenuItems.FirstOrDefault();
@@ -189,6 +198,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
         private set => SetProperty(ref cashPillVisible, value);
     }
 
+    /// <summary>Pastilla "Caja cerrada" (gris) del encabezado (pos-2).</summary>
+    public bool CashClosedPillVisible
+    {
+        get => cashClosedPillVisible;
+        private set => SetProperty(ref cashClosedPillVisible, value);
+    }
+
     public ObservableCollection<MenuEntry> MenuItems { get; }
 
     public MenuEntry? SelectedEntry
@@ -228,16 +244,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public async Task SignOutAsync()
     {
-        signingOut = true;
-        try
-        {
-            await signOut.ExecuteAsync(new SignOutRequest(), CancellationToken.None);
-            navigation.ShowLock();
-        }
-        finally
-        {
-            signingOut = false;
-        }
+        await signOut.ExecuteAsync(new SignOutRequest(), CancellationToken.None);
+        navigation.ShowLock();
     }
 
     /// <summary>
@@ -260,65 +268,6 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             RebuildMenu();
             SelectedEntry = MenuItems.FirstOrDefault();
-        }
-    }
-
-    // ===== Auto-bloqueo por inactividad (JHO-64, mejora aprobada) =====
-
-    /// <summary>Umbral de auto-bloqueo; 3 min sin persistencia (follow-up).</summary>
-    internal TimeSpan IdleLockDelay { get; set; } = TimeSpan.FromMinutes(3);
-
-    /// <summary>Aviso visible antes del auto-bloqueo (30 s).</summary>
-    internal TimeSpan IdleWarnBefore { get; set; } = TimeSpan.FromSeconds(30);
-
-    internal DateTime LastActivityUtc { get; set; } = DateTime.UtcNow;
-
-    public bool IdleWarningVisible
-    {
-        get => idleWarningVisible;
-        private set => SetProperty(ref idleWarningVisible, value);
-    }
-
-    public string IdleWarningText
-    {
-        get => idleWarningText;
-        private set => SetProperty(ref idleWarningText, value);
-    }
-
-    /// <summary>Teclado/ratón del operador: reinicia el ciclo de inactividad.</summary>
-    public void NotifyUserActivity()
-    {
-        LastActivityUtc = DateTime.UtcNow;
-        lockRequested = false;
-        IdleWarningVisible = false;
-    }
-
-    /// <summary>
-    /// Tick del cronómetro de la ventana (1 s): avisa en la ventana de gracia
-    /// y pide el lock al superar el umbral. <paramref name="utcNow"/> solo
-    /// existe para tests deterministas.
-    /// </summary>
-    internal void OnIdleTick(DateTime? utcNow = null)
-    {
-        if (signingOut || lockRequested)
-        {
-            return;
-        }
-
-        var idle = (utcNow ?? DateTime.UtcNow) - LastActivityUtc;
-        if (idle >= IdleLockDelay)
-        {
-            lockRequested = true;
-            IdleWarningVisible = false;
-            navigation.ShowLock();
-            return;
-        }
-
-        if (idle >= IdleLockDelay - IdleWarnBefore)
-        {
-            var seconds = (int)Math.Ceiling((IdleLockDelay - idle).TotalSeconds);
-            IdleWarningText = $"La sesión se bloqueará en {seconds} s.";
-            IdleWarningVisible = true;
         }
     }
 
@@ -369,7 +318,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         if (SelectedEntry?.Title == "Venta" && tpvPageFactory is not null)
         {
-            PageDescription = string.Empty;
+            RefreshVentaSubtitle();
             CurrentPage = tpvPage ??= tpvPageFactory();
             return;
         }
@@ -406,15 +355,42 @@ public sealed class MainViewModel : INotifyPropertyChanged
         PageDescription = SelectedEntry is null ? string.Empty : "Módulo en construcción.";
     }
 
-    /// <summary>Relee si hay caja abierta para la pastilla del encabezado.</summary>
+    /// <summary>
+    /// Relee el id de la sesión de caja abierta (null = cerrada) para la
+    /// pastilla del encabezado y el subtítulo de Venta (pos-1/pos-2).
+    /// </summary>
     public async Task RefreshBadgesAsync()
     {
-        if (cashOpenProbe is null)
+        if (cashSessionProbe is null)
         {
             return;
         }
 
-        CashPillVisible = await cashOpenProbe(CancellationToken.None);
+        var sessionId = await cashSessionProbe(CancellationToken.None);
+        cashStateKnown = true;
+        openCashSessionId = sessionId;
+        CashPillVisible = sessionId.HasValue;
+        CashClosedPillVisible = !sessionId.HasValue;
+        RefreshVentaSubtitle();
+    }
+
+    /// <summary>
+    /// Subtítulo de Venta (prototipo pos-1/pos-2): "Ticket nuevo · Sesión
+    /// #0042" con caja abierta o "Caja cerrada · venta bloqueada" sin ella.
+    /// Sin estado leído aún no muestra nada.
+    /// </summary>
+    private void RefreshVentaSubtitle()
+    {
+        if (SelectedEntry?.Title != "Venta")
+        {
+            return;
+        }
+
+        PageDescription = !cashStateKnown
+            ? string.Empty
+            : openCashSessionId is { } sessionId
+                ? $"Ticket nuevo · Sesión #{sessionId:D4}"
+                : "Caja cerrada · venta bloqueada";
     }
 
     /// <summary>Badge del menú Venta = número de líneas en preparación (JHO-69).</summary>

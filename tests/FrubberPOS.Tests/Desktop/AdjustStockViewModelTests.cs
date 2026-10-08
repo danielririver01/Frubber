@@ -22,8 +22,8 @@ public sealed class AdjustStockViewModelTests
         viewModel.Load(detail.Value.Product);
 
         Assert.Equal("Tomate (V1)", viewModel.ProductLabel);
-        Assert.Equal("1.5", viewModel.CurrentStockText);
-        Assert.Equal("1.5", viewModel.NewStockText);
+        Assert.Equal("1,5", viewModel.CurrentStockText);
+        Assert.Equal("1,5", viewModel.NewStockText);
 
         bool? closed = null;
         viewModel.RequestClose += (_, saved) => closed = saved;

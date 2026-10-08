@@ -59,8 +59,34 @@ internal static class StaViewHarness
         Assert.True(failure is null, $"Fallo en hilo STA: {failure}");
     }
 
+    /// <summary>
+    /// Devuelve concatenados los <see cref="System.Windows.Controls.TextBlock.Text"/>
+    /// de todo el árbol visual ya maquetado (verificación de bindings de texto
+    /// sin depender de la lectura del PNG).
+    /// </summary>
+    public static string CaptureText(FrameworkElement root)
+    {
+        var texts = new List<string>();
+        Walk(root);
+        return string.Join("\n", texts);
+
+        void Walk(DependencyObject node)
+        {
+            if (node is System.Windows.Controls.TextBlock textBlock && !string.IsNullOrWhiteSpace(textBlock.Text))
+            {
+                texts.Add(textBlock.Text);
+            }
+
+            var childCount = VisualTreeHelper.GetChildrenCount(node);
+            for (var i = 0; i < childCount; i++)
+            {
+                Walk(VisualTreeHelper.GetChild(node, i));
+            }
+        }
+    }
+
     /// <summary>Renderiza un visual a PNG; si es una ventana, la muestra un instante para pintar el fondo.</summary>
-    public static string SavePng(FrameworkElement element, int width, int height, string fileName)
+    public static string SavePng(FrameworkElement element, int width, int height, string fileName, Action<FrameworkElement>? beforeRender = null)
     {
         FrameworkElement target = element;
         System.Windows.Window? window = element as System.Windows.Window;
@@ -88,6 +114,7 @@ internal static class StaViewHarness
 
         var renderWidth = (int)Math.Ceiling(target.ActualWidth > 0 ? target.ActualWidth : width);
         var renderHeight = (int)Math.Ceiling(target.ActualHeight > 0 ? target.ActualHeight : height);
+        beforeRender?.Invoke(target);
         var bitmap = new RenderTargetBitmap(renderWidth, renderHeight, 96, 96, PixelFormats.Pbgra32);
         bitmap.Render(target);
         window?.Close();

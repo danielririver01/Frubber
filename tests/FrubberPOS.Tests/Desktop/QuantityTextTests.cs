@@ -51,10 +51,10 @@ public sealed class QuantityTextTests
     }
 
     [Theory]
-    [InlineData(2500, "2.5")]
+    [InlineData(2500, "2,5")]
     [InlineData(3000, "3")]
-    [InlineData(1, "0.001")]
-    [InlineData(-1250, "-1.25")]
+    [InlineData(1, "0,001")]
+    [InlineData(-1250, "-1,25")]
     [InlineData(0, "0")]
     public void Format_WeightUnit(long milli, string expected)
     {
@@ -67,5 +67,18 @@ public sealed class QuantityTextTests
     public void Format_UnitShowsWhole(long milli, string expected)
     {
         Assert.Equal(expected, QuantityText.Format(milli, ProductUnit.Unit));
+    }
+
+    [Theory]
+    [InlineData(1350)]
+    [InlineData(-1250)]
+    [InlineData(1)]
+    public void Format_ThenParse_RoundTripsWithComma(long milli)
+    {
+        // JHO-67 N4: el texto mostrado con coma vuelve a parsear igual.
+        var text = QuantityText.Format(milli, ProductUnit.Kg);
+
+        Assert.True(QuantityText.TryParseToMilli(text, ProductUnit.Kg, out var parsed));
+        Assert.Equal(milli, parsed);
     }
 }

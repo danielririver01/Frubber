@@ -232,7 +232,8 @@ public partial class App : System.Windows.Application, INavigationService
             {
                 var open = await provider!.GetRequiredService<Application.Cash.GetOpenCashSessionUseCase>()
                     .ExecuteAsync(new Application.Cash.GetOpenCashSessionRequest(), cancellationToken);
-                return open.IsSuccess && open.Value.Session is not null;
+                // JHO-67: el id de sesión alimenta el subtítulo "Sesión #0042".
+                return open.IsSuccess ? open.Value.Session?.CashSessionId : (int?)null;
             },
             trialIsLicensed,
             () => new UsersView(Resolve<UsersViewModel>()),
@@ -308,10 +309,10 @@ public partial class App : System.Windows.Application, INavigationService
         return window.ShowDialog() == true ? viewModel.ParsedMilli : null;
     }
 
-    public CheckoutResultDto ShowCheckout(long subtotalCop, long pendingDiscountCop)
+    public CheckoutResultDto ShowCheckout(long subtotalCop, long pendingDiscountCop, int itemCount, bool discountMode)
     {
         var viewModel = Resolve<CheckoutViewModel>();
-        var window = new CheckoutDialog(viewModel, subtotalCop, pendingDiscountCop)
+        var window = new CheckoutDialog(viewModel, subtotalCop, pendingDiscountCop, itemCount, discountMode)
         {
             Owner = currentWindow
         };

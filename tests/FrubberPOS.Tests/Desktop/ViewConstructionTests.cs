@@ -53,4 +53,23 @@ public sealed class ViewConstructionTests
             _ = new SplashWindow();
         });
     }
+
+    [Fact]
+    public void CheckoutDialog_EveryInstanceStartsInCash()
+    {
+        // JHO-67: regresión del chip de pago — la segunda instancia del
+        // diálogo arrancaba en Transferencia (el TwoWay del chip derecho
+        // escribía al VM en el montaje); todas deben iniciar en Efectivo.
+        StaViewHarness.Run(() =>
+        {
+            for (var instance = 1; instance <= 2; instance++)
+            {
+                var viewModel = new CheckoutViewModel();
+                var dialog = new CheckoutDialog(viewModel, 12_000, 0, itemCount: 2);
+                dialog.Show();
+                Assert.True(viewModel.IsCash, $"el diálogo {instance} debe arrancar en efectivo");
+                dialog.Close();
+            }
+        });
+    }
 }

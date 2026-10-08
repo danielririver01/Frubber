@@ -76,7 +76,7 @@ public sealed class SaleDetailViewModelTests
 
         var line = Assert.Single(vm.Lines);
         Assert.Equal("Mango", line.Name);
-        Assert.Equal("1.25 KG", line.QuantityText);
+        Assert.Equal("1,25 KG", line.QuantityText);
         Assert.Equal("$ 7.500", line.TotalText);
     }
 

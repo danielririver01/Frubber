@@ -54,6 +54,10 @@ public static class QuantityText
         return true;
     }
 
+    /// <summary>
+    /// Display (JHO-67 N4): es-CO shows fractions with a decimal comma
+    /// ("1,35"); <see cref="TryParseToMilli"/> still accepts both separators.
+    /// </summary>
     public static string Format(long milli, ProductUnit unit)
     {
         if (unit == ProductUnit.Unit)
@@ -67,7 +71,7 @@ public static class QuantityText
         var fraction = (absolute % ProductQuantities.Scale).ToString("000").TrimEnd('0');
         var text = fraction.Length == 0
             ? integerPart.ToString(System.Globalization.CultureInfo.InvariantCulture)
-            : integerPart.ToString(System.Globalization.CultureInfo.InvariantCulture) + "." + fraction;
+            : integerPart.ToString(System.Globalization.CultureInfo.InvariantCulture) + "," + fraction;
         return negative ? "-" + text : text;
     }
 }
