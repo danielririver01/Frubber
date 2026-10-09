@@ -91,6 +91,36 @@ public sealed class TpvViewModelTests
     }
 
     [Fact]
+    public async Task AddSelected_WithoutValidSelection_FallsBackToFirstResult()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        var create = new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession());
+        await create.ExecuteAsync(new CreateProductRequest("L1", "Leche", Domain.Products.ProductUnit.Unit, 4_200, 0), CancellationToken.None);
+        await create.ExecuteAsync(new CreateProductRequest("P1", "Pan", Domain.Products.ProductUnit.Unit, 1_500, 0), CancellationToken.None);
+
+        var (vm, _, _) = Build(bed);
+        await vm.SearchAsync();
+        var stalePan = vm.Results.Single(r => r.Plu == "P1");
+
+        // JHO-74: selección vacía (fila única recién clickeada) ⇒ primera fila.
+        vm.SelectedResult = null;
+        Assert.True(vm.AddSelectedCommand.CanExecute(null));
+        await vm.AddSelectedAsync();
+        var line = Assert.Single(vm.Lines);
+        Assert.Equal("Leche", line.Name);
+
+        // JHO-74: selección obsoleta de otra búsqueda ⇒ se ignoran sus datos
+        // y se agrega la primera fila vigente (acumula en la línea de Leche).
+        vm.SearchText = "leche";
+        await vm.SearchAsync();
+        vm.SelectedResult = stalePan;
+        await vm.AddSelectedAsync();
+        line = Assert.Single(vm.Lines);
+        Assert.Equal("Leche", line.Name);
+        Assert.Equal(2_000, line.QuantityMilli);
+    }
+
+    [Fact]
     public async Task AddSelected_KgProduct_OpensQuantityDialog()
     {
         await using var bed = await ProductTestBed.CreateAsync();

@@ -572,6 +572,18 @@
     </Style>
 
     <!-- ===== Tablas: encabezado sobrio, selección con acento teal ===== -->
+    <!-- Clave explícita para poder heredarlo (BasedOn) desde las vistas, p. ej.
+         las cabeceras derechas de Productos (JHO-74); el estilo anidado dentro
+         del setter no es un recurso y no se puede referenciar. -->
+    <Style x:Key="ColumnHeaderBase" TargetType="DataGridColumnHeader">
+        <Setter Property="Padding" Value="10,6"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Foreground" Value="{StaticResource TextSubBrush}"/>
+        <Setter Property="Background" Value="{StaticResource AppBackground}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+    </Style>
     <Style TargetType="DataGrid">
         <Setter Property="RowHeight" Value="40"/>
         <Setter Property="FontFamily" Value="{StaticResource AppFont}"/>
@@ -582,19 +594,7 @@
         <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource BorderSoftBrush}"/>
         <Setter Property="RowBackground" Value="{StaticResource SurfaceBrush}"/>
         <Setter Property="AlternatingRowBackground" Value="{StaticResource SurfaceBrush}"/>
-        <Setter Property="ColumnHeaderStyle">
-            <Setter.Value>
-                <Style TargetType="DataGridColumnHeader">
-                    <Setter Property="Padding" Value="10,6"/>
-                    <Setter Property="FontWeight" Value="Bold"/>
-                    <Setter Property="FontSize" Value="11"/>
-                    <Setter Property="Foreground" Value="{StaticResource TextSubBrush}"/>
-                    <Setter Property="Background" Value="{StaticResource AppBackground}"/>
-                    <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
-                    <Setter Property="BorderThickness" Value="0,0,0,1"/>
-                </Style>
-            </Setter.Value>
-        </Setter>
+        <Setter Property="ColumnHeaderStyle" Value="{StaticResource ColumnHeaderBase}"/>
         <Setter Property="CellStyle">
             <Setter.Value>
                 <Style TargetType="DataGridCell">

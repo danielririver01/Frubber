@@ -8,26 +8,51 @@
             <Setter Property="Padding" Value="10,3"/>
             <Setter Property="GroupName" Value="ProductFilter"/>
         </Style>
+        <!-- JHO-74: DataGridCell.Padding no se aplica en WPF (el ContentPresenter
+             ocupa toda la columna), así que el texto de las celdas cae en +2 mientras
+             la cabecera cae en +10: con este margen ambos comparten la banda
+             [col+10 .. col-10] y cabecera y valor quedan alineados. -->
+        <Style x:Key="CellText" TargetType="TextBlock">
+            <Setter Property="Margin" Value="10,0,10,0"/>
+        </Style>
+        <Style x:Key="CellTextRight" TargetType="TextBlock" BasedOn="{StaticResource CellText}">
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+        </Style>
+        <!-- JHO-74: el ContentPresenter de la cabecera por defecto se dimensiona
+             al contenido (queda a la izquierda) y el HorizontalAlignment="Right"
+             del TextBlock no surte efecto; con Stretch la cabecera cae en la
+             misma banda derecha [col-10] que el valor de la celda. Sólo en las
+             columnas derechas de esta vista para no alterar el TPV aprobado. -->
+        <Style x:Key="HeaderRight" TargetType="DataGridColumnHeader"
+               BasedOn="{StaticResource ColumnHeaderBase}">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        </Style>
     </UserControl.Resources>
     <DockPanel>
-        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,10">
-            <Button Content="Editar" Command="{Binding EditCommand}" Style="{DynamicResource SecondaryButton}" MinHeight="36" FontSize="13" Margin="0,0,8,0"/>
-            <Button Content="Ajustar stock" Command="{Binding AdjustStockCommand}" Style="{DynamicResource SecondaryButton}" MinHeight="36" FontSize="13" Margin="0,0,8,0"/>
-            <Button Content="Activar/Desactivar" Command="{Binding ToggleActiveCommand}" Style="{DynamicResource SecondaryButton}" MinHeight="36" FontSize="13" Margin="0,0,8,0"/>
-            <Button Content="Eliminar" Command="{Binding DeleteCommand}" Style="{DynamicResource SecondaryButton}" MinHeight="36" FontSize="13" Margin="0,0,8,0"/>
-            <RadioButton Style="{StaticResource FilterChip}" Content="Todos"
-                         IsChecked="{Binding IsFilterTodos, Mode=OneWay}" Checked="OnFilterTodos"
-                         AutomationProperties.Name="Mostrar todos los productos"/>
-            <RadioButton Style="{StaticResource FilterChip}" Content="Activos"
-                         IsChecked="{Binding IsFilterActivos, Mode=OneWay}" Checked="OnFilterActivos"
-                         AutomationProperties.Name="Mostrar solo productos activos"/>
-            <RadioButton Style="{StaticResource FilterChip}" Content="Inactivos"
-                         IsChecked="{Binding IsFilterInactivos, Mode=OneWay}" Checked="OnFilterInactivos"
-                         AutomationProperties.Name="Mostrar solo productos inactivos"/>
-            <Button Content="+ Nuevo producto" Command="{Binding NewCommand}" Padding="16,6"
-                    FontWeight="Bold" HorizontalAlignment="Right"
+        <!-- JHO-74: el botón de alta queda al extremo derecho (separado de
+             los filtros como en el prototipo .toolbar-spacer). -->
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+            <Button Content="+ Nuevo producto" Command="{Binding NewCommand}" DockPanel.Dock="Right"
+                    Padding="16,6" FontWeight="Bold" VerticalAlignment="Center"
                     AutomationProperties.Name="Nuevo producto"/>
-        </StackPanel>
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Content="Editar" Command="{Binding EditCommand}" Style="{DynamicResource SecondaryButton}" MinHeight="36" FontSize="13" Margin="0,0,8,0"/>
+                <Button Content="Ajustar stock" Command="{Binding AdjustStockCommand}" Style="{DynamicResource SecondaryButton}" MinHeight="36" FontSize="13" Margin="0,0,8,0"/>
+                <Button Content="Activar/Desactivar" Command="{Binding ToggleActiveCommand}" Style="{DynamicResource SecondaryButton}" MinHeight="36" FontSize="13" Margin="0,0,8,0"/>
+                <Button Content="Eliminar" Command="{Binding DeleteCommand}" Style="{DynamicResource SecondaryButton}" MinHeight="36" FontSize="13"/>
+                <StackPanel Orientation="Horizontal" Margin="20,0,0,0">
+                    <RadioButton Style="{StaticResource FilterChip}" Content="Todos"
+                                 IsChecked="{Binding IsFilterTodos, Mode=OneWay}" Checked="OnFilterTodos"
+                                 AutomationProperties.Name="Mostrar todos los productos"/>
+                    <RadioButton Style="{StaticResource FilterChip}" Content="Activos"
+                                 IsChecked="{Binding IsFilterActivos, Mode=OneWay}" Checked="OnFilterActivos"
+                                 AutomationProperties.Name="Mostrar solo productos activos"/>
+                    <RadioButton Style="{StaticResource FilterChip}" Content="Inactivos"
+                                 IsChecked="{Binding IsFilterInactivos, Mode=OneWay}" Checked="OnFilterInactivos"
+                                 AutomationProperties.Name="Mostrar solo productos inactivos"/>
+                </StackPanel>
+            </StackPanel>
+        </DockPanel>
 
         <TextBlock DockPanel.Dock="Bottom" Text="{Binding ErrorMessage}" Style="{DynamicResource ErrorText}"
                    Margin="0,6,0,0"/>
@@ -51,24 +76,34 @@
                       CanUserAddRows="False"
                       AutomationProperties.Name="Tabla de productos">
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="PLU" Binding="{Binding Plu}" Width="90"/>
-                    <DataGridTextColumn Header="Producto" Binding="{Binding Name}" Width="*"/>
-                    <DataGridTextColumn Header="Unidad" Binding="{Binding UnitText}" Width="80"/>
-                    <DataGridTextColumn Header="Precio" Binding="{Binding PriceText}" Width="110">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
+                    <!-- JHO-74: anchos mapeados del colgroup del prototipo sin
+                         columnas de check, categoría ni acciones (86/92/130/130/118). -->
+                    <DataGridTextColumn Header="PLU" Binding="{Binding Plu}" Width="90"
+                                        ElementStyle="{StaticResource CellText}"/>
+                    <DataGridTextColumn Header="Producto" Binding="{Binding Name}" Width="*"
+                                        ElementStyle="{StaticResource CellText}"/>
+                    <DataGridTextColumn Header="Unidad" Binding="{Binding UnitText}" Width="92"
+                                        ElementStyle="{StaticResource CellText}"/>
+                    <!-- JHO-74: Precio/Existencia alineados a la derecha en
+                         encabezado y valor (como el prototipo) y con ancho
+                         fijo para que Existencia no se pegue a Estado. -->
+                    <DataGridTextColumn Binding="{Binding PriceText}" Width="130"
+                                        HeaderStyle="{StaticResource HeaderRight}"
+                                        ElementStyle="{StaticResource CellTextRight}">
+                        <DataGridTextColumn.Header>
+                            <TextBlock Text="Precio" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        </DataGridTextColumn.Header>
                     </DataGridTextColumn>
-                    <DataGridTemplateColumn Header="Existencia" Width="*">
+                    <DataGridTemplateColumn Width="130" HeaderStyle="{StaticResource HeaderRight}">
+                        <DataGridTemplateColumn.Header>
+                            <TextBlock Text="Existencia" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        </DataGridTemplateColumn.Header>
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding StockText}"
                                            AutomationProperties.Name="{Binding StockA11yText}">
                                     <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource CellTextRight}">
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding IsNegativeStock}" Value="True">
                                                     <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}"/>
@@ -81,7 +116,8 @@
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
-                    <DataGridTextColumn Header="Estado" Binding="{Binding StateText}" Width="100"/>
+                    <DataGridTextColumn Header="Estado" Binding="{Binding StateText}" Width="118"
+                                        ElementStyle="{StaticResource CellText}"/>
                 </DataGrid.Columns>
             </DataGrid>
         </Border>

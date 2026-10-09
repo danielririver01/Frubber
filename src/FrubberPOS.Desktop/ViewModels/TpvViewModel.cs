@@ -81,7 +81,8 @@ public sealed class TpvViewModel : INotifyPropertyChanged
         this.navigation = navigation;
 
         SearchCommand = new AsyncCommand(_ => SearchAsync());
-        AddSelectedCommand = new AsyncCommand(_ => AddSelectedAsync(), () => SelectedResult is not null);
+        AddSelectedCommand = new AsyncCommand(
+            _ => AddSelectedAsync(), () => SelectedResult is not null || results.Count > 0);
         EditQuantityCommand = new AsyncCommand(_ => EditQuantityAsync(), () => SelectedLine is not null);
         RemoveLineCommand = new AsyncCommand(_ => RemoveSelectedLine(), () => SelectedLine is not null);
         ClearDraftCommand = new AsyncCommand(_ => ClearDraftWithProtectionAsync());
@@ -338,6 +339,7 @@ public sealed class TpvViewModel : INotifyPropertyChanged
             // JHO-60: la pantalla abre con todo el catálogo activo (consulta
             // vacía = todo) y el primer resultado listo para Enter.
             SelectedResult = results.FirstOrDefault();
+            AddSelectedCommand.RaiseCanExecuteChanged();
             OnPropertyChanged(nameof(ResultsCountText));
             OnPropertyChanged(nameof(ResultsEmptyVisible));
             OnPropertyChanged(nameof(ResultsTableVisible));
@@ -350,7 +352,12 @@ public sealed class TpvViewModel : INotifyPropertyChanged
 
     public Task AddSelectedAsync()
     {
-        var item = SelectedResult;
+        // JHO-74: la selección puede quedar vacía u obsoleta tras una
+        // búsqueda reciente (fila única recién clickeada); en ese caso se
+        // agrega la primera fila de los resultados vigentes.
+        var item = SelectedResult is { } current && results.Contains(current)
+            ? current
+            : results.FirstOrDefault();
         if (item is null)
         {
             return Task.CompletedTask;

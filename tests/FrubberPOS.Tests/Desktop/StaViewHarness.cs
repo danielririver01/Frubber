@@ -89,6 +89,7 @@ internal static class StaViewHarness
     public static string SavePng(FrameworkElement element, int width, int height, string fileName, Action<FrameworkElement>? beforeRender = null)
     {
         FrameworkElement target = element;
+        FrameworkElement renderTarget = target;
         System.Windows.Window? window = element as System.Windows.Window;
         if (window is not null)
         {
@@ -101,22 +102,32 @@ internal static class StaViewHarness
         }
         else
         {
-            target.Width = width;
-            target.Height = height;
-            target.Measure(new Size(width, height));
-            target.Arrange(new Rect(0, 0, width, height));
+            // Las vistas sueltas no pintan fondo (el shell lo aporta en vivo);
+            // sin este host el PNG sale con banda negra y texto invisible.
+            var host = new System.Windows.Controls.Border
+            {
+                Width = width,
+                Height = height,
+                Background = System.Windows.Application.Current?.TryFindResource("AppBackground") as Brush
+                    ?? new SolidColorBrush(Color.FromRgb(0xF7, 0xF8, 0xFA)),
+                Child = target,
+            };
+            host.Measure(new Size(width, height));
+            host.Arrange(new Rect(0, 0, width, height));
+            renderTarget = host;
         }
 
         target.UpdateLayout();
-        target.InvalidateVisual();
         window?.UpdateLayout();
+        PumpLoaded(target);
+        target.InvalidateVisual();
         target.Dispatcher.Invoke(() => { }, DispatcherPriority.Render);
 
-        var renderWidth = (int)Math.Ceiling(target.ActualWidth > 0 ? target.ActualWidth : width);
-        var renderHeight = (int)Math.Ceiling(target.ActualHeight > 0 ? target.ActualHeight : height);
+        var renderWidth = (int)Math.Ceiling(renderTarget.ActualWidth > 0 ? renderTarget.ActualWidth : width);
+        var renderHeight = (int)Math.Ceiling(renderTarget.ActualHeight > 0 ? renderTarget.ActualHeight : height);
         beforeRender?.Invoke(target);
         var bitmap = new RenderTargetBitmap(renderWidth, renderHeight, 96, 96, PixelFormats.Pbgra32);
-        bitmap.Render(target);
+        bitmap.Render(renderTarget);
         window?.Close();
 
         var dir = Path.Combine(Path.GetTempPath(), "opencode", "frubber-preview");
@@ -127,5 +138,19 @@ internal static class StaViewHarness
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
         encoder.Save(stream);
         return path;
+    }
+
+    /// <summary>
+    /// Bombea el dispatcher hasta DispatcherPriority.Loaded. El DataGrid de WPF reparte
+    /// sus columnas estrella dentro de una BeginInvoke(Loaded) encadenada desde
+    /// OnViewportSizeChanged (DataGrid.cs -> RedistributeColumnWidthsOnAvailableSpaceChange);
+    /// sin este bombeo las estrellas quedan clavadas en MinColumnWidth (20 px) y cualquier
+    /// preview o prueba de medición pura muestra la tabla colapsada (falso negativo, JHO-74).
+    /// </summary>
+    public static void PumpLoaded(FrameworkElement target)
+    {
+        var frame = new DispatcherFrame();
+        target.Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() => frame.Continue = false));
+        Dispatcher.PushFrame(frame);
     }
 }

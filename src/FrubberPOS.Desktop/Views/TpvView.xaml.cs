@@ -46,22 +46,18 @@ public partial class TpvView : System.Windows.Controls.UserControl
 
         // Zona de búsqueda (B3): el escribir manda; Enter agrega lo resaltado
         // con respaldo a la primera fila, Esc limpia, ↑↓ mueven el resaltado.
+        // JHO-74: Enter también agrega con el foco en una fila de resultados
+        // (el clic en el único resultado dejaba la tecla sin efecto).
+        if (e.Key == Key.Enter
+            && (SearchBox.IsKeyboardFocusWithin || ResultsGrid.IsKeyboardFocusWithin))
+        {
+            _ = viewModel.AddSelectedAsync();
+            e.Handled = true;
+            return;
+        }
+
         if (SearchBox.IsKeyboardFocusWithin)
         {
-            if (e.Key == Key.Enter)
-            {
-                var target = viewModel.SelectedResult
-                    ?? (viewModel.Results.Count > 0 ? viewModel.Results[0] : null);
-                if (target is not null)
-                {
-                    viewModel.SelectedResult = target;
-                    _ = viewModel.AddSelectedAsync();
-                }
-
-                e.Handled = true;
-                return;
-            }
-
             if (e.Key == Key.Escape)
             {
                 viewModel.SearchText = string.Empty; // el setter ya relanza la búsqueda

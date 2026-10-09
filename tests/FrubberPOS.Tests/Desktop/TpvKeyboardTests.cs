@@ -193,6 +193,72 @@ public sealed class TpvKeyboardTests
     }
 
     [Fact]
+    public async Task SearchBox_SingleResult_EnterAddsIt()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        await CreateUnitProductAsync(bed, "L1", "Leche");
+        var (vm, _, _) = Build(bed);
+        await vm.SearchAsync();
+
+        StaViewHarness.Run(() =>
+        {
+            var window = NewWindow();
+            try
+            {
+                var view = ShowView(window, vm);
+                var searchBox = (TextBox)view.FindName("SearchBox");
+                PumpUntil(() => searchBox.IsKeyboardFocusWithin, "foco en el buscador");
+                Assert.Single(vm.Results); // JHO-74: la búsqueda devuelve un único producto
+
+                RaiseKey(view, Key.Enter);
+
+                PumpUntil(() => vm.Lines.Count == 1, "Enter agrega el único resultado");
+                Assert.Equal("Leche", vm.Lines[0].Name);
+            }
+            finally
+            {
+                CloseWindow(window);
+            }
+        });
+    }
+
+    [Fact]
+    public async Task ResultsGrid_RowFocus_EnterAddsHighlighted()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        await CreateUnitProductAsync(bed, "L1", "Leche");
+        var (vm, _, _) = Build(bed);
+        await vm.SearchAsync();
+
+        StaViewHarness.Run(() =>
+        {
+            var window = NewWindow();
+            try
+            {
+                var view = ShowView(window, vm);
+                var searchBox = (TextBox)view.FindName("SearchBox");
+                PumpUntil(() => searchBox.IsKeyboardFocusWithin, "foco inicial en el buscador");
+
+                // JHO-74: el clic natural en el único resultado mueve el foco a
+                // la fila; Enter debe agregar igual (antes quedaba sin efecto).
+                var resultsGrid = (DataGrid)view.FindName("ResultsGrid");
+                PumpUntil(() => resultsGrid.Items.Count == 1, "un único resultado listo");
+                resultsGrid.Focus();
+                PumpUntil(() => resultsGrid.IsKeyboardFocusWithin, "el foco queda en la fila de resultados");
+
+                RaiseKey(view, Key.Enter);
+
+                PumpUntil(() => vm.Lines.Count == 1, "Enter agrega con el foco en la fila");
+                Assert.Equal("Leche", vm.Lines[0].Name);
+            }
+            finally
+            {
+                CloseWindow(window);
+            }
+        });
+    }
+
+    [Fact]
     public async Task SearchBox_EscapeClearsQuery_AndRestoresFullList()
     {
         await using var bed = await ProductTestBed.CreateAsync();

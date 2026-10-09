@@ -108,6 +108,15 @@ public sealed class ViewPreviewTests
             Assert.Contains("Ticket nuevo · Sesión #0042", openShellText, StringComparison.Ordinal);
             StaViewHarness.SavePng(new TpvView(tpv), 1600, 900, "tpv.png");
 
+            // --- Productos (JHO-74: separación del botón y alineación de columnas) ---
+            var products = new ProductsViewModel(
+                new SearchProductsUseCase(prodBed.Products, prodBed.Units, ProductTestBed.AdminSession()),
+                new SetProductActiveStateUseCase(prodBed.Products, prodBed.Units, ProductTestBed.AdminSession()),
+                new DeleteProductUseCase(prodBed.Products, prodBed.Units, ProductTestBed.AdminSession()),
+                new FakeNavigator());
+            products.SearchAsync().GetAwaiter().GetResult();
+            StaViewHarness.SavePng(new ProductsView(products), 1600, 900, "products.png");
+
             // --- Shell con caja cerrada (JHO-67 pos-2): pastilla gris + "Caja cerrada · venta bloqueada" ---
             var closedShellViewModel = new MainViewModel(
                 new SignedInUser(1, "Jhoan Daniel", UserRole.Admin),
@@ -157,7 +166,7 @@ public sealed class ViewPreviewTests
         Assert.True(saved.Length >= 6, $"Se esperaban 6 PNG, hay {saved.Length}.");
         foreach (var required in new[]
                  {
-                     "shell.png", "shell-cash-closed.png", "tpv.png", "checkout.png",
+                     "shell.png", "shell-cash-closed.png", "tpv.png", "products.png", "checkout.png",
                      "checkout-faltan.png", "checkout-exacto.png"
                  })
         {

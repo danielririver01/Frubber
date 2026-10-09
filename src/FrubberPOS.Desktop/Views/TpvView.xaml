@@ -163,8 +163,10 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="2*"/>
-            <RowDefinition Height="*"/>
+            <!-- JHO-74: resultados con alto tope (proto 212px) y ticket con piso,
+                 para que la banda inferior nunca tape la fila activa. -->
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*" MinHeight="300"/>
         </Grid.RowDefinitions>
 
         <!-- ZONA 3 · BUSCADOR: lupa, placeholder y chip F2 (DESIGN.md §1). -->
@@ -239,6 +241,7 @@
                     <DataGrid x:Name="ResultsGrid" ItemsSource="{Binding Results}" SelectedItem="{Binding SelectedResult}"
                               AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
                               HeadersVisibility="Column" CanUserAddRows="False" Margin="8,0,8,4"
+                              MaxHeight="216"
                               RowStyle="{StaticResource TpvGridRow}" CellStyle="{StaticResource TpvGridCell}"
                               Visibility="{Binding ResultsTableVisible, Converter={StaticResource BoolToVis}}"
                               AutomationProperties.Name="Resultados de búsqueda">
