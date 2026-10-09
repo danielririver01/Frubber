@@ -3,10 +3,41 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <!-- JHO-77: segmented de filtros del prototipo (frubber-pos.html
+             .segmented): contenedor slate-100, botones radio con radio 8 y
+             el activo en blanco con sombra sutil; MinHeight 36 para no
+             flotar al lado de los botones de acción de la misma barra. -->
         <Style x:Key="FilterChip" TargetType="RadioButton">
-            <Setter Property="Margin" Value="4,0"/>
-            <Setter Property="Padding" Value="10,3"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Padding" Value="14,6"/>
+            <Setter Property="MinHeight" Value="36"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSubBrush}"/>
             <Setter Property="GroupName" Value="ProductFilter"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Bd" CornerRadius="8" Padding="{TemplateBinding Padding}"
+                                Background="Transparent">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              TextBlock.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource MintHoverBrush}"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource SurfaceBrush}"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
         <!-- JHO-74: DataGridCell.Padding no se aplica en WPF (el ContentPresenter
              ocupa toda la columna), así que el texto de las celdas cae en +2 mientras
@@ -40,17 +71,19 @@
                 <Button Content="Ajustar stock" Command="{Binding AdjustStockCommand}" Style="{DynamicResource SecondaryButton}" MinHeight="36" FontSize="13" Margin="0,0,8,0"/>
                 <Button Content="Activar/Desactivar" Command="{Binding ToggleActiveCommand}" Style="{DynamicResource SecondaryButton}" MinHeight="36" FontSize="13" Margin="0,0,8,0"/>
                 <Button Content="Eliminar" Command="{Binding DeleteCommand}" Style="{DynamicResource SecondaryButton}" MinHeight="36" FontSize="13"/>
-                <StackPanel Orientation="Horizontal" Margin="20,0,0,0">
-                    <RadioButton Style="{StaticResource FilterChip}" Content="Todos"
-                                 IsChecked="{Binding IsFilterTodos, Mode=OneWay}" Checked="OnFilterTodos"
-                                 AutomationProperties.Name="Mostrar todos los productos"/>
-                    <RadioButton Style="{StaticResource FilterChip}" Content="Activos"
-                                 IsChecked="{Binding IsFilterActivos, Mode=OneWay}" Checked="OnFilterActivos"
-                                 AutomationProperties.Name="Mostrar solo productos activos"/>
-                    <RadioButton Style="{StaticResource FilterChip}" Content="Inactivos"
-                                 IsChecked="{Binding IsFilterInactivos, Mode=OneWay}" Checked="OnFilterInactivos"
-                                 AutomationProperties.Name="Mostrar solo productos inactivos"/>
-                </StackPanel>
+                <Border Background="{StaticResource SubtleBrush}" CornerRadius="10" Padding="4" Margin="20,0,0,0">
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton Style="{StaticResource FilterChip}" Content="Todos"
+                                     IsChecked="{Binding IsFilterTodos, Mode=OneWay}" Checked="OnFilterTodos"
+                                     AutomationProperties.Name="Mostrar todos los productos"/>
+                        <RadioButton Style="{StaticResource FilterChip}" Content="Activos"
+                                     IsChecked="{Binding IsFilterActivos, Mode=OneWay}" Checked="OnFilterActivos"
+                                     AutomationProperties.Name="Mostrar solo productos activos"/>
+                        <RadioButton Style="{StaticResource FilterChip}" Content="Inactivos"
+                                     IsChecked="{Binding IsFilterInactivos, Mode=OneWay}" Checked="OnFilterInactivos"
+                                     AutomationProperties.Name="Mostrar solo productos inactivos"/>
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </DockPanel>
 
