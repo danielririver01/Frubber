@@ -36,6 +36,13 @@
             <Setter Property="Margin" Value="0,4,0,0"/>
         </Style>
 
+        <!-- Ítem de sección: hereda NavMenuItem pero permite 2 líneas y sin scroll -->
+        <Style x:Key="SectionNavItem" TargetType="ListBoxItem" BasedOn="{StaticResource NavMenuItem}">
+            <Setter Property="Height" Value="Auto"/>
+            <Setter Property="MinHeight" Value="42"/>
+            <Setter Property="Padding" Value="0,6"/>
+        </Style>
+
         <Style x:Key="TicketPreviewBox" TargetType="TextBox">
             <Setter Property="IsReadOnly" Value="True"/>
             <Setter Property="IsReadOnlyCaretVisible" Value="False"/>
@@ -84,7 +91,7 @@
 
         <Grid>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="210"/>
+                <ColumnDefinition Width="230"/>
                 <ColumnDefinition Width="*" MinWidth="360"/>
                 <ColumnDefinition Width="230"/>
             </Grid.ColumnDefinitions>
@@ -93,10 +100,17 @@
             <Border Grid.Column="0" Style="{DynamicResource Card}"
                     Padding="8" VerticalAlignment="Top" Margin="0,0,12,0">
                 <ListBox Background="Transparent" BorderThickness="0" Padding="0"
-                         ItemContainerStyle="{StaticResource NavMenuItem}"
+                         ItemContainerStyle="{StaticResource SectionNavItem}"
                          SelectedValuePath="Tag"
                          SelectedValue="{Binding SelectedSectionKey, Mode=TwoWay}"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         ScrollViewer.VerticalScrollBarVisibility="Disabled"
                          AutomationProperties.Name="Secciones de configuración">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding}" TextWrapping="Wrap"/>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
                     <ListBoxItem Content="Datos del negocio" Tag="business"
                                  AutomationProperties.Name="Sección Datos del negocio"/>
                     <ListBoxItem Content="Impresora predeterminada" Tag="printer"
