@@ -1,58 +1,285 @@
 <UserControl x:Class="FrubberPOS.Desktop.Views.BusinessSettingsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Border Style="{DynamicResource Card}" MaxWidth="560" HorizontalAlignment="Left">
-        <StackPanel>
-            <TextBlock Text="Datos del negocio" FontSize="18" FontWeight="Bold" Margin="0,0,10,0"/>
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
 
-        <DockPanel Margin="0,0,0,2">
-            <TextBlock Text="Nombre del negocio" DockPanel.Dock="Left"/>
-            <TextBlock DockPanel.Dock="Right" Text="{Binding BusinessNameHintText}" Foreground="#B45309"/>
-        </DockPanel>
-        <TextBox Text="{Binding BusinessNameText, UpdateSourceTrigger=PropertyChanged}" Padding="6,4"
-                 MaxLength="120" AutomationProperties.Name="Nombre del negocio"/>
+        <!-- Chip de sección: cuadrado menta con letra/símbolo -->
+        <Style x:Key="SectionIconChip" TargetType="Border">
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Background" Value="{DynamicResource MintBrush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
 
-        <DockPanel Margin="0,8,0,2">
-            <TextBlock Text="NIT o identificación" DockPanel.Dock="Left"/>
-            <TextBlock DockPanel.Dock="Right" Text="{Binding TaxIdentifierHintText}" Foreground="#B45309"/>
-        </DockPanel>
-        <TextBox Text="{Binding TaxIdentifierText, UpdateSourceTrigger=PropertyChanged}" Padding="6,4"
-                 MaxLength="32" AutomationProperties.Name="NIT o identificación"/>
+        <Style x:Key="SectionIconText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
 
-        <DockPanel Margin="0,8,0,2">
-            <TextBlock Text="Teléfono" DockPanel.Dock="Left"/>
-            <TextBlock DockPanel.Dock="Right" Text="{Binding PhoneHintText}" Foreground="#B45309"/>
-        </DockPanel>
-        <TextBox Text="{Binding PhoneText, UpdateSourceTrigger=PropertyChanged}" Padding="6,4"
-                 MaxLength="30" AutomationProperties.Name="Teléfono"/>
+        <!-- Label de campo del prototipo: 11px, bold, mayúsculas, sub -->
+        <Style x:Key="CfgFieldLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSubBrush}"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+        </Style>
 
-        <DockPanel Margin="0,8,0,2">
-            <TextBlock Text="Dirección" DockPanel.Dock="Left"/>
-            <TextBlock DockPanel.Dock="Right" Text="{Binding AddressHintText}" Foreground="#B45309"/>
-        </DockPanel>
-        <TextBox Text="{Binding AddressText, UpdateSourceTrigger=PropertyChanged}" Padding="6,4"
-                 MaxLength="200" AutomationProperties.Name="Dirección"/>
+        <Style x:Key="CfgHelp" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSubBrush}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="0,4,0,0"/>
+        </Style>
 
-        <DockPanel Margin="0,8,0,2">
-            <TextBlock Text="Mensaje final del ticket" DockPanel.Dock="Left"/>
-            <TextBlock DockPanel.Dock="Right" Text="{Binding FooterHintText}" Foreground="#B45309"/>
-        </DockPanel>
-        <TextBox Text="{Binding FooterText, UpdateSourceTrigger=PropertyChanged}" Padding="6,4"
-                 MaxLength="250" AutomationProperties.Name="Mensaje final del ticket"/>
+        <Style x:Key="TicketPreviewBox" TargetType="TextBox">
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="IsReadOnlyCaretVisible" Value="False"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontFamily" Value="Consolas"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="AcceptsReturn" Value="True"/>
+            <Setter Property="TextWrapping" Value="NoWrap"/>
+            <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+    </UserControl.Resources>
 
-        <TextBlock Text="Impresora predeterminada" FontSize="18" FontWeight="Bold" Margin="0,20,0,6"/>
-        <ComboBox ItemsSource="{Binding PrinterOptions}" SelectedItem="{Binding SelectedPrinterOption}"
-                  Padding="6,4" AutomationProperties.Name="Impresora predeterminada"/>
-        <TextBlock Text="Un campo vacío se guarda como no configurado. No se piden anchos ni comandos del dispositivo."
-                   Foreground="#6B7280" TextWrapping="Wrap" Margin="0,6,0,0"/>
+    <DockPanel>
+        <!-- Barra de cambios sin guardar (prototipo config-2) -->
+        <Border DockPanel.Dock="Bottom"
+                Background="{DynamicResource WarnSoftBrush}"
+                BorderBrush="{DynamicResource WarnBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="14,10"
+                Margin="0,10,0,0"
+                Visibility="{Binding IsDirty, Converter={StaticResource BoolToVis}}"
+                AutomationProperties.Name="Cambios sin guardar">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="⚠" FontSize="14" Foreground="{DynamicResource WarningBrush}"
+                               VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBlock VerticalAlignment="Center" FontSize="13">
+                        <Run Text="Tienes cambios sin guardar en "/>
+                        <Run Text="{Binding SectionTitle, Mode=OneWay}" FontWeight="Bold"/>
+                    </TextBlock>
+                </StackPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="Descartar" Command="{Binding DiscardCommand}"
+                            Style="{DynamicResource SecondaryButton}" MinHeight="34" Padding="14,4" FontSize="13"
+                            AutomationProperties.Name="Descartar cambios"/>
+                    <Button Content="Guardar" Command="{Binding SaveCommand}"
+                            MinHeight="34" Padding="14,4" FontSize="13" Margin="8,0,0,0"
+                            AutomationProperties.Name="Guardar desde barra"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
 
-        <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
-            <Button Content="Guardar" Command="{Binding SaveCommand}" Padding="16,6" FontWeight="Bold"
-                    AutomationProperties.Name="Guardar configuración"/>
-            <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource SuccessBrush}"
-                       FontWeight="SemiBold" VerticalAlignment="Center" Margin="12,0,0,0"/>
-        </StackPanel>
-        <TextBlock Text="{Binding ErrorMessage}" Style="{DynamicResource ErrorText}" Margin="0,8,0,0"/>
-        </StackPanel>
-    </Border>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="210"/>
+                <ColumnDefinition Width="*" MinWidth="360"/>
+                <ColumnDefinition Width="230"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- ===== Columna 1: navegación de secciones ===== -->
+            <Border Grid.Column="0" Style="{DynamicResource Card}"
+                    Padding="8" VerticalAlignment="Top" Margin="0,0,12,0">
+                <ListBox Background="Transparent" BorderThickness="0" Padding="0"
+                         ItemContainerStyle="{StaticResource NavMenuItem}"
+                         SelectedValuePath="Tag"
+                         SelectedValue="{Binding SelectedSectionKey, Mode=TwoWay}"
+                         AutomationProperties.Name="Secciones de configuración">
+                    <ListBoxItem Content="Datos del negocio" Tag="business"
+                                 AutomationProperties.Name="Sección Datos del negocio"/>
+                    <ListBoxItem Content="Impresora predeterminada" Tag="printer"
+                                 AutomationProperties.Name="Sección Impresora predeterminada"/>
+                </ListBox>
+            </Border>
+
+            <!-- ===== Columna 2: formulario ===== -->
+            <Border Grid.Column="1" Style="{DynamicResource Card}" Margin="0,0,12,0">
+                <DockPanel>
+                    <!-- Cabecera de sección + Guardar -->
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,4">
+                        <Button DockPanel.Dock="Right" Content="Guardar" Command="{Binding SaveCommand}"
+                                IsEnabled="{Binding IsDirty}" MinHeight="36" Padding="16,6" FontSize="13"
+                                AutomationProperties.Name="Guardar configuración"/>
+                        <StackPanel Orientation="Horizontal">
+                            <Border Style="{StaticResource SectionIconChip}" Margin="0,0,10,0">
+                                <TextBlock>
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource SectionIconText}">
+                                            <Setter Property="Text" Value="G"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsPrinterSection}" Value="True">
+                                                    <Setter Property="Text" Value="P"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Border>
+                            <TextBlock Text="{Binding SectionTitle}" FontSize="18" FontWeight="Bold"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </DockPanel>
+
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel>
+                            <!-- ===== Datos del negocio ===== -->
+                            <StackPanel Visibility="{Binding IsBusinessSection, Converter={StaticResource BoolToVis}}"
+                                        AutomationProperties.Name="Formulario datos del negocio">
+
+                                <TextBlock Text="PAÍS" Style="{StaticResource CfgFieldLabel}"/>
+                                <TextBox Text="Colombia" IsReadOnly="True" IsReadOnlyCaretVisible="False"
+                                         Padding="12,10" MaxLength="40"
+                                         Foreground="{DynamicResource SecondaryTextBrush}"
+                                         AutomationProperties.Name="País"/>
+                                <TextBlock Text="Ajusta el campo fiscal al formato local." Style="{StaticResource CfgHelp}"/>
+
+                                <TextBlock Text="NOMBRE DEL NEGOCIO" Style="{StaticResource CfgFieldLabel}" Margin="0,16,0,6"/>
+                                <TextBox Text="{Binding BusinessNameText, UpdateSourceTrigger=PropertyChanged}"
+                                         Padding="12,10" MaxLength="120"
+                                         AutomationProperties.Name="Nombre del negocio"/>
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding BusinessNameHintText}"
+                                               Foreground="{DynamicResource WarningBrush}" FontSize="12"
+                                               Margin="8,4,0,0"/>
+                                    <TextBlock Text="Aparece en la cabecera del ticket." Style="{StaticResource CfgHelp}"/>
+                                </DockPanel>
+
+                                <Grid Margin="0,16,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="12"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="NIT O IDENTIFICACIÓN" Style="{StaticResource CfgFieldLabel}"/>
+                                        <TextBox Text="{Binding TaxIdentifierText, UpdateSourceTrigger=PropertyChanged}"
+                                                 Padding="12,10" MaxLength="32"
+                                                 AutomationProperties.Name="NIT o identificación"/>
+                                        <DockPanel>
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding TaxIdentifierHintText}"
+                                                       Foreground="{DynamicResource WarningBrush}" FontSize="12"
+                                                       Margin="8,4,0,0"/>
+                                            <TextBlock Text="En Colombia: NIT con dígito de verificación."
+                                                       Style="{StaticResource CfgHelp}"/>
+                                        </DockPanel>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="TELÉFONO" Style="{StaticResource CfgFieldLabel}"/>
+                                        <TextBox Text="{Binding PhoneText, UpdateSourceTrigger=PropertyChanged}"
+                                                 Padding="12,10" MaxLength="30"
+                                                 AutomationProperties.Name="Teléfono"/>
+                                        <DockPanel>
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding PhoneHintText}"
+                                                       Foreground="{DynamicResource WarningBrush}" FontSize="12"
+                                                       Margin="8,4,0,0"/>
+                                            <TextBlock Text="Se imprime bajo el nombre si lo configuras."
+                                                       Style="{StaticResource CfgHelp}"/>
+                                        </DockPanel>
+                                    </StackPanel>
+                                </Grid>
+
+                                <TextBlock Text="DIRECCIÓN" Style="{StaticResource CfgFieldLabel}" Margin="0,16,0,6"/>
+                                <TextBox Text="{Binding AddressText, UpdateSourceTrigger=PropertyChanged}"
+                                         Padding="12,10" MaxLength="200"
+                                         AutomationProperties.Name="Dirección"/>
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding AddressHintText}"
+                                               Foreground="{DynamicResource WarningBrush}" FontSize="12"
+                                               Margin="8,4,0,0"/>
+                                    <TextBlock Text="Dirección que aparece en el ticket." Style="{StaticResource CfgHelp}"/>
+                                </DockPanel>
+
+                                <TextBlock Text="MENSAJE FINAL DEL TICKET" Style="{StaticResource CfgFieldLabel}" Margin="0,16,0,6"/>
+                                <TextBox Text="{Binding FooterText, UpdateSourceTrigger=PropertyChanged}"
+                                         Padding="12,10" MaxLength="250" AcceptsReturn="True" Height="72"
+                                         TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                                         AutomationProperties.Name="Mensaje final del ticket"/>
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding FooterHintText}"
+                                               Foreground="{DynamicResource WarningBrush}" FontSize="12"
+                                               Margin="8,4,0,0"/>
+                                    <TextBlock Text="Se imprime al final de cada ticket." Style="{StaticResource CfgHelp}"/>
+                                </DockPanel>
+                            </StackPanel>
+
+                            <!-- ===== Impresora predeterminada ===== -->
+                            <StackPanel Visibility="{Binding IsPrinterSection, Converter={StaticResource BoolToVis}}"
+                                        AutomationProperties.Name="Formulario impresora predeterminada">
+
+                                <TextBlock Text="IMPRESORA PREDETERMINADA" Style="{StaticResource CfgFieldLabel}"/>
+                                <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                        CornerRadius="10" Padding="12,10" Background="{DynamicResource SurfaceBrush}">
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Right" Text="USB"
+                                                   Foreground="{DynamicResource TextSubBrush}"
+                                                   FontSize="12" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding PrinterDisplayText}" FontWeight="SemiBold"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                    </DockPanel>
+                                </Border>
+                                <TextBlock Text="Los tickets se envían a este equipo al cobrar." Style="{StaticResource CfgHelp}"/>
+
+                                <TextBlock Text="IMPRESORA" Style="{StaticResource CfgFieldLabel}" Margin="0,16,0,6"/>
+                                <ComboBox ItemsSource="{Binding PrinterOptions}"
+                                          SelectedItem="{Binding SelectedPrinterOption}"
+                                          Padding="10,8"
+                                          AutomationProperties.Name="Impresora predeterminada"/>
+
+                                <DockPanel Margin="0,20,0,0">
+                                    <Button DockPanel.Dock="Right" Content="Imprimir prueba"
+                                            Command="{Binding PrintTestCommand}"
+                                            Style="{DynamicResource SecondaryButton}"
+                                            MinHeight="36" Padding="14,6" FontSize="13"
+                                            AutomationProperties.Name="Imprimir prueba"/>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="Comprobar conexión" FontWeight="SemiBold" FontSize="13"/>
+                                        <TextBlock Text="Envía un ticket de prueba con los datos del negocio."
+                                                   Style="{StaticResource CfgHelp}" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </DockPanel>
+                            </StackPanel>
+
+                            <!-- Estados compartidos -->
+                            <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource SuccessBrush}"
+                                       FontWeight="SemiBold" Margin="0,16,0,0"
+                                       AutomationProperties.Name="Mensaje de estado"/>
+                            <TextBlock Text="{Binding ErrorMessage}" Style="{DynamicResource ErrorText}" Margin="0,8,0,0"
+                                       AutomationProperties.Name="Mensaje de error"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+
+            <!-- ===== Columna 3: vista previa del ticket ===== -->
+            <StackPanel Grid.Column="2" VerticalAlignment="Top">
+                <StackPanel Orientation="Horizontal" Margin="0,4,0,8">
+                    <Ellipse Width="7" Height="7" Fill="{DynamicResource GreenDotBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Text="VISTA PREVIA DEL TICKET" Style="{StaticResource ColumnCaption}"
+                               Margin="8,0,0,0" VerticalAlignment="Center"/>
+                </StackPanel>
+                <Border BorderBrush="{DynamicResource BorderSoftBrush}" BorderThickness="1"
+                        CornerRadius="10" Padding="12" Background="{DynamicResource SurfaceBrush}">
+                    <TextBox Style="{StaticResource TicketPreviewBox}"
+                             Text="{Binding TicketPreviewText, Mode=OneWay}"
+                             AutomationProperties.Name="Vista previa del ticket"/>
+                </Border>
+                <TextBlock Text="Se actualiza en tiempo real mientras editas."
+                           Style="{StaticResource CfgHelp}" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+            </StackPanel>
+        </Grid>
+    </DockPanel>
 </UserControl>

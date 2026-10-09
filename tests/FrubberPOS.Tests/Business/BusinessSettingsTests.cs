@@ -152,4 +152,126 @@ public sealed class BusinessSettingsTests
         vm.BusinessNameText = new string('x', 115);
         Assert.Equal("115/120", vm.BusinessNameHintText);
     }
+
+    [Fact]
+    public async Task ViewModel_IsDirty_OnlyWhenFieldsDifferFromSnapshot()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        var vm = new BusinessSettingsViewModel(Get(bed), Update(bed));
+        await vm.InitializeAsync(["POS-58"]);
+
+        Assert.False(vm.IsDirty);
+
+        vm.BusinessNameText = "Frutas Don José";
+        Assert.True(vm.IsDirty);
+
+        await vm.SaveAsync();
+        Assert.False(vm.IsDirty);
+
+        vm.FooterText = "Vuelva pronto";
+        Assert.True(vm.IsDirty);
+    }
+
+    [Fact]
+    public async Task ViewModel_Discard_RestoresLastSavedSnapshot()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        var vm = new BusinessSettingsViewModel(Get(bed), Update(bed));
+        await vm.InitializeAsync(["POS-58"]);
+        vm.BusinessNameText = "Frutas Don José";
+        vm.SelectedPrinterOption = "POS-58";
+        await vm.SaveAsync();
+
+        vm.BusinessNameText = "Temporal";
+        vm.PhoneText = "300 000 0000";
+        vm.SelectedPrinterOption = "(Sin impresora configurada)";
+        Assert.True(vm.IsDirty);
+
+        vm.Discard();
+
+        Assert.False(vm.IsDirty);
+        Assert.Equal("Frutas Don José", vm.BusinessNameText);
+        Assert.Equal(string.Empty, vm.PhoneText);
+        Assert.Equal("POS-58", vm.SelectedPrinterOption);
+        Assert.Equal(string.Empty, vm.StatusMessage);
+    }
+
+    [Fact]
+    public async Task ViewModel_SectionSwitch_TogglesBusinessAndPrinterPanels()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        var vm = new BusinessSettingsViewModel(Get(bed), Update(bed));
+        await vm.InitializeAsync([]);
+
+        Assert.Equal(BusinessSettingsViewModel.BusinessSectionKey, vm.SelectedSectionKey);
+        Assert.True(vm.IsBusinessSection);
+        Assert.False(vm.IsPrinterSection);
+        Assert.Equal("Datos del negocio", vm.SectionTitle);
+
+        vm.SelectedSectionKey = BusinessSettingsViewModel.PrinterSectionKey;
+        Assert.True(vm.IsPrinterSection);
+        Assert.False(vm.IsBusinessSection);
+        Assert.Equal("Impresora predeterminada", vm.SectionTitle);
+    }
+
+    [Fact]
+    public async Task ViewModel_TicketPreview_ReflectsLiveBusinessFields()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        var vm = new BusinessSettingsViewModel(Get(bed), Update(bed));
+        await vm.InitializeAsync(["EPSON TM-T20"]);
+
+        Assert.Contains("Frubber POS", vm.TicketPreviewText);
+        Assert.Contains("Impresora: Sin impresora", vm.TicketPreviewText);
+
+        vm.BusinessNameText = "Frutas Don José";
+        vm.TaxIdentifierText = "900.123.456-7";
+        vm.FooterText = "¡Gracias por su compra!";
+        vm.SelectedPrinterOption = "EPSON TM-T20";
+
+        Assert.Contains("Frutas Don José", vm.TicketPreviewText);
+        Assert.Contains("NIT 900.123.456-7", vm.TicketPreviewText);
+        Assert.Contains("¡Gracias por su compra!", vm.TicketPreviewText);
+        Assert.Contains("Impresora: EPSON TM-T20", vm.TicketPreviewText);
+        Assert.DoesNotContain("Impresora: Sin impresora", vm.TicketPreviewText);
+    }
+
+    [Fact]
+    public async Task ViewModel_PrintTest_SendsLiveHeader_WhenPrinterSelected()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        var printer = new FakeTicketPrinter();
+        var vm = new BusinessSettingsViewModel(Get(bed), Update(bed), printer);
+        await vm.InitializeAsync(["EPSON TM-T20"]);
+
+        await vm.PrintTestAsync();
+        Assert.Equal(0, printer.PrintCount);
+        Assert.Equal("Selecciona una impresora instalada antes de imprimir la prueba.", vm.ErrorMessage);
+
+        vm.BusinessNameText = "Frutas Don José";
+        vm.SelectedPrinterOption = "EPSON TM-T20";
+        await vm.PrintTestAsync();
+
+        Assert.Equal(1, printer.PrintCount);
+        Assert.Equal("EPSON TM-T20", printer.LastPrinterName);
+        Assert.Equal("Ticket de prueba enviado.", vm.StatusMessage);
+        Assert.Equal(string.Empty, vm.ErrorMessage);
+        Assert.Contains("Frutas Don José", printer.LastTicket!.Lines[0]);
+        Assert.Contains("Ticket de prueba", printer.LastTicket.Title);
+    }
+
+    [Fact]
+    public async Task ViewModel_PrintTest_SurfacesPrinterError()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        var printer = new FakeTicketPrinter { NextError = "Sin papel" };
+        var vm = new BusinessSettingsViewModel(Get(bed), Update(bed), printer);
+        await vm.InitializeAsync(["POS-58"]);
+        vm.SelectedPrinterOption = "POS-58";
+
+        await vm.PrintTestAsync();
+
+        Assert.Equal("Sin papel", vm.ErrorMessage);
+        Assert.Equal(string.Empty, vm.StatusMessage);
+    }
 }
