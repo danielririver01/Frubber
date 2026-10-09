@@ -149,13 +149,13 @@ public partial class TpvView : System.Windows.Controls.UserControl
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         await viewModel.RefreshCashStateAsync();
-        if (loadedOnce)
-        {
-            return;
-        }
-
-        loadedOnce = true;
+        // Refresh results on every visit: products created while the page
+        // was cached (single TpvViewModel for the session) must appear.
         await viewModel.SearchAsync();
-        SearchBox.Focus();
+        if (!loadedOnce)
+        {
+            loadedOnce = true;
+            SearchBox.Focus();
+        }
     }
 }

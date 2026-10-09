@@ -415,4 +415,37 @@ public sealed class TpvKeyboardTests
             }
         });
     }
+
+    /// <summary>
+    /// Regresión (post JHO-75): la página del TPV se cachea con el mismo
+    /// ViewModel de sesión; al volver a Venta debe refrescar el catálogo
+    /// para mostrar productos creados mientras no se miraba.
+    /// </summary>
+    [Fact]
+    public async Task Loaded_Revisit_ShowsProductsCreatedWhileAway()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        await CreateUnitProductAsync(bed, "L1", "Leche");
+        var (vm, _, _) = Build(bed);
+
+        StaViewHarness.Run(() =>
+        {
+            var window = NewWindow();
+            try
+            {
+                var view = ShowView(window, vm);
+                PumpUntil(() => vm.Results.Count == 1, "OnLoaded carga el catálogo inicial");
+
+                CreateUnitProductAsync(bed, "P1", "Pan").GetAwaiter().GetResult();
+
+                view.RaiseEvent(new RoutedEventArgs(FrameworkElement.LoadedEvent));
+                PumpUntil(() => vm.Results.Count == 2, "volver a Venta refresca los resultados");
+                Assert.Contains(vm.Results, r => r.Name == "Pan");
+            }
+            finally
+            {
+                CloseWindow(window);
+            }
+        });
+    }
 }

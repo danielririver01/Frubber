@@ -20,7 +20,7 @@ public sealed class ProductsViewModelTests
     }
 
     [Fact]
-    public async Task Search_DefaultActives_ListsOnlyActive()
+    public async Task Search_DefaultTodos_ListsBothAndChipsSwitch()
     {
         await using var bed = await ProductTestBed.CreateAsync();
         var create = new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession());
@@ -30,8 +30,13 @@ public sealed class ProductsViewModelTests
             .ExecuteAsync(new SetProductActiveStateRequest(mango.Value.ProductId, false), CancellationToken.None);
 
         var (vm, _) = Build(bed);
+        Assert.True(vm.IsFilterTodos);
         await vm.SearchAsync();
 
+        Assert.Equal(2, vm.Products.Count);
+
+        await vm.SetFilterAsync(ProductStatusFilter.Activos);
+        Assert.True(vm.IsFilterActivos);
         Assert.Single(vm.Products);
         Assert.Equal("B1", vm.Products[0].Plu);
         Assert.Equal("Activo", vm.Products[0].StateText);
@@ -41,9 +46,6 @@ public sealed class ProductsViewModelTests
         Assert.Single(vm.Products);
         Assert.Equal("M1", vm.Products[0].Plu);
         Assert.Equal("Inactivo", vm.Products[0].StateText);
-
-        await vm.SetFilterAsync(ProductStatusFilter.Todos);
-        Assert.Equal(2, vm.Products.Count);
     }
 
     [Fact]
@@ -89,6 +91,7 @@ public sealed class ProductsViewModelTests
             new CreateProductRequest("L1", "Lechuga", ProductUnit.Kg, 5000, 0), CancellationToken.None);
 
         var (vm, _) = Build(bed);
+        await vm.SetFilterAsync(ProductStatusFilter.Activos);
         await vm.SearchAsync();
         vm.SelectedProduct = Assert.Single(vm.Products);
 

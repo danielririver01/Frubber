@@ -148,6 +148,26 @@ script Inno Setup dentro de la solución (§16.8).
 - Si un documento aprobado contradice al código o a otro documento: NO suponer.
   Registrar el hallazgo y pedir aprobación de Jhoan Rivera (dueño del producto).
 
+### Cómo reportar cambios al dueño (comunicación)
+
+Al cerrar un issue o resumir trabajo al dueño, hablar en **lenguaje claro,
+en español, orientado a lo que él ve en la pantalla**. NO un resumen técnico
+de archivos, clases ni commits (eso va solo en el comentario de evidencia de
+Linear). Patrón de respuesta:
+
+1. **Qué se arregló / qué se agregó** — en una o dos frases, como se lo
+   contarías a alguien que no programa. Ejemplo: *"Las columnas de la tabla
+   del TPV ahora están alineadas igual que en Productos: el título de la
+   columna y el valor quedan en la misma línea vertical."*
+2. **Qué cambia para él al usar la app** — qué nota distinto al abrir,
+   vender, ver historial, etc.
+3. **Dónde probarlo** — pantalla o flujo concreto (ej. "abre Venta y
+   compara el título PRECIO con el precio de un producto").
+4. Solo si él lo pide: detalle técnico (archivos, commits, tests).
+
+El comentario de evidencia en Linear sí es técnico (suite, build, commit).
+La respuesta visible en el chat hacia el dueño, NO.
+
 ## 8. Definición de hecho (DoD)
 
 Por tarea:

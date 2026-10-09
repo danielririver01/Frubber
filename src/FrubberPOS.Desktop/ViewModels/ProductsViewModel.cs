@@ -22,7 +22,7 @@ public sealed class ProductsViewModel : INotifyPropertyChanged
     private readonly INavigationService navigation;
 
     private string searchText = string.Empty;
-    private ProductStatusFilter filter = ProductStatusFilter.Activos;
+    private ProductStatusFilter filter = ProductStatusFilter.Todos;
     private string errorMessage = string.Empty;
     private ProductRowViewModel? selectedProduct;
 
