@@ -339,7 +339,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         if (SelectedEntry?.Title == "Respaldo" && backupPageFactory is not null)
         {
-            PageDescription = string.Empty;
+            PageDescription = "Protege la información de tu negocio";
             CurrentPage = backupPage ??= backupPageFactory();
             return;
         }

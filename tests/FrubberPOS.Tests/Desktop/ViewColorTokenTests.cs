@@ -25,7 +25,6 @@ public sealed class ViewColorTokenTests
     private static readonly IReadOnlyDictionary<string, int> Baseline =
         new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
         {
-            ["BackupView.xaml"] = 1,
             ["CashView.xaml"] = 1, // queda #2563EB (barra KPI Transferencia)
             ["LicenseWindow.xaml"] = 44,
             ["LoginCardView.xaml"] = 2,

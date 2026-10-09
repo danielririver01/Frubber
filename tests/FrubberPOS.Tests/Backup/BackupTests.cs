@@ -14,19 +14,26 @@ namespace FrubberPOS.Tests.Backup;
 /// Manual backup (JHO-53, P-UX §16): SQLite Backup API into a temp file,
 /// atomic publish, success names file+location, failure states the
 /// original database was untouched and leaves no partial file. Admin-only;
-/// no restore exists anywhere in the product.
+/// no restore exists anywhere in the product. JHO-81: overview KPIs and
+/// last-backup sidecar.
 /// </summary>
 public sealed class BackupTests : IDisposable
 {
     private readonly string workDir = Path.Combine(Path.GetTempPath(), "FrubberPOS", Guid.NewGuid().ToString("N"));
 
-    private (CreateBackupUseCase useCase, IAppLogger logger) BuildBed(
+    private (CreateBackupUseCase useCase, GetBackupOverviewUseCase overview, IAppLogger logger) BuildBed(
         ProductTestBed bed, FakeCurrentSession? session = null)
     {
         Directory.CreateDirectory(workDir);
         var logger = SerilogLoggerFactory.Create(new LoggingOptions(Path.Combine(workDir, "logs")));
-        var service = new SqliteBackupService(new FrubberPOS.Application.Persistence.DatabaseOptions(bed.DbPath));
-        return (new CreateBackupUseCase(service, session ?? ProductTestBed.AdminSession(), logger), logger);
+        var options = new FrubberPOS.Application.Persistence.DatabaseOptions(bed.DbPath);
+        var service = new SqliteBackupService(options);
+        var status = new SqliteBackupStatusService(options);
+        var current = session ?? ProductTestBed.AdminSession();
+        return (
+            new CreateBackupUseCase(service, status, current, logger),
+            new GetBackupOverviewUseCase(status, current),
+            logger);
     }
 
     private string Destination(string name = "respaldo.db") => Path.Combine(workDir, name);
@@ -35,7 +42,7 @@ public sealed class BackupTests : IDisposable
     public async Task Backup_ProducesAnIntactCopy_AndNamesIt()
     {
         await using var bed = await ProductTestBed.CreateAsync();
-        var (useCase, logger) = BuildBed(bed);
+        var (useCase, _, logger) = BuildBed(bed);
         var destination = Destination();
 
         var result = await useCase.ExecuteAsync(new CreateBackupRequest(destination), CancellationToken.None);
@@ -72,7 +79,7 @@ public sealed class BackupTests : IDisposable
     public async Task Failure_StatesOriginalUntouched_AndLeavesNoPartialFile()
     {
         await using var bed = await ProductTestBed.CreateAsync();
-        var (useCase, logger) = BuildBed(bed);
+        var (useCase, _, logger) = BuildBed(bed);
         var destination = Path.Combine(workDir, "no-existe", "respaldo.db"); // directorio inexistente
 
         var result = await useCase.ExecuteAsync(new CreateBackupRequest(destination), CancellationToken.None);
@@ -90,7 +97,7 @@ public sealed class BackupTests : IDisposable
     public async Task EmptyDestination_IsRejected()
     {
         await using var bed = await ProductTestBed.CreateAsync();
-        var (useCase, logger) = BuildBed(bed);
+        var (useCase, _, logger) = BuildBed(bed);
 
         var result = await useCase.ExecuteAsync(new CreateBackupRequest("  "), CancellationToken.None);
 
@@ -103,7 +110,7 @@ public sealed class BackupTests : IDisposable
     public async Task Cashier_IsDenied()
     {
         await using var bed = await ProductTestBed.CreateAsync();
-        var (useCase, logger) = BuildBed(bed, ProductTestBed.CashierSession());
+        var (useCase, _, logger) = BuildBed(bed, ProductTestBed.CashierSession());
 
         var result = await useCase.ExecuteAsync(new CreateBackupRequest(Destination()), CancellationToken.None);
 
@@ -117,9 +124,9 @@ public sealed class BackupTests : IDisposable
     public async Task ViewModel_Cancel_ShowsNothing()
     {
         await using var bed = await ProductTestBed.CreateAsync();
-        var (useCase, logger) = BuildBed(bed);
+        var (useCase, overview, logger) = BuildBed(bed);
         var nav = new FakeNavigator { NextBackupDestination = null };
-        var vm = new BackupViewModel(useCase, nav);
+        var vm = new BackupViewModel(useCase, overview, nav);
 
         await vm.CreateAsync();
 
@@ -134,10 +141,10 @@ public sealed class BackupTests : IDisposable
     public async Task ViewModel_Success_NamesFileAndLocation()
     {
         await using var bed = await ProductTestBed.CreateAsync();
-        var (useCase, logger) = BuildBed(bed);
+        var (useCase, overview, logger) = BuildBed(bed);
         var destination = Destination("respaldo-manual.db");
         var nav = new FakeNavigator { NextBackupDestination = destination };
-        var vm = new BackupViewModel(useCase, nav);
+        var vm = new BackupViewModel(useCase, overview, nav);
 
         await vm.CreateAsync();
 
@@ -146,6 +153,70 @@ public sealed class BackupTests : IDisposable
         Assert.Equal(string.Empty, vm.ErrorMessage);
         logger.Dispose();
     }
+
+    [Fact]
+    public async Task Overview_NeverBackedUp_ShowsAmberAndAlert()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        var (useCase, overview, logger) = BuildBed(bed);
+        var nav = new FakeNavigator { NextBackupDestination = null };
+        var vm = new BackupViewModel(useCase, overview, nav);
+
+        await vm.InitializeAsync();
+
+        Assert.False(vm.IsHealthy);
+        Assert.Equal("Tus datos no tienen respaldo", vm.BannerTitle);
+        Assert.Equal("Nunca", vm.LastBackupText);
+        Assert.Equal("1", vm.AlertCountText);
+        Assert.Equal("No configurada", vm.UsbText);
+        Assert.True(FormatSizeIsPositive(vm.DatabaseSizeText));
+        logger.Dispose();
+    }
+
+    [Fact]
+    public async Task Overview_AfterBackup_ShowsHealthyBannerAndLastBackup()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        var (useCase, overview, logger) = BuildBed(bed);
+        var destination = Destination("respaldo-kpi.db");
+        var nav = new FakeNavigator { NextBackupDestination = destination };
+        var vm = new BackupViewModel(useCase, overview, nav);
+
+        await vm.CreateAsync();
+
+        Assert.True(vm.IsHealthy);
+        Assert.Equal("Tus datos tienen un respaldo", vm.BannerTitle);
+        Assert.Equal("0", vm.AlertCountText);
+        Assert.NotEqual("Nunca", vm.LastBackupText);
+        Assert.Contains(destination, vm.LastBackupLocation);
+        logger.Dispose();
+    }
+
+    [Fact]
+    public void FormatSize_UsesHumanUnits()
+    {
+        Assert.Equal("0 B", BackupViewModel.FormatSize(0));
+        Assert.Equal("512 B", BackupViewModel.FormatSize(512));
+        Assert.Equal("1 KB", BackupViewModel.FormatSize(1024));
+        Assert.Equal("128 KB", BackupViewModel.FormatSize(128 * 1024));
+        Assert.Equal("1.5 MB", BackupViewModel.FormatSize((long)(1.5 * 1024 * 1024)));
+        Assert.Equal("2 GB", BackupViewModel.FormatSize(2L * 1024 * 1024 * 1024));
+    }
+
+    [Fact]
+    public void FormatWhen_PicksSpanishRelativeLabels()
+    {
+        var now = DateTimeOffset.Now;
+        Assert.Equal("Hace un momento", BackupViewModel.FormatWhen(now.AddSeconds(-5)));
+        Assert.Equal("Hace 2 minutos", BackupViewModel.FormatWhen(now.AddMinutes(-2)));
+        Assert.Equal("Hace 3 horas", BackupViewModel.FormatWhen(now.AddHours(-3)));
+        Assert.Equal("Hace 2 días", BackupViewModel.FormatWhen(now.AddDays(-2)));
+    }
+
+    private static bool FormatSizeIsPositive(string text) =>
+        text.EndsWith("B", StringComparison.Ordinal)
+        && text.Length > 1
+        && text != "0 B";
 
     public void Dispose()
     {

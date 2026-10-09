@@ -11,6 +11,19 @@ public sealed record CreateBackupRequest(string DestinationFilePath);
 public sealed record CreateBackupResponse(string FileName, string DestinationPath);
 
 /// <summary>
+/// Snapshot for the Respaldo page shell (JHO-81): live database size and the
+/// last successful manual backup (if any). No restore, no USB scheduler.
+/// </summary>
+public sealed record BackupOverview(
+    long DatabaseSizeBytes,
+    string? LastBackupFileName,
+    string? LastBackupPath,
+    DateTimeOffset? LastBackupUtc);
+
+/// <summary>Empty request for the overview use case.</summary>
+public sealed record GetBackupOverviewRequest;
+
+/// <summary>
 /// SQLite online-backup port (JHO-53, ADR-013): copies the live database
 /// with the SQLite Backup API into a temporary file next to the target
 /// and publishes it with an atomic rename. The source database is never
@@ -19,6 +32,17 @@ public sealed record CreateBackupResponse(string FileName, string DestinationPat
 public interface IBackupService
 {
     Task BackupAsync(string destinationFilePath, CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Reads the database size and persists a tiny sidecar with the last
+/// successful backup (JHO-81). Not a history table — only the latest run.
+/// </summary>
+public interface IBackupStatusService
+{
+    BackupOverview GetOverview();
+
+    void RecordSuccess(string fileName, string destinationPath);
 }
 
 /// <summary>
@@ -32,15 +56,22 @@ public interface IBackupService
 public sealed class CreateBackupUseCase : IUseCase<CreateBackupRequest, CreateBackupResponse>
 {
     private readonly IBackupService backup;
+    private readonly IBackupStatusService status;
     private readonly ICurrentSession session;
     private readonly IAppLogger logger;
 
-    public CreateBackupUseCase(IBackupService backup, ICurrentSession session, IAppLogger logger)
+    public CreateBackupUseCase(
+        IBackupService backup,
+        IBackupStatusService status,
+        ICurrentSession session,
+        IAppLogger logger)
     {
         ArgumentNullException.ThrowIfNull(backup);
+        ArgumentNullException.ThrowIfNull(status);
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(logger);
         this.backup = backup;
+        this.status = status;
         this.session = session;
         this.logger = logger;
     }
@@ -73,8 +104,40 @@ public sealed class CreateBackupUseCase : IUseCase<CreateBackupRequest, CreateBa
                 $"No se pudo crear el respaldo. La base de datos original no fue alterada. Código {reference}."));
         }
 
+        status.RecordSuccess(Path.GetFileName(destination), destination);
         logger.LogInformation("BACKUP_CREATED", $"Respaldo creado en {destination}.");
         return Result<CreateBackupResponse>.Success(
             new CreateBackupResponse(Path.GetFileName(destination), destination));
+    }
+}
+
+/// <summary>
+/// Overview for the Respaldo shell (JHO-81): admin-only read of database
+/// size and last successful backup metadata.
+/// </summary>
+public sealed class GetBackupOverviewUseCase : IUseCase<GetBackupOverviewRequest, BackupOverview>
+{
+    private readonly IBackupStatusService status;
+    private readonly ICurrentSession session;
+
+    public GetBackupOverviewUseCase(IBackupStatusService status, ICurrentSession session)
+    {
+        ArgumentNullException.ThrowIfNull(status);
+        ArgumentNullException.ThrowIfNull(session);
+        this.status = status;
+        this.session = session;
+    }
+
+    public Task<Result<BackupOverview>> ExecuteAsync(GetBackupOverviewRequest request, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var denied = Authorization.RequireAdmin(session);
+        if (denied is not null)
+        {
+            return Task.FromResult(Result<BackupOverview>.Failure(denied));
+        }
+
+        return Task.FromResult(Result<BackupOverview>.Success(status.GetOverview()));
     }
 }

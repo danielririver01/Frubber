@@ -73,6 +73,7 @@ public static class ServiceConfiguration
         services.AddSingleton<ITicketPrinter, WindowsTicketPrinter>();
         services.AddSingleton<ICurrentSession, CurrentSession>();
         services.AddSingleton<IBackupService, SqliteBackupService>();
+        services.AddSingleton<IBackupStatusService, SqliteBackupStatusService>();
         services.AddTransient<AuthenticateUserUseCase>();
         services.AddTransient<ListActiveUsersUseCase>();
         services.AddTransient<SignOutUseCase>();
@@ -110,6 +111,7 @@ public static class ServiceConfiguration
         services.AddTransient<GetBusinessSettingsUseCase>();
         services.AddTransient<UpdateBusinessSettingsUseCase>();
         services.AddTransient<CreateBackupUseCase>();
+        services.AddTransient<GetBackupOverviewUseCase>();
         services.AddTransient<LoginViewModel>();
         services.AddTransient<FirstStartViewModel>();
         services.AddTransient<LicenseActivationViewModel>();
