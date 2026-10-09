@@ -1,3 +1,4 @@
+using Dapper;
 using FrubberPOS.Application.Authentication;
 using FrubberPOS.Application.Cash;
 using FrubberPOS.Application.Licensing;
@@ -117,6 +118,30 @@ public sealed class ViewPreviewTests
             products.SearchAsync().GetAwaiter().GetResult();
             StaViewHarness.SavePng(new ProductsView(products), 1600, 900, "products.png");
 
+            // --- Historial (JHO-75: sin filtro inicial, estado vacío con CTA) ---
+            using (var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={prodBed.DbPath}"))
+            {
+                connection.Open();
+                connection.Execute(
+                    "INSERT INTO \"User\" (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
+                    + " VALUES (1, 'Admin', 'ADMIN', 1, @Salt, @Hash, 1, 1);",
+                    new { Salt = new byte[16], Hash = new byte[32] });
+                connection.Execute(
+                    "INSERT INTO CashSession (CashSessionId, OpenedAtUtcMs, OpenedAtOffsetMinutes, OpenedByUserId, OpenedByNameSnapshot, OpeningBalanceCop)"
+                    + " VALUES (1, 1, 0, 1, 'Admin', 0);");
+                connection.Execute(
+                    "INSERT INTO Sale (SaleNumber, CashSessionId, CashierUserId, CashierNameSnapshot,"
+                    + " SoldAtUtcMs, SoldAtOffsetMinutes, SubtotalCop, DiscountCop, TotalCop, PaymentMethod, ReceivedCop, ChangeCop)"
+                    + " VALUES (1, 1, 1, 'Admin', 1, 0, 8000, 500, 7500, 'CASH', 8000, 500);");
+            }
+
+            var history = new SalesHistoryViewModel(
+                new SearchSalesHistoryUseCase(prodBed.History, prodBed.Units, ProductTestBed.AdminSession()),
+                new FakeNavigator());
+            history.InitializeAsync().GetAwaiter().GetResult();
+            Assert.True(history.Items.Count > 0, "el preview del historial necesita al menos una venta");
+            StaViewHarness.SavePng(new SalesHistoryView(history), 1600, 900, "history.png");
+
             // --- Shell con caja cerrada (JHO-67 pos-2): pastilla gris + "Caja cerrada · venta bloqueada" ---
             var closedShellViewModel = new MainViewModel(
                 new SignedInUser(1, "Jhoan Daniel", UserRole.Admin),
@@ -166,8 +191,8 @@ public sealed class ViewPreviewTests
         Assert.True(saved.Length >= 6, $"Se esperaban 6 PNG, hay {saved.Length}.");
         foreach (var required in new[]
                  {
-                     "shell.png", "shell-cash-closed.png", "tpv.png", "products.png", "checkout.png",
-                     "checkout-faltan.png", "checkout-exacto.png"
+                     "shell.png", "shell-cash-closed.png", "tpv.png", "products.png", "history.png",
+                     "checkout.png", "checkout-faltan.png", "checkout-exacto.png"
                  })
         {
             Assert.True(File.Exists(Path.Combine(outDir, required)), $"Falta el preview {required}.");

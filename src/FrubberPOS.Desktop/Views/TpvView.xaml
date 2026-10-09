@@ -143,6 +143,21 @@
             </Style.Triggers>
         </Style>
 
+        <!-- JHO-75: mismo patrón JHO-74 — DataGridCell.Padding no se aplica en
+             WPF; el margen banda [col+10..col-10] alinea cabecera y valor en
+             ambos grids del TPV (resultados y ticket). -->
+        <Style x:Key="TpvCellText" TargetType="TextBlock">
+            <Setter Property="Margin" Value="10,0,10,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="TpvCellTextRight" TargetType="TextBlock" BasedOn="{StaticResource TpvCellText}">
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+        </Style>
+        <Style x:Key="TpvHeaderRight" TargetType="DataGridColumnHeader"
+               BasedOn="{StaticResource ColumnHeaderBase}">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        </Style>
+
         <!-- Estado vacío de resultados (proto .empty): lupa trazo suave + textos. -->
         <Style x:Key="EmptyCaption" TargetType="TextBlock">
             <Setter Property="HorizontalAlignment" Value="Center"/>
@@ -246,18 +261,14 @@
                               Visibility="{Binding ResultsTableVisible, Converter={StaticResource BoolToVis}}"
                               AutomationProperties.Name="Resultados de búsqueda">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="PLU" Binding="{Binding Plu}" Width="80">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="VerticalAlignment" Value="Center"/>
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="PLU" Binding="{Binding Plu}" Width="80"
+                                                ElementStyle="{StaticResource TpvCellText}"/>
                             <DataGridTemplateColumn Header="PRODUCTO" Width="420">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <DockPanel>
                                             <Border DockPanel.Dock="Left" Width="28" Height="28" CornerRadius="8"
+                                                    Margin="10,0,0,0"
                                                     Background="{DynamicResource MintBrush}" VerticalAlignment="Center">
                                                 <TextBlock Text="{Binding FirstLetter}" HorizontalAlignment="Center"
                                                            VerticalAlignment="Center" FontSize="13"
@@ -287,32 +298,28 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTemplateColumn Width="140">
+                            <DataGridTemplateColumn Width="140" HeaderStyle="{StaticResource TpvHeaderRight}">
                                 <DataGridTemplateColumn.Header>
                                     <TextBlock Text="UNIDAD" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                 </DataGridTemplateColumn.Header>
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <Border Background="{DynamicResource SubtleBrush}" CornerRadius="6"
-                                                Padding="9,3" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                Padding="9,3" Margin="0,0,10,0" HorizontalAlignment="Right" VerticalAlignment="Center">
                                             <TextBlock Text="{Binding UnitCode}" FontSize="12"
                                                        Foreground="{DynamicResource SecondaryTextBrush}"/>
                                         </Border>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Binding="{Binding PriceText}" Width="150">
+                            <DataGridTextColumn Binding="{Binding PriceText}" Width="150"
+                                                HeaderStyle="{StaticResource TpvHeaderRight}"
+                                                ElementStyle="{StaticResource TpvCellTextRight}">
                                 <DataGridTextColumn.Header>
                                     <TextBlock Text="PRECIO" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                 </DataGridTextColumn.Header>
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="HorizontalAlignment" Value="Right"/>
-                                        <Setter Property="VerticalAlignment" Value="Center"/>
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTemplateColumn Width="200">
+                            <DataGridTemplateColumn Width="200" HeaderStyle="{StaticResource TpvHeaderRight}">
                                 <DataGridTemplateColumn.Header>
                                     <TextBlock Text="EXISTENCIA" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                 </DataGridTemplateColumn.Header>
@@ -320,7 +327,7 @@
                                     <DataTemplate>
                                         <!-- JHO-67: umbral fijo del dueño (≤5 = "bajo";0 = "agotado"). -->
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
-                                                    VerticalAlignment="Center">
+                                                    Margin="0,0,10,0" VerticalAlignment="Center">
                                             <TextBlock Text="{Binding StockText}" VerticalAlignment="Center"/>
                                             <Border Margin="6,0,0,0" Padding="4,1" CornerRadius="4"
                                                     Background="{DynamicResource WarnSoftBrush}"
@@ -494,40 +501,29 @@
                               Visibility="{Binding TicketTableVisible, Converter={StaticResource BoolToVis}}"
                               AutomationProperties.Name="Líneas de la venta">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="#" Binding="{Binding Number}" Width="56">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="VerticalAlignment" Value="Center"/>
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Header="PRODUCTO" Binding="{Binding Name}" Width="420">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="VerticalAlignment" Value="Center"/>
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Binding="{Binding QuantityText}" Width="130">
+                            <DataGridTextColumn Header="#" Binding="{Binding Number}" Width="56"
+                                                ElementStyle="{StaticResource TpvCellText}"/>
+                            <DataGridTextColumn Header="PRODUCTO" Binding="{Binding Name}" Width="420"
+                                                ElementStyle="{StaticResource TpvCellText}"/>
+                            <DataGridTextColumn Binding="{Binding QuantityText}" Width="130"
+                                                HeaderStyle="{StaticResource TpvHeaderRight}">
                                 <DataGridTextColumn.Header>
                                     <TextBlock Text="CANTIDAD" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                 </DataGridTextColumn.Header>
                                 <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="HorizontalAlignment" Value="Right"/>
-                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource TpvCellTextRight}">
                                         <Setter Property="FontWeight" Value="SemiBold"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTemplateColumn Width="140">
+                            <DataGridTemplateColumn Width="140" HeaderStyle="{StaticResource TpvHeaderRight}">
                                 <DataGridTemplateColumn.Header>
                                     <TextBlock Text="PRECIO" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                 </DataGridTemplateColumn.Header>
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
-                                                    VerticalAlignment="Center">
+                                                    Margin="0,0,10,0" VerticalAlignment="Center">
                                             <TextBlock Text="{Binding PriceText}" FontWeight="SemiBold"
                                                        VerticalAlignment="Center"/>
                                             <TextBlock Text="{Binding UnitPriceSuffix}" FontSize="11"
@@ -537,14 +533,13 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Binding="{Binding TotalText}" Width="150">
+                            <DataGridTextColumn Binding="{Binding TotalText}" Width="150"
+                                                HeaderStyle="{StaticResource TpvHeaderRight}">
                                 <DataGridTextColumn.Header>
                                     <TextBlock Text="IMPORTE" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                 </DataGridTextColumn.Header>
                                 <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="HorizontalAlignment" Value="Right"/>
-                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource TpvCellTextRight}">
                                         <Setter Property="FontWeight" Value="SemiBold"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>

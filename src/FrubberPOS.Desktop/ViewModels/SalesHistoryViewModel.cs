@@ -10,10 +10,13 @@ using FrubberPOS.Desktop.Common;
 namespace FrubberPOS.Desktop.ViewModels;
 
 /// <summary>
-/// Administrative history page (JHO-46, P-UX §13.1/13.2): Desde/Hasta
-/// required (Hasta never before Desde), Enter searches, 50 per page,
-/// newest first, Anterior/Siguiente reflect availability and the detail
-/// opens per row. The list is read-only; voiding happens in the detail.
+/// Administrative history page (JHO-46/75, P-UX §13.1/13.2): opens with
+/// the FULL history (no date filter); Desde/Hasta are an optional
+/// real-time filter (both or none, Hasta never before Desde), Enter
+/// searches, 50 per page, newest first, Anterior/Siguiente reflect
+/// availability and the detail opens per row. Empty state shows a
+/// contextual message (no sales vs no sales in range). The list is
+/// read-only; voiding happens in the detail.
 /// </summary>
 public sealed class SalesHistoryViewModel : INotifyPropertyChanged
 {
@@ -25,8 +28,15 @@ public sealed class SalesHistoryViewModel : INotifyPropertyChanged
     private string toText = string.Empty;
     private string errorMessage = string.Empty;
     private string summaryText = string.Empty;
+    private string emptyTitle = string.Empty;
+    private string emptySub = string.Empty;
+    private bool emptyVisible;
+    private bool rowsVisible;
+    private bool emptyCtaVisible;
+    private bool filterActive;
     private int page = 1;
     private int totalCount;
+    private int searchVersion;
     private SaleHistoryRowViewModel? selectedItem;
 
     public SalesHistoryViewModel(SearchSalesHistoryUseCase searchHistory, INavigationService navigation)
@@ -40,10 +50,7 @@ public sealed class SalesHistoryViewModel : INotifyPropertyChanged
         PreviousPageCommand = new AsyncCommand(_ => SearchAsync(page - 1), () => page > 1);
         NextPageCommand = new AsyncCommand(_ => SearchAsync(page + 1), () => (long)page * SearchSalesHistoryUseCase.PageSize < totalCount);
         OpenDetailCommand = new AsyncCommand(_ => OpenDetailAsync(), () => SelectedItem is not null);
-
-        var today = DateOnly.FromDateTime(DateTime.Today);
-        fromText = today.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
-        toText = fromText;
+        ClearFilterCommand = new AsyncCommand(_ => ClearFilterAsync());
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -53,13 +60,25 @@ public sealed class SalesHistoryViewModel : INotifyPropertyChanged
     public string FromText
     {
         get => fromText;
-        set => SetProperty(ref fromText, value);
+        set
+        {
+            if (SetProperty(ref fromText, value))
+            {
+                OnFilterChanged();
+            }
+        }
     }
 
     public string ToText
     {
         get => toText;
-        set => SetProperty(ref toText, value);
+        set
+        {
+            if (SetProperty(ref toText, value))
+            {
+                OnFilterChanged();
+            }
+        }
     }
 
     public string ErrorMessage
@@ -73,6 +92,39 @@ public sealed class SalesHistoryViewModel : INotifyPropertyChanged
     {
         get => summaryText;
         private set => SetProperty(ref summaryText, value);
+    }
+
+    /// <summary>Empty-state visibility (no rows after the search).</summary>
+    public bool EmptyVisible
+    {
+        get => emptyVisible;
+        private set => SetProperty(ref emptyVisible, value);
+    }
+
+    /// <summary>Inverse of EmptyVisible: the DataGrid only shows when there are rows.</summary>
+    public bool RowsVisible
+    {
+        get => rowsVisible;
+        private set => SetProperty(ref rowsVisible, value);
+    }
+
+    public string EmptyTitle
+    {
+        get => emptyTitle;
+        private set => SetProperty(ref emptyTitle, value);
+    }
+
+    public string EmptySub
+    {
+        get => emptySub;
+        private set => SetProperty(ref emptySub, value);
+    }
+
+    /// <summary>"Limpiar fechas" only makes sense while a date filter is active.</summary>
+    public bool EmptyCtaVisible
+    {
+        get => emptyCtaVisible;
+        private set => SetProperty(ref emptyCtaVisible, value);
     }
 
     public int Page => page;
@@ -99,18 +151,83 @@ public sealed class SalesHistoryViewModel : INotifyPropertyChanged
 
     public AsyncCommand OpenDetailCommand { get; }
 
-    /// <summary>JHO-60: la página carga el rango por defecto (hoy) sin pulsar Buscar.</summary>
+    public AsyncCommand ClearFilterCommand { get; }
+
+    /// <summary>JHO-60/75: la página carga TODO el historial sin pulsar Buscar.</summary>
     public Task InitializeAsync() => SearchAsync(1);
+
+    /// <summary>JHO-75: el rango se aplica en tiempo real al digitar (ambas fechas o ninguna).</summary>
+    private void OnFilterChanged()
+    {
+        var fromEmpty = string.IsNullOrWhiteSpace(FromText);
+        var toEmpty = string.IsNullOrWhiteSpace(ToText);
+        if (fromEmpty && toEmpty)
+        {
+            ErrorMessage = string.Empty;
+            _ = SearchAsync(1);
+            return;
+        }
+
+        if (!fromEmpty && !toEmpty
+            && TryParseDate(FromText, out _) && TryParseDate(ToText, out _))
+        {
+            ErrorMessage = string.Empty;
+            _ = SearchAsync(1);
+            return;
+        }
+
+        if (fromEmpty != toEmpty)
+        {
+            ErrorMessage = "Complete ambas fechas para filtrar o déjelas vacías.";
+        }
+    }
+
+    public async Task ClearFilterAsync()
+    {
+        FromText = string.Empty;
+        ToText = string.Empty;
+        ErrorMessage = string.Empty;
+        await SearchAsync(1);
+    }
+
     public async Task SearchAsync(int targetPage = 1)
     {
-        if (!TryParseDate(FromText, out var from) || !TryParseDate(ToText, out var to))
+        var version = ++searchVersion;
+        DateOnly? from = null;
+        DateOnly? to = null;
+        var fromEmpty = string.IsNullOrWhiteSpace(FromText);
+        var toEmpty = string.IsNullOrWhiteSpace(ToText);
+        if (fromEmpty != toEmpty)
         {
-            ErrorMessage = "Ingrese las fechas Desde y Hasta con formato dd/MM/aaaa.";
+            ErrorMessage = "Complete ambas fechas para filtrar o déjelas vacías.";
             return;
+        }
+
+        if (!fromEmpty)
+        {
+            if (!TryParseDate(FromText, out var fromDate) || !TryParseDate(ToText, out var toDate))
+            {
+                ErrorMessage = "Ingrese las fechas Desde y Hasta con formato dd/MM/aaaa.";
+                return;
+            }
+
+            if (toDate < fromDate)
+            {
+                ErrorMessage = "Hasta no puede ser anterior a Desde.";
+                return;
+            }
+
+            from = fromDate;
+            to = toDate;
         }
 
         var result = await searchHistory.ExecuteAsync(
             new SearchSalesHistoryRequest(from, to, targetPage), CancellationToken.None);
+        if (version != searchVersion)
+        {
+            return; // una búsqueda más reciente ya sobrescribió esta página (filtro en tiempo real)
+        }
+
         if (!result.IsSuccess)
         {
             ErrorMessage = result.Error!.Message;
@@ -120,6 +237,7 @@ public sealed class SalesHistoryViewModel : INotifyPropertyChanged
         ErrorMessage = string.Empty;
         page = result.Value.Page;
         totalCount = result.Value.TotalCount;
+        filterActive = from is not null;
         items.Clear();
         foreach (var item in result.Value.Items)
         {
@@ -127,8 +245,15 @@ public sealed class SalesHistoryViewModel : INotifyPropertyChanged
         }
 
         SelectedItem = items.FirstOrDefault();
+        RowsVisible = totalCount > 0;
+        EmptyVisible = totalCount == 0;
+        EmptyCtaVisible = filterActive;
+        EmptyTitle = filterActive ? "No hay ventas en este rango" : "No hay ventas registradas";
+        EmptySub = filterActive
+            ? "Amplía las fechas o limpia el filtro para ver más ventas."
+            : "Las ventas aparecerán aquí después de cada cobro.";
         SummaryText = totalCount == 0
-            ? "Sin ventas en el rango."
+            ? (filterActive ? "Sin ventas en el rango." : "No hay ventas registradas.")
             : $"Página {page} · {totalCount:N0} ventas";
         PreviousPageCommand.RaiseCanExecuteChanged();
         NextPageCommand.RaiseCanExecuteChanged();
@@ -184,8 +309,18 @@ public sealed record SaleHistoryRowViewModel(
     string StatusText,
     Brush StatusBrush)
 {
-    private static readonly Brush ActiveBrush = new SolidColorBrush(Color.FromRgb(0x15, 0x80, 0x3D));
-    private static readonly Brush VoidedBrush = new SolidColorBrush(Color.FromRgb(0xB9, 0x1C, 0x1C));
+    // Congelados: un Freezable compartido es válido en cualquier hilo STA
+    // (las pruebas de UI crean un STA por caso; sin Freeze, el binding
+    // "DependencySource en el mismo subproceso" revienta al cruzar hilos).
+    private static readonly Brush ActiveBrush = CreateFrozenBrush(0x15, 0x80, 0x3D);
+    private static readonly Brush VoidedBrush = CreateFrozenBrush(0xB9, 0x1C, 0x1C);
+
+    private static Brush CreateFrozenBrush(byte r, byte g, byte b)
+    {
+        var brush = new SolidColorBrush(Color.FromRgb(r, g, b));
+        brush.Freeze();
+        return brush;
+    }
 
     public static SaleHistoryRowViewModel From(SaleHistoryItemDto dto)
     {

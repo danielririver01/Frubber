@@ -9,8 +9,9 @@ using System.Windows.Media;
 namespace FrubberPOS.Tests.Sales;
 
 /// <summary>
-/// History page ViewModel (JHO-46, P-UX §13.1/13.2/13.5): date
-/// validation, paging availability, row formatting with text+color state.
+/// History page ViewModel (JHO-46/75, P-UX §13.1/13.2/13.5): opens with
+/// the full history, optional real-time date filter, paging availability,
+/// contextual empty state, row formatting with text+color state.
 /// </summary>
 public sealed class SalesHistoryViewModelTests
 {
@@ -54,18 +55,100 @@ public sealed class SalesHistoryViewModelTests
     }
 
     [Fact]
-    public async Task Initialize_LoadsTodayWithoutPressingBuscar()
+    public async Task Initialize_LoadsTheWholeHistoryWithoutFilter()
     {
         await using var bed = await BedWithSalesAsync(2);
         var (vm, _) = Build(bed);
-        // Sin tocar Desde/Hasta ni Buscar: la página autocarga (JHO-60).
+        // Sin tocar Desde/Hasta ni Buscar: la página autocarga TODO (JHO-75).
+        await vm.InitializeAsync();
+
+        Assert.Equal(string.Empty, vm.FromText);
+        Assert.Equal(string.Empty, vm.ToText);
+        Assert.Equal(2, vm.Items.Count);
+        Assert.Equal(string.Empty, vm.ErrorMessage);
+        Assert.False(vm.EmptyVisible);
+        Assert.True(vm.RowsVisible);
+    }
+
+    [Fact]
+    public async Task BothDatesFilled_TriggersRealTimeSearchWithoutBuscar()
+    {
+        await using var bed = await BedWithSalesAsync(2);
+        var (vm, _) = Build(bed);
+        await vm.InitializeAsync();
+
         vm.FromText = "30/09/2026";
         vm.ToText = "30/09/2026";
-
-        await vm.InitializeAsync();
+        await vm.SearchAsync(); // drena el disparo en tiempo real del setter
 
         Assert.Equal(2, vm.Items.Count);
         Assert.Equal(string.Empty, vm.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task SingleDateFilled_ShowsHintAndDoesNotSearch()
+    {
+        await using var bed = await BedWithSalesAsync(2);
+        var (vm, _) = Build(bed);
+        await vm.InitializeAsync();
+        Assert.Equal(2, vm.Items.Count);
+
+        vm.FromText = "30/09/2026";
+
+        await vm.SearchAsync();
+
+        Assert.Equal("Complete ambas fechas para filtrar o déjelas vacías.", vm.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task ClearFilter_RestoresTheWholeHistory()
+    {
+        await using var bed = await BedWithSalesAsync(3);
+        var (vm, _) = Build(bed);
+        await vm.InitializeAsync();
+        vm.FromText = "30/09/2026";
+        vm.ToText = "30/09/2026";
+        await vm.SearchAsync();
+
+        await vm.ClearFilterAsync();
+
+        Assert.Equal(string.Empty, vm.FromText);
+        Assert.Equal(string.Empty, vm.ToText);
+        Assert.Equal(string.Empty, vm.ErrorMessage);
+        Assert.Equal(3, vm.Items.Count);
+        Assert.False(vm.EmptyCtaVisible);
+    }
+
+    [Fact]
+    public async Task NoSales_ShowsEmptyStateWithoutFilter()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        var (vm, _) = Build(bed);
+
+        await vm.InitializeAsync();
+
+        Assert.True(vm.EmptyVisible);
+        Assert.False(vm.RowsVisible);
+        Assert.Equal("No hay ventas registradas", vm.EmptyTitle);
+        Assert.False(vm.EmptyCtaVisible);
+        Assert.Equal("No hay ventas registradas.", vm.SummaryText);
+    }
+
+    [Fact]
+    public async Task NoSalesInRange_ShowsFilteredEmptyStateWithClearCta()
+    {
+        await using var bed = await BedWithSalesAsync(2);
+        var (vm, _) = Build(bed);
+        await vm.InitializeAsync();
+        vm.FromText = "01/01/2020";
+        vm.ToText = "02/01/2020";
+        await vm.SearchAsync();
+
+        Assert.True(vm.EmptyVisible);
+        Assert.False(vm.RowsVisible);
+        Assert.Equal("No hay ventas en este rango", vm.EmptyTitle);
+        Assert.True(vm.EmptyCtaVisible);
+        Assert.Equal("Sin ventas en el rango.", vm.SummaryText);
     }
 
     [Fact]
@@ -74,6 +157,7 @@ public sealed class SalesHistoryViewModelTests
         await using var bed = await ProductTestBed.CreateAsync();
         var (vm, _) = Build(bed);
         vm.FromText = "no-es-fecha";
+        vm.ToText = "tampoco";
 
         await vm.SearchAsync();
 

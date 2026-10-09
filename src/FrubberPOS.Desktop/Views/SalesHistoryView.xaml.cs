@@ -5,9 +5,10 @@ using FrubberPOS.Desktop.ViewModels;
 namespace FrubberPOS.Desktop.Views;
 
 /// <summary>
-/// Administrative history page (JHO-46, P-UX §13.1/13.2): Enter in a
-/// date box searches; double-click opens the read-only detail. The view
-/// holds no business rules.
+/// Administrative history page (JHO-46/75, P-UX §13.1/13.2): Enter in a
+/// date box searches; double-click opens the read-only detail. JHO-75:
+/// the page opens with the full history and dates filter in real time.
+/// The view holds no business rules.
 /// </summary>
 public partial class SalesHistoryView : UserControl
 {
@@ -26,7 +27,7 @@ public partial class SalesHistoryView : UserControl
             }
 
             loadedOnce = true;
-            await viewModel.InitializeAsync(); // JHO-60: carga al entrar
+            await viewModel.InitializeAsync(); // JHO-60/75: carga el historial al entrar
         };
     }
 

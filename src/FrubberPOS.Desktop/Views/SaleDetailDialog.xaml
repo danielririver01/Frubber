@@ -7,6 +7,18 @@
         MouseLeftButtonDown="OnDragMove">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <!-- JHO-75: mismo patrón JHO-74 — DataGridCell.Padding no se aplica
+             en WPF; el margen banda [col+10..col-10] alinea cabecera y valor. -->
+        <Style x:Key="CellText" TargetType="TextBlock">
+            <Setter Property="Margin" Value="10,0,10,0"/>
+        </Style>
+        <Style x:Key="CellTextRight" TargetType="TextBlock" BasedOn="{StaticResource CellText}">
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+        </Style>
+        <Style x:Key="HeaderRight" TargetType="DataGridColumnHeader"
+               BasedOn="{StaticResource ColumnHeaderBase}">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        </Style>
     </Window.Resources>
     <Border Style="{DynamicResource DialogCard}" Margin="16">
         <StackPanel>
@@ -52,23 +64,27 @@
                           CanUserAddRows="False" HeadersVisibility="Column"
                           AutomationProperties.Name="Líneas históricas">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="#" Binding="{Binding LineNumber}" Width="44"/>
-                        <DataGridTextColumn Header="PLU" Binding="{Binding Plu}" Width="70"/>
-                        <DataGridTextColumn Header="Producto" Binding="{Binding Name}" Width="*"/>
-                        <DataGridTextColumn Header="Cantidad" Binding="{Binding QuantityText}" Width="100"/>
-                        <DataGridTextColumn Header="Precio" Binding="{Binding PriceText}" Width="90">
-                            <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="HorizontalAlignment" Value="Right"/>
-                                </Style>
-                            </DataGridTextColumn.ElementStyle>
+                        <DataGridTextColumn Header="#" Binding="{Binding LineNumber}" Width="44"
+                                            ElementStyle="{StaticResource CellText}"/>
+                        <DataGridTextColumn Header="PLU" Binding="{Binding Plu}" Width="70"
+                                            ElementStyle="{StaticResource CellText}"/>
+                        <DataGridTextColumn Header="Producto" Binding="{Binding Name}" Width="*"
+                                            ElementStyle="{StaticResource CellText}"/>
+                        <DataGridTextColumn Header="Cantidad" Binding="{Binding QuantityText}" Width="100"
+                                            ElementStyle="{StaticResource CellText}"/>
+                        <DataGridTextColumn Binding="{Binding PriceText}" Width="90"
+                                            HeaderStyle="{StaticResource HeaderRight}"
+                                            ElementStyle="{StaticResource CellTextRight}">
+                            <DataGridTextColumn.Header>
+                                <TextBlock Text="Precio" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            </DataGridTextColumn.Header>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="Importe" Binding="{Binding TotalText}" Width="90">
-                            <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="HorizontalAlignment" Value="Right"/>
-                                </Style>
-                            </DataGridTextColumn.ElementStyle>
+                        <DataGridTextColumn Binding="{Binding TotalText}" Width="90"
+                                            HeaderStyle="{StaticResource HeaderRight}"
+                                            ElementStyle="{StaticResource CellTextRight}">
+                            <DataGridTextColumn.Header>
+                                <TextBlock Text="Importe" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            </DataGridTextColumn.Header>
                         </DataGridTextColumn>
                     </DataGrid.Columns>
                 </DataGrid>

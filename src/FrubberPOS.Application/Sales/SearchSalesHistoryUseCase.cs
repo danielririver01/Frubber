@@ -15,11 +15,12 @@ public sealed record SearchSalesHistoryResponse(
     int PageSize);
 
 /// <summary>
-/// Paginated sale history by date range (JHO-47, RN-HIS-001/004):
-/// administrator-only, both dates required, Hasta never before Desde,
-/// newest first, exactly 50 rows per page except the last. The local
-/// calendar dates convert to a half-open UTC range with the machine zone
-/// (single-store Windows POS, no DST in Colombia).
+/// Paginated sale history (JHO-47/75, RN-HIS-001/004): administrator-only,
+/// newest first, exactly 50 rows per page except the last. Dates are an
+/// optional filter — both null means the full history; half ranges are
+/// rejected and Hasta never precedes Desde. The local calendar dates
+/// convert to a half-open UTC range with the machine zone (single-store
+/// Windows POS, no DST in Colombia).
 /// </summary>
 public sealed class SearchSalesHistoryUseCase : IUseCase<SearchSalesHistoryRequest, SearchSalesHistoryResponse>
 {
@@ -54,13 +55,14 @@ public sealed class SearchSalesHistoryUseCase : IUseCase<SearchSalesHistoryReque
             return Result<SearchSalesHistoryResponse>.Failure(denied);
         }
 
-        if (request.FromDate is null || request.ToDate is null)
+        var bothDates = request.FromDate is not null && request.ToDate is not null;
+        if (!bothDates && (request.FromDate is not null || request.ToDate is not null))
         {
             return Result<SearchSalesHistoryResponse>.Failure(new Error(
-                ErrorCode.Validation, "Las fechas Desde y Hasta son obligatorias."));
+                ErrorCode.Validation, "Complete ambas fechas o déjelas vacías."));
         }
 
-        if (request.ToDate.Value < request.FromDate.Value)
+        if (bothDates && request.ToDate!.Value < request.FromDate!.Value)
         {
             return Result<SearchSalesHistoryResponse>.Failure(new Error(
                 ErrorCode.Validation, "Hasta no puede ser anterior a Desde."));
@@ -72,11 +74,21 @@ public sealed class SearchSalesHistoryUseCase : IUseCase<SearchSalesHistoryReque
                 ErrorCode.Validation, "La página debe ser 1 o mayor."));
         }
 
-        var zone = TimeZoneInfo.Local;
-        var fromLocal = request.FromDate.Value.ToDateTime(TimeOnly.MinValue);
-        var toExclusiveLocal = request.ToDate.Value.AddDays(1).ToDateTime(TimeOnly.MinValue);
-        var fromUtcMs = new DateTimeOffset(fromLocal, zone.GetUtcOffset(fromLocal)).ToUnixTimeMilliseconds();
-        var toUtcMsExclusive = new DateTimeOffset(toExclusiveLocal, zone.GetUtcOffset(toExclusiveLocal)).ToUnixTimeMilliseconds();
+        long fromUtcMs;
+        long toUtcMsExclusive;
+        if (bothDates)
+        {
+            var zone = TimeZoneInfo.Local;
+            var fromLocal = request.FromDate!.Value.ToDateTime(TimeOnly.MinValue);
+            var toExclusiveLocal = request.ToDate!.Value.AddDays(1).ToDateTime(TimeOnly.MinValue);
+            fromUtcMs = new DateTimeOffset(fromLocal, zone.GetUtcOffset(fromLocal)).ToUnixTimeMilliseconds();
+            toUtcMsExclusive = new DateTimeOffset(toExclusiveLocal, zone.GetUtcOffset(toExclusiveLocal)).ToUnixTimeMilliseconds();
+        }
+        else
+        {
+            fromUtcMs = 0;
+            toUtcMsExclusive = long.MaxValue;
+        }
 
         await using var unit = await units.CreateAsync(UnitOfWorkMode.ReadOnly, cancellationToken);
         var page = await history.SearchAsync(

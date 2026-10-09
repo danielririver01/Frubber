@@ -7,9 +7,9 @@ using Microsoft.Data.Sqlite;
 namespace FrubberPOS.Tests.Sales;
 
 /// <summary>
-/// Paginated history query (JHO-47, RN-HIS-001/004): admin-only, date
-/// range validation, newest-first, exactly 50 per page except the last,
-/// and fast over 100.000 reference sales.
+/// Paginated history query (JHO-47/75, RN-HIS-001/004): admin-only, dates
+/// optional (both null = full history, half range rejected), newest-first,
+/// exactly 50 per page except the last, and fast over 100.000 reference sales.
 /// </summary>
 public sealed class SalesHistoryQueryTests
 {
@@ -68,15 +68,36 @@ public sealed class SalesHistoryQueryTests
     }
 
     [Fact]
-    public async Task MissingDates_AreRejected()
+    public async Task NullDates_ReturnTheWholeHistory()
     {
         await using var bed = await ProductTestBed.CreateAsync();
+        await SeedUserAndCashAsync(bed);
+        await SeedSaleAsync(bed, 1, LocalMs(2026, 8, 15));
+        await SeedSaleAsync(bed, 2, LocalMs(2026, 9, 30));
+        await SeedSaleAsync(bed, 3, LocalMs(2026, 10, 2));
+
         var result = await Sut(bed).ExecuteAsync(
+            new SearchSalesHistoryRequest(null, null, 1), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error?.Message);
+        Assert.Equal(3, result.Value.TotalCount);
+        Assert.Equal([3L, 2L, 1L], result.Value.Items.Select(item => item.SaleNumber).ToArray());
+    }
+
+    [Fact]
+    public async Task HalfRange_IsRejected()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        var fromOnly = await Sut(bed).ExecuteAsync(
+            new SearchSalesHistoryRequest(new DateOnly(2026, 9, 30), null, 1), CancellationToken.None);
+        var toOnly = await Sut(bed).ExecuteAsync(
             new SearchSalesHistoryRequest(null, new DateOnly(2026, 9, 30), 1), CancellationToken.None);
 
-        Assert.True(result.IsFailure);
-        Assert.Equal(ErrorCode.Validation, result.Error!.Code);
-        Assert.Contains("obligatorias", result.Error.Message);
+        Assert.True(fromOnly.IsFailure);
+        Assert.Equal(ErrorCode.Validation, fromOnly.Error!.Code);
+        Assert.Contains("Complete ambas fechas", fromOnly.Error.Message);
+        Assert.True(toOnly.IsFailure);
+        Assert.Contains("Complete ambas fechas", toOnly.Error!.Message);
     }
 
     [Fact]
