@@ -368,11 +368,11 @@ public sealed class LoginViewModel : INotifyPropertyChanged
             Users.Add(user);
         }
 
-        // Prototipo: la primera fila queda marcada (sel:0) y el clic entra al PIN.
-        if (Users.Count > 0)
-        {
-            SelectedUser = Users[0];
-        }
+        // JHO-85: nadie queda preseleccionado al abrir — la palomita solo
+        // aparece cuando la persona elige su fila (clic o ↑↓). Con un solo
+        // usuario activo sí se marca él solo y la lista se salta al PIN
+        // (decisión del dueño, JHO-64).
+        SelectedUser = Users.Count == 1 ? Users[0] : null;
 
         SkipSelectionWhenSingleUser();
 
@@ -411,6 +411,36 @@ public sealed class LoginViewModel : INotifyPropertyChanged
         ArgumentNullException.ThrowIfNull(user);
         SelectedUser = user;
         GoToPin();
+    }
+
+    /// <summary>
+    /// ↑↓ sobre la lista (prototipo lg-1): mueve la palomita sin salir de la
+    /// fase usuario y con vuelta al extremo opuesto. Solo marca selección —
+    /// al PIN se pasa con clic o Enter (JHO-85).
+    /// </summary>
+    public void MoveSelection(int delta)
+    {
+        if (delta == 0 || Users.Count == 0 || IsPinPhase)
+        {
+            return;
+        }
+
+        int current;
+        if (SelectedUser is null)
+        {
+            current = delta > 0 ? -1 : 0;
+        }
+        else
+        {
+            current = Users.IndexOf(SelectedUser);
+            if (current < 0)
+            {
+                return;
+            }
+        }
+
+        var next = ((current + delta) % Users.Count + Users.Count) % Users.Count;
+        SelectedUser = Users[next];
     }
 
     public void GoToPin()

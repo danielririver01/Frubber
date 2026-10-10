@@ -96,6 +96,16 @@ public partial class LoginCardView : UserControl
             viewModel.Backspace();
             e.Handled = true;
         }
+        else if (e.Key == Key.Down && viewModel.IsUserPhase)
+        {
+            viewModel.MoveSelection(1);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Up && viewModel.IsUserPhase)
+        {
+            viewModel.MoveSelection(-1);
+            e.Handled = true;
+        }
         else if (e.Key == Key.Enter)
         {
             viewModel.HandleEnter();

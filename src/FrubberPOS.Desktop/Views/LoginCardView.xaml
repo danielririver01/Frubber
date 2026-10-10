@@ -355,8 +355,12 @@
                                     Visibility="{Binding ContinueButtonVisible, Converter={StaticResource BoolToVis}}"
                                     AutomationProperties.Name="Continuar al PIN">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="Continuar como "/>
-                                    <TextBlock Text="{Binding ContinueName}" FontWeight="ExtraBold"/>
+                                    <TextBlock Text="Continuar como "
+                                               Visibility="{Binding CanContinue, Converter={StaticResource BoolToVis}}"/>
+                                    <TextBlock Text="{Binding ContinueName}" FontWeight="ExtraBold"
+                                               Visibility="{Binding CanContinue, Converter={StaticResource BoolToVis}}"/>
+                                    <TextBlock Text="Continuar" FontWeight="ExtraBold"
+                                               Visibility="{Binding CanContinue, Converter={StaticResource InverseBoolToVis}}"/>
                                     <Path Data="M5,12 h14 M13,6 l6,6 -6,6" Stroke="White" StrokeThickness="2.4"
                                           StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
                                           Width="15" Height="15" Stretch="Uniform" Margin="8,0,0,0"

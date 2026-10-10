@@ -11,7 +11,7 @@ namespace FrubberPOS.Tests.Desktop;
 public sealed class LoginViewModelTests
 {
     [Fact]
-    public async Task LoadUsers_PopulatesListAndPreselectsFirst()
+    public async Task LoadUsers_WithMultipleUsers_DoesNotPreselectAnyone()
     {
         await using var bed = await AuthenticationTestBed.CreateAsync();
         var viewModel = Build(bed, new FakeNavigator());
@@ -20,8 +20,50 @@ public sealed class LoginViewModelTests
 
         Assert.Equal(3, viewModel.Users.Count);
         Assert.Equal(string.Empty, viewModel.ErrorMessage);
-        Assert.Equal(1, viewModel.SelectedUser!.UserId);
+        Assert.Null(viewModel.SelectedUser);
         Assert.False(viewModel.IsPinPhase);
+        Assert.False(viewModel.CanContinue);
+        Assert.Equal(string.Empty, viewModel.ContinueName);
+        Assert.Equal("Seleccione un usuario", viewModel.SelectedUserLabel);
+    }
+
+    [Fact]
+    public async Task HandleEnter_WithoutSelection_ShowsErrorAndStaysInUserPhase()
+    {
+        await using var bed = await AuthenticationTestBed.CreateAsync();
+        var viewModel = Build(bed, new FakeNavigator());
+        await viewModel.LoadUsersAsync();
+
+        viewModel.HandleEnter();
+
+        Assert.False(viewModel.IsPinPhase);
+        Assert.Equal("Seleccione un usuario.", viewModel.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task MoveSelection_MovesCheckWithoutLeavingUserPhase()
+    {
+        await using var bed = await AuthenticationTestBed.CreateAsync();
+        var viewModel = Build(bed, new FakeNavigator());
+        await viewModel.LoadUsersAsync();
+
+        viewModel.MoveSelection(1);
+        Assert.Same(viewModel.Users[0], viewModel.SelectedUser);
+
+        viewModel.MoveSelection(1);
+        Assert.Same(viewModel.Users[1], viewModel.SelectedUser);
+
+        viewModel.MoveSelection(1);
+        Assert.Same(viewModel.Users[2], viewModel.SelectedUser);
+
+        viewModel.MoveSelection(1);
+        Assert.Same(viewModel.Users[0], viewModel.SelectedUser);
+
+        viewModel.MoveSelection(-1);
+        Assert.Same(viewModel.Users[2], viewModel.SelectedUser);
+
+        Assert.False(viewModel.IsPinPhase);
+        Assert.True(viewModel.CanContinue);
     }
 
     [Fact]
@@ -90,6 +132,7 @@ public sealed class LoginViewModelTests
         await using var bed = await AuthenticationTestBed.CreateAsync();
         var viewModel = Build(bed, new FakeNavigator());
         await viewModel.LoadUsersAsync();
+        viewModel.SelectedUser = viewModel.Users[0];
         viewModel.GoToPin();
 
         viewModel.EnterDigit("9");
@@ -248,6 +291,7 @@ public sealed class LoginViewModelTests
         Assert.Equal(string.Empty, viewModel.PinHintTail);
 
         await viewModel.LoadUsersAsync();
+        viewModel.SelectedUser = viewModel.Users[0];
         viewModel.GoToPin();
         Assert.Equal("Ingresa tu PIN de 4 dígitos", viewModel.PinHintText);
         Assert.Equal(string.Empty, viewModel.PinHintStrong);
@@ -274,6 +318,7 @@ public sealed class LoginViewModelTests
         await using var bed = await AuthenticationTestBed.CreateAsync();
         var viewModel = Build(bed, new FakeNavigator());
         await viewModel.LoadUsersAsync();
+        viewModel.SelectedUser = viewModel.Users[0];
 
         viewModel.HandleEnter();
         Assert.True(viewModel.IsPinPhase);
@@ -291,6 +336,7 @@ public sealed class LoginViewModelTests
 
         Assert.Equal(LoginEscapeAction.CloseApp, viewModel.HandleEscape());
 
+        viewModel.SelectedUser = viewModel.Users[0];
         viewModel.GoToPin();
         Assert.Equal(LoginEscapeAction.None, viewModel.HandleEscape());
         Assert.False(viewModel.IsPinPhase);
@@ -407,6 +453,7 @@ public sealed class LoginViewModelTests
     private static async Task InPinPhaseAsync(LoginViewModel viewModel)
     {
         await viewModel.LoadUsersAsync();
+        viewModel.SelectedUser = viewModel.Users[0];
         viewModel.GoToPin();
     }
 

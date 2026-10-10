@@ -46,6 +46,7 @@ public sealed class ViewPreviewTests
             // --- Login: fase PIN con dos dígitos (lg-3) ---
             var pinViewModel = BuildLoginViewModel(authBed);
             pinViewModel.LoadUsersAsync().GetAwaiter().GetResult();
+            pinViewModel.SelectedUser = pinViewModel.Users[0];
             pinViewModel.GoToPin();
             pinViewModel.EnterDigit("2");
             pinViewModel.EnterDigit("4");
