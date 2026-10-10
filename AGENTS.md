@@ -139,11 +139,14 @@ script Inno Setup dentro de la solución (§16.8).
   confirmación en cada paso. Interrumpir al dueño solo para: pruebas que
   exijan sus ojos en la app, material de su llave privada, o
   contradicciones documentales. Reportar al cerrar cada issue.
-- **Sin ramas secundarias** (regla del dueño, 2026-10-10): trabajar y
-  commitear directo en `main`; ignorar el `gitBranchName` que sugiera
-  Linear. Si alguna vez se crea una rama (error o necesidad puntual),
-  fusionarla a `main` y borrarla en la misma tarea (local y remota) —
-  el dueño NO gestiona ramas ni las borra. Mensaje tipo:
+- **Ramas: máximo una viva** (regla del dueño, 2026-10-10): trabajar en
+  rama secundaria para no ensuciar `main`, pero NO crear una rama nueva
+  por cada issue o tipo de trabajo: reutilizar la misma rama para el
+  trabajo consecutivo. Al cerrar el issue: fusionar a `main` y borrar la
+  rama (local y remota), o seguir en esa misma rama si el siguiente
+  trabajo es inmediato. Nunca pueden quedar varias ramas acumuladas; el
+  dueño NO gestiona ni borra ramas. El `gitBranchName` de Linear es
+  sugerencia, no obligación. Mensaje tipo:
   `JHO-16: crea solución y estructura de proyectos`.
 - Acumular ~45 archivos con cambios antes de cada commit + push a GitHub
   (balance 2026-09-29: ni micro-commits ni lotes gigantes sin respaldo).
