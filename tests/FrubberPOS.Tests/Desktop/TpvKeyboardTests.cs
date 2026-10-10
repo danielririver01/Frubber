@@ -161,6 +161,53 @@ public sealed class TpvKeyboardTests
         });
     }
 
+    /// <summary>
+    /// JHO-83: la lista de resultados tiene MaxHeight; al bajar con las
+    /// flechas la grilla debe hacer scroll para seguir la fila resaltada
+    /// (si no, con muchos productos se selecciona a ciegas).
+    /// </summary>
+    [Fact]
+    public async Task SearchBox_ArrowsPastViewport_ScrollFollowsSelection()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        for (var i = 1; i <= 10; i++)
+        {
+            await CreateUnitProductAsync(bed, $"P{i:D2}", $"Producto {i:D2}");
+        }
+
+        var (vm, _, _) = Build(bed);
+        await vm.SearchAsync();
+
+        StaViewHarness.Run(() =>
+        {
+            var window = NewWindow();
+            try
+            {
+                var view = ShowView(window, vm);
+                var searchBox = (TextBox)view.FindName("SearchBox");
+                PumpUntil(() => searchBox.IsKeyboardFocusWithin, "foco en el buscador");
+
+                var resultsGrid = (DataGrid)view.FindName("ResultsGrid");
+                PumpUntil(() => resultsGrid.Items.Count == 10, "los 10 resultados listos");
+                var scrollViewer = Descendants(resultsGrid).OfType<ScrollViewer>().First();
+
+                for (var i = 0; i < 8; i++)
+                {
+                    RaiseKey(view, Key.Down);
+                }
+
+                // La búsqueda preselecciona la fila 0; la octava ↓ llega a la 8 (fuera del viewport de ~5 filas).
+                Assert.Equal(8, vm.Results.IndexOf(vm.SelectedResult!));
+                PumpUntil(() => scrollViewer.VerticalOffset > 0,
+                    "la grilla hace scroll para seguir la fila seleccionada (JHO-83)");
+            }
+            finally
+            {
+                CloseWindow(window);
+            }
+        });
+    }
+
     [Fact]
     public async Task SearchBox_EnterWithoutArrow_FallsBackToFirstRow()
     {

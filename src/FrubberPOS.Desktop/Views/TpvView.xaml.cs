@@ -126,6 +126,10 @@ public partial class TpvView : System.Windows.Controls.UserControl
         var index = viewModel.SelectedResult is { } current ? viewModel.Results.IndexOf(current) : -1;
         index = Math.Clamp(index + delta, 0, viewModel.Results.Count - 1);
         viewModel.SelectedResult = viewModel.Results[index];
+        // JHO-83: la lista tiene MaxHeight y el movimiento por flechas cambia
+        // la selección por binding (sin foco nativo); sin ScrollIntoView la
+        // fila resaltada se sale de la vista y se selecciona a ciegas.
+        ResultsGrid.ScrollIntoView(viewModel.SelectedResult);
     }
 
     // Select-then-execute (B3/M7): cada botón de fila opera sobre su propia
