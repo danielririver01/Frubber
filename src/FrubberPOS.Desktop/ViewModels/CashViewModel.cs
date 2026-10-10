@@ -105,8 +105,12 @@ public sealed class CashViewModel : INotifyPropertyChanged
     public bool ShowCorrectBalance =>
         IsOpen && currentSession.Current?.Role == Domain.Users.UserRole.Admin;
 
-    /// <summary>Solo antes de la primera venta; con ventas se cierra y se reabre.</summary>
-    public bool CanCorrectBalance => ShowCorrectBalance && session is { SaleCount: 0 };
+    /// <summary>
+    /// JHO-82: el clic siempre responde — sin ventas abre el diálogo; con
+    /// ventas el guard de <see cref="CorrectBalanceAsync"/> muestra el
+    /// mensaje de cerrar y reabrir (antes el botón quedaba deshabilitado).
+    /// </summary>
+    public bool CanCorrectBalance => ShowCorrectBalance;
 
     public AsyncCommand OpenCommand { get; }
 
