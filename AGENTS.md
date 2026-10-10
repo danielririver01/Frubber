@@ -139,8 +139,12 @@ script Inno Setup dentro de la solución (§16.8).
   confirmación en cada paso. Interrumpir al dueño solo para: pruebas que
   exijan sus ojos en la app, material de su llave privada, o
   contradicciones documentales. Reportar al cerrar cada issue.
-- Commits en la rama del issue (`gitBranchName` en Linear).
-  Mensaje tipo: `JHO-16: crea solución y estructura de proyectos`.
+- **Sin ramas secundarias** (regla del dueño, 2026-10-10): trabajar y
+  commitear directo en `main`; ignorar el `gitBranchName` que sugiera
+  Linear. Si alguna vez se crea una rama (error o necesidad puntual),
+  fusionarla a `main` y borrarla en la misma tarea (local y remota) —
+  el dueño NO gestiona ramas ni las borra. Mensaje tipo:
+  `JHO-16: crea solución y estructura de proyectos`.
 - Acumular ~45 archivos con cambios antes de cada commit + push a GitHub
   (balance 2026-09-29: ni micro-commits ni lotes gigantes sin respaldo).
   Excepción: si se cierra un issue con menos archivos, se sube igual con su
