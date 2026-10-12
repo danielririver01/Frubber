@@ -21,3 +21,7 @@ TestResults/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Publicación e instalador (JHO-54)
+artifacts/
+installer/output/

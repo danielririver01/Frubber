@@ -127,10 +127,17 @@ verde, sin warnings de referencia, y `git status` limpio salvo los archivos nuev
 
 MediatR, EF Core, servidor/API, cloud, IA, categorías, precio de compra,
 impuestos separados, pagos combinados, devoluciones parciales, egresos de caja,
-reportes/exportaciones, restauración desde UI, báscula automática, ESC/POS
+reportes/exportaciones, restauración desde UI, ESC/POS
 directo, biblioteca externa de impresión, generador de licencias o clave privada
-dentro de `FrubberPOS.sln` (herramienta privada separada, ADR-020 §16.7),
-script Inno Setup dentro de la solución (§16.8).
+dentro de `FrubberPOS.sln` (herramienta privada separada, ADR-020 §16.8),
+script Inno Setup dentro de la solución (vive en `installer/`, fuera del .sln).
+
+> Alcance actualizado (2026-10-12, aprobado por el dueño): la **báscula
+> automática deja de estar prohibida**. La 1.0 incluye lectura de báscula por
+> **puerto COM** (RS232 nativo o USB con conversor HL-340/CH340), con entrada
+> manual siempre disponible como respaldo y prueba de lectura en
+> Configuración. Registro formal del cambio y detalles en el issue de Linear
+> correspondiente; los PDF de Visión/SRS/Reglas los versiona el dueño.
 
 ## 7. Flujo de trabajo con Linear
 

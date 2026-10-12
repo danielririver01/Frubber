@@ -22,6 +22,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <ApplicationIcon>Resources\frubber-pos.ico</ApplicationIcon>
+    <Version>1.0.0</Version>
   </PropertyGroup>
 
 </Project>
