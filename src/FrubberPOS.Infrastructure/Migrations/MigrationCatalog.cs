@@ -11,6 +11,7 @@ public static class MigrationCatalog
     [
         new KnownMigration(1, "001_Initial.sql", MigrationScripts.GetInitialScript()),
         new KnownMigration(2, "002_Trial.sql", MigrationScripts.GetTrialScript()),
-        new KnownMigration(3, "003_OpeningBalanceCorrection.sql", MigrationScripts.GetOpeningBalanceCorrectionScript())
+        new KnownMigration(3, "003_OpeningBalanceCorrection.sql", MigrationScripts.GetOpeningBalanceCorrectionScript()),
+        new KnownMigration(4, "004_Scale.sql", MigrationScripts.GetScaleScript())
     ];
 }

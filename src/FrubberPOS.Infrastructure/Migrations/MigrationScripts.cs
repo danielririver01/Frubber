@@ -14,6 +14,8 @@ public static class MigrationScripts
 
     public const string OpeningBalanceCorrectionResourceName = "FrubberPOS.Infrastructure.Migrations.003_OpeningBalanceCorrection.sql";
 
+    public const string ScaleResourceName = "FrubberPOS.Infrastructure.Migrations.004_Scale.sql";
+
     public static string GetInitialScript()
     {
         using var stream = typeof(MigrationScripts).Assembly.GetManifestResourceStream(InitialScriptResourceName)
@@ -34,6 +36,14 @@ public static class MigrationScripts
     {
         using var stream = typeof(MigrationScripts).Assembly.GetManifestResourceStream(OpeningBalanceCorrectionResourceName)
             ?? throw new InvalidOperationException($"Recurso embebido no encontrado: {OpeningBalanceCorrectionResourceName}.");
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
+
+    public static string GetScaleScript()
+    {
+        using var stream = typeof(MigrationScripts).Assembly.GetManifestResourceStream(ScaleResourceName)
+            ?? throw new InvalidOperationException($"Recurso embebido no encontrado: {ScaleResourceName}.");
         using var reader = new StreamReader(stream);
         return reader.ReadToEnd();
     }

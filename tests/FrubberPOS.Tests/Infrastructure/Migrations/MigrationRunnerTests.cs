@@ -22,7 +22,7 @@ public sealed class MigrationRunnerTests
             var result = await runner.MigrateAsync(ConnectionString(path), CancellationToken.None);
 
             Assert.True(result.IsSuccess);
-            Assert.Equal(3, result.Value);
+            Assert.Equal(4, result.Value);
 
             await using var connection = new SqliteConnection(ConnectionString(path));
             await connection.OpenAsync();
@@ -41,10 +41,15 @@ public sealed class MigrationRunnerTests
             Assert.Equal(3, openingBalance.Version);
             Assert.Equal("003_OpeningBalanceCorrection.sql", openingBalance.Name);
 
+            var scale = await ReadRecordAsync(connection, 4);
+            Assert.Equal(4, scale.Version);
+            Assert.Equal("004_Scale.sql", scale.Name);
+
             Assert.True(await TableExistsAsync(connection, "Product"));
             Assert.True(await TableExistsAsync(connection, "Sale"));
             Assert.True(await TableExistsAsync(connection, "SaleVoid"));
             Assert.True(await TableExistsAsync(connection, "TrialState"));
+            Assert.True(await TableExistsAsync(connection, "ScaleSetting"));
 
             await using var sequence = connection.CreateCommand();
             sequence.CommandText = "SELECT LastValue FROM SystemSequence WHERE SequenceName = 'SaleNumber';";
@@ -63,7 +68,7 @@ public sealed class MigrationRunnerTests
         try
         {
             var runner = new MigrationRunner();
-            Assert.Equal(3, (await runner.MigrateAsync(ConnectionString(path), CancellationToken.None)).Value);
+            Assert.Equal(4, (await runner.MigrateAsync(ConnectionString(path), CancellationToken.None)).Value);
 
             var before = await RowCountAsync(path, "SchemaMigration");
             var second = await runner.MigrateAsync(ConnectionString(path), CancellationToken.None);
@@ -94,12 +99,13 @@ public sealed class MigrationRunnerTests
                 .MigrateAsync(ConnectionString(path), CancellationToken.None);
 
             Assert.True(second.IsSuccess);
-            Assert.Equal(2, second.Value); // 002_Trial + 003_OpeningBalanceCorrection
+            Assert.Equal(3, second.Value); // 002_Trial + 003_OpeningBalanceCorrection + 004_Scale
 
             await using var connection = new SqliteConnection(ConnectionString(path));
             await connection.OpenAsync();
             Assert.True(await TableExistsAsync(connection, "TrialState"));
-            Assert.Equal(3, await RowCountAsync(path, "SchemaMigration"));
+            Assert.True(await TableExistsAsync(connection, "ScaleSetting"));
+            Assert.Equal(4, await RowCountAsync(path, "SchemaMigration"));
         }
         finally
         {

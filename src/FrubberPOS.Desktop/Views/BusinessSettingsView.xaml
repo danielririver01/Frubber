@@ -115,6 +115,8 @@
                                  AutomationProperties.Name="Sección Datos del negocio"/>
                     <ListBoxItem Content="Impresora predeterminada" Tag="printer"
                                  AutomationProperties.Name="Sección Impresora predeterminada"/>
+                    <ListBoxItem Content="Báscula" Tag="scale"
+                                 AutomationProperties.Name="Sección Báscula"/>
                 </ListBox>
             </Border>
 
@@ -265,6 +267,81 @@
                                                    Style="{StaticResource CfgHelp}" Margin="0,2,0,0"/>
                                     </StackPanel>
                                 </DockPanel>
+                            </StackPanel>
+
+                            <!-- ===== Báscula (JHO-86) ===== -->
+                            <StackPanel Visibility="{Binding IsScaleSection, Converter={StaticResource BoolToVis}}"
+                                        AutomationProperties.Name="Formulario báscula">
+
+                                <CheckBox Content="Báscula conectada por puerto COM (RS232 o USB con adaptador HL-340)"
+                                          IsChecked="{Binding ScaleEnabled}" FontWeight="SemiBold"
+                                          AutomationProperties.Name="Habilitar báscula"/>
+                                <TextBlock Text="Si está apagada aquí, el peso siempre se digita a mano."
+                                           Style="{StaticResource CfgHelp}"/>
+
+                                <TextBlock Text="PUERTO COM" Style="{StaticResource CfgFieldLabel}" Margin="0,16,0,6"/>
+                                <ComboBox ItemsSource="{Binding ScalePortOptions}"
+                                          SelectedItem="{Binding SelectedScalePort}"
+                                          Padding="10,8"
+                                          AutomationProperties.Name="Puerto de la báscula"/>
+                                <TextBlock Text="En Windows aparece como COM al conectar la báscula o el adaptador (ej. COM3)."
+                                           Style="{StaticResource CfgHelp}"/>
+
+                                <Grid Margin="0,16,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="12"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="VELOCIDAD (BAUDIOS)" Style="{StaticResource CfgFieldLabel}"/>
+                                        <ComboBox ItemsSource="{Binding ScaleBaudOptions}"
+                                                  SelectedItem="{Binding SelectedScaleBaud}"
+                                                  Padding="10,8"
+                                                  AutomationProperties.Name="Velocidad de la báscula"/>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="UNIDAD DE LA BÁSCULA" Style="{StaticResource CfgFieldLabel}"/>
+                                        <ComboBox SelectedValue="{Binding SelectedScaleUnit}" SelectedValuePath="Tag"
+                                                  Padding="10,8"
+                                                  AutomationProperties.Name="Unidad de la báscula">
+                                            <ComboBoxItem Content="Kilogramos (kg)" Tag="KG"/>
+                                            <ComboBoxItem Content="Libras (lb)" Tag="LB"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock Text="La báscula debe estar en la misma unidad que el producto a pesar; el sistema no convierte kg y lb entre sí."
+                                           Style="{StaticResource CfgHelp}"/>
+
+                                <TextBlock Text="PROTOCOLO" Style="{StaticResource CfgFieldLabel}" Margin="0,16,0,6"/>
+                                <ComboBox SelectedValue="{Binding SelectedScaleProtocol}" SelectedValuePath="Content"
+                                          Padding="10,8"
+                                          AutomationProperties.Name="Protocolo de la báscula">
+                                    <ComboBoxItem Content="CONTINUOUS"/>
+                                    <ComboBoxItem Content="TORREY_P"/>
+                                    <ComboBoxItem Content="CAS_W"/>
+                                    <ComboBoxItem Content="SYSTEL_ENQ"/>
+                                </ComboBox>
+                                <TextBlock Text="En duda: empieza por «CONTINUOUS»; si no lee, prueba Torrey, CAS o Systel."
+                                           Style="{StaticResource CfgHelp}"/>
+
+                                <DockPanel Margin="0,20,0,0">
+                                    <Button DockPanel.Dock="Right" Content="Probar lectura"
+                                            Command="{Binding ScaleTestCommand}"
+                                            Style="{DynamicResource SecondaryButton}"
+                                            MinHeight="36" Padding="14,6" FontSize="13"
+                                            AutomationProperties.Name="Probar báscula"/>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="Comprobar conexión" FontWeight="SemiBold" FontSize="13"/>
+                                        <TextBlock Text="Lee el peso una vez con los valores de arriba (no guarda nada)."
+                                                   Style="{StaticResource CfgHelp}" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </DockPanel>
+                                <TextBlock Text="{Binding ScaleTestMessage}" Foreground="{DynamicResource SuccessBrush}"
+                                           FontWeight="SemiBold" Margin="0,8,0,0"
+                                           AutomationProperties.Name="Resultado de la lectura"/>
                             </StackPanel>
 
                             <!-- Estados compartidos -->

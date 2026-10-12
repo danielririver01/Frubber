@@ -49,6 +49,16 @@ public sealed class ScopeGuardrailTests
     {
         foreach (var file in SourceFiles())
         {
+            // JHO-86: el puerto serie SÍ se usa para la báscula (cambio de
+            // alcance aprobado); la prohibición de hardware directo sigue
+            // aplicando a la impresión. Los archivos de báscula quedan
+            // exceptuados de la regla SerialPort.
+            if (forbidden == "SerialPort"
+                && (file.Contains(@"\Scale\") || file.Contains(@"\Composition\") || file.EndsWith("ScaleFrameParser.cs", StringComparison.Ordinal)))
+            {
+                continue;
+            }
+
             Assert.DoesNotContain(forbidden, File.ReadAllText(file), StringComparison.Ordinal);
         }
     }

@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using FrubberPOS.Application.Products;
+using FrubberPOS.Application.Scale;
 using FrubberPOS.Desktop.Common;
 
 namespace FrubberPOS.Desktop.ViewModels;
@@ -9,16 +10,22 @@ namespace FrubberPOS.Desktop.ViewModels;
 /// Quantity capture dialog for KG/LB sales (P-UX-009): up to three
 /// decimals allowed, reject zero/negative; esc cancela. The view owns
 /// focus; this VM owns the parse (QuantityText) and validation text.
+/// JHO-86: with a configured scale, "Leer báscula" fills the field with
+/// the stable reading; any failure keeps manual entry intact.
 /// </summary>
 public sealed class QuantityDialogViewModel : INotifyPropertyChanged
 {
+    private readonly ReadScaleWeightUseCase? scaleWeight;
     private ProductDto? product;
     private string quantityText = string.Empty;
     private string errorMessage = string.Empty;
+    private string statusMessage = string.Empty;
 
-    public QuantityDialogViewModel()
+    public QuantityDialogViewModel(ReadScaleWeightUseCase? scaleWeight = null)
     {
+        this.scaleWeight = scaleWeight;
         ConfirmCommand = new AsyncCommand(_ => { Confirm(); return Task.CompletedTask; }, () => QuantityText.Trim().Length > 0);
+        ReadScaleCommand = new AsyncCommand(_ => ReadScaleAsync(), () => scaleWeight is not null);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -48,7 +55,47 @@ public sealed class QuantityDialogViewModel : INotifyPropertyChanged
         private set => SetProperty(ref errorMessage, value);
     }
 
+    /// <summary>Result of the last scale read (green info line; empty when none).</summary>
+    public string StatusMessage
+    {
+        get => statusMessage;
+        private set => SetProperty(ref statusMessage, value);
+    }
+
+    /// <summary>Visible only when the app can read a scale (use case wired, JHO-86)
+    /// and the product sells by weight.</summary>
+    public bool ScaleAvailable => scaleWeight is not null
+        && product?.Unit is Domain.Products.ProductUnit.Kg or Domain.Products.ProductUnit.Lb;
+
     public AsyncCommand ConfirmCommand { get; }
+
+    public AsyncCommand ReadScaleCommand { get; }
+
+    /// <summary>Reads the scale and fills the text box; keeps manual entry on failure.</summary>
+    public async Task ReadScaleAsync()
+    {
+        if (scaleWeight is null || product is null)
+        {
+            return;
+        }
+
+        StatusMessage = "Leyendo báscula…";
+        ErrorMessage = string.Empty;
+        var result = await scaleWeight.ExecuteAsync(new ReadScaleWeightRequest(UnitCode), CancellationToken.None);
+        if (!result.IsSuccess)
+        {
+            StatusMessage = string.Empty;
+            ErrorMessage = result.Error!.Message;
+            return;
+        }
+
+        var milli = result.Value.QuantityMilli;
+        QuantityText = milli % 1_000 == 0
+            ? (milli / 1_000).ToString(System.Globalization.CultureInfo.InvariantCulture)
+            : (milli / 1_000M).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+        ErrorMessage = string.Empty;
+        StatusMessage = "Peso tomado de la báscula.";
+    }
 
     public long ParsedMilli { get; private set; }
 
@@ -58,6 +105,7 @@ public sealed class QuantityDialogViewModel : INotifyPropertyChanged
         this.product = product;
         quantityText = string.Empty;
         errorMessage = string.Empty;
+        statusMessage = string.Empty;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
         ConfirmCommand.RaiseCanExecuteChanged();
     }

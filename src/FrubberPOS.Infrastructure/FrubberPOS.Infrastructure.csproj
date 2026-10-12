@@ -18,6 +18,11 @@
     <EmbeddedResource Include="Migrations/001_Initial.sql" />
     <EmbeddedResource Include="Migrations/002_Trial.sql" />
     <EmbeddedResource Include="Migrations/003_OpeningBalanceCorrection.sql" />
+    <EmbeddedResource Include="Migrations/004_Scale.sql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.IO.Ports" Version="10.0.0" />
   </ItemGroup>
 
   <PropertyGroup>

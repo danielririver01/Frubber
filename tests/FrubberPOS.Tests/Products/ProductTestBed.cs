@@ -57,6 +57,8 @@ internal sealed class ProductTestBed : IAsyncDisposable
 
     public DapperBusinessSettingRepository Settings { get; }
 
+    public FrubberPOS.Infrastructure.Persistence.Scale.DapperScaleSettingRepository ScaleSettings { get; } = new();
+
     public FakeClock Clock { get; }
 
     public SqliteUnitOfWorkFactory Units { get; }

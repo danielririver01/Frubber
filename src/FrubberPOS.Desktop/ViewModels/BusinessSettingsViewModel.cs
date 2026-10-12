@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using FrubberPOS.Application.Business;
 using FrubberPOS.Application.Sales;
+using FrubberPOS.Application.Scale;
 using FrubberPOS.Desktop.Common;
 
 namespace FrubberPOS.Desktop.ViewModels;
@@ -26,13 +27,23 @@ public sealed class BusinessSettingsViewModel : INotifyPropertyChanged
 
     public const string PrinterSectionKey = "printer";
 
+    public const string ScaleSectionKey = "scale";
+
+    /// <summary>Scale port selector entry for "no port chosen" (JHO-86).</summary>
+    public const string NoScalePortOption = "(Sin puerto)";
+
     private const int HintThreshold = 10;
     private const int TicketWidth = 32;
 
     private readonly GetBusinessSettingsUseCase getSettings;
     private readonly UpdateBusinessSettingsUseCase updateSettings;
     private readonly ITicketPrinter? ticketPrinter;
+    private readonly GetScaleSettingsUseCase? getScale;
+    private readonly UpdateScaleSettingsUseCase? updateScale;
+    private readonly ReadScaleWeightUseCase? readScale;
+    private readonly Application.Scale.IScaleReader? scaleReader;
     private readonly ObservableCollection<string> printerOptions = [];
+    private readonly ObservableCollection<string> scalePortOptions = [];
 
     private string businessNameText = string.Empty;
     private string taxIdentifierText = string.Empty;
@@ -43,6 +54,12 @@ public sealed class BusinessSettingsViewModel : INotifyPropertyChanged
     private string statusMessage = string.Empty;
     private string errorMessage = string.Empty;
     private string selectedSectionKey = BusinessSectionKey;
+    private bool scaleEnabled;
+    private string? selectedScalePort;
+    private string selectedScaleBaud = "9600";
+    private string selectedScaleProtocol = Application.Scale.ScaleProtocols.Continuous;
+    private string selectedScaleUnit = "KG";
+    private string scaleTestMessage = string.Empty;
     private bool isDirty;
     private bool loaded;
     private Snapshot saved = Snapshot.Empty;
@@ -50,13 +67,21 @@ public sealed class BusinessSettingsViewModel : INotifyPropertyChanged
     public BusinessSettingsViewModel(
         GetBusinessSettingsUseCase getSettings,
         UpdateBusinessSettingsUseCase updateSettings,
-        ITicketPrinter? ticketPrinter = null)
+        ITicketPrinter? ticketPrinter = null,
+        GetScaleSettingsUseCase? getScale = null,
+        UpdateScaleSettingsUseCase? updateScale = null,
+        ReadScaleWeightUseCase? readScale = null,
+        Application.Scale.IScaleReader? scaleReader = null)
     {
         ArgumentNullException.ThrowIfNull(getSettings);
         ArgumentNullException.ThrowIfNull(updateSettings);
         this.getSettings = getSettings;
         this.updateSettings = updateSettings;
         this.ticketPrinter = ticketPrinter;
+        this.getScale = getScale;
+        this.updateScale = updateScale;
+        this.readScale = readScale;
+        this.scaleReader = scaleReader;
         SaveCommand = new AsyncCommand(_ => SaveAsync());
         DiscardCommand = new AsyncCommand(_ =>
         {
@@ -64,6 +89,7 @@ public sealed class BusinessSettingsViewModel : INotifyPropertyChanged
             return Task.CompletedTask;
         });
         PrintTestCommand = new AsyncCommand(_ => PrintTestAsync(), () => CanPrintTest);
+        ScaleTestCommand = new AsyncCommand(_ => TestScaleAsync(), () => CanTestScale);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -173,15 +199,23 @@ public sealed class BusinessSettingsViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(SectionTitle));
             OnPropertyChanged(nameof(IsBusinessSection));
             OnPropertyChanged(nameof(IsPrinterSection));
+            OnPropertyChanged(nameof(IsScaleSection));
         }
     }
 
     public string SectionTitle =>
-        SelectedSectionKey == PrinterSectionKey ? "Impresora predeterminada" : "Datos del negocio";
+        SelectedSectionKey switch
+        {
+            PrinterSectionKey => "Impresora predeterminada",
+            ScaleSectionKey => "Báscula",
+            _ => "Datos del negocio",
+        };
 
-    public bool IsBusinessSection => SelectedSectionKey != PrinterSectionKey;
+    public bool IsBusinessSection => SelectedSectionKey == BusinessSectionKey;
 
     public bool IsPrinterSection => SelectedSectionKey == PrinterSectionKey;
+
+    public bool IsScaleSection => SelectedSectionKey == ScaleSectionKey;
 
     /// <summary>True when the form differs from the last load/save snapshot.</summary>
     public bool IsDirty
@@ -225,6 +259,116 @@ public sealed class BusinessSettingsViewModel : INotifyPropertyChanged
 
     public AsyncCommand PrintTestCommand { get; }
 
+    public AsyncCommand ScaleTestCommand { get; }
+
+    // ===== Báscula (JHO-86) =====
+
+    public ObservableCollection<string> ScalePortOptions => scalePortOptions;
+
+    public static IReadOnlyList<string> ScaleBaudOptions { get; } =
+        ["1200", "2400", "4800", "9600", "19200", "38400", "57600", "115200"];
+
+    public bool ScaleEnabled
+    {
+        get => scaleEnabled;
+        set
+        {
+            if (SetProperty(ref scaleEnabled, value))
+            {
+                RefreshDerived();
+            }
+        }
+    }
+
+    public string? SelectedScalePort
+    {
+        get => selectedScalePort;
+        set
+        {
+            if (SetProperty(ref selectedScalePort, value))
+            {
+                RefreshDerived();
+                ScaleTestCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    public string SelectedScaleBaud
+    {
+        get => selectedScaleBaud;
+        set
+        {
+            if (SetProperty(ref selectedScaleBaud, value))
+            {
+                RefreshDerived();
+            }
+        }
+    }
+
+    public string SelectedScaleProtocol
+    {
+        get => selectedScaleProtocol;
+        set
+        {
+            if (SetProperty(ref selectedScaleProtocol, value))
+            {
+                RefreshDerived();
+            }
+        }
+    }
+
+    public string SelectedScaleUnit
+    {
+        get => selectedScaleUnit;
+        set
+        {
+            if (SetProperty(ref selectedScaleUnit, value))
+            {
+                RefreshDerived();
+            }
+        }
+    }
+
+    public string ScaleTestMessage
+    {
+        get => scaleTestMessage;
+        private set => SetProperty(ref scaleTestMessage, value);
+    }
+
+    public bool CanTestScale =>
+        loaded
+        && readScale is not null
+        && !string.IsNullOrWhiteSpace(SelectedScalePort)
+        && SelectedScalePort != NoScalePortOption;
+
+    /// <summary>Reads the scale once with the CURRENT form values (JHO-86 prueba de conexión).</summary>
+    public async Task TestScaleAsync()
+    {
+        if (readScale is null)
+        {
+            return;
+        }
+
+        ScaleTestMessage = "Leyendo báscula…";
+        ErrorMessage = string.Empty;
+        StatusMessage = string.Empty;
+        var draft = new Application.Scale.ScaleSnapshot(
+            ScaleEnabled, SelectedScalePort == NoScalePortOption ? null : SelectedScalePort,
+            int.Parse(SelectedScaleBaud, CultureInfo.InvariantCulture), SelectedScaleProtocol, SelectedScaleUnit, 1200);
+        var result = await readScale.ExecuteAsync(
+            new Application.Scale.ReadScaleWeightRequest(SelectedScaleUnit, draft), CancellationToken.None);
+        if (!result.IsSuccess)
+        {
+            ScaleTestMessage = string.Empty;
+            ErrorMessage = result.Error!.Message;
+            return;
+        }
+
+        var kg = result.Value.QuantityMilli / 1000M;
+        ScaleTestMessage = $"Lectura correcta: {kg:0.###} {SelectedScaleUnit.ToLowerInvariant()}";
+        ErrorMessage = string.Empty;
+    }
+
     /// <summary>Loads the row and the installed Windows printers (once per view).</summary>
     public async Task InitializeAsync(IReadOnlyList<string> installedPrinters)
     {
@@ -262,6 +406,38 @@ public sealed class BusinessSettingsViewModel : INotifyPropertyChanged
         SelectedPrinterOption = settings.PrinterName is not null && printerOptions.Contains(settings.PrinterName)
             ? settings.PrinterName
             : NoPrinterOption;
+
+        // Sección Báscula (JHO-86): puertos COM visibles y configuración guardada.
+        scalePortOptions.Clear();
+        scalePortOptions.Add(NoScalePortOption);
+        if (scaleReader is not null)
+        {
+            foreach (var port in await scaleReader.ListPortsAsync(CancellationToken.None))
+            {
+                scalePortOptions.Add(port);
+            }
+        }
+
+        if (getScale is not null)
+        {
+            var scale = await getScale.ExecuteAsync(new GetScaleSettingsRequest(), CancellationToken.None);
+            if (scale.IsSuccess)
+            {
+                ScaleEnabled = scale.Value.IsEnabled;
+                SelectedScalePort = scale.Value.PortName is not null && scalePortOptions.Contains(scale.Value.PortName)
+                    ? scale.Value.PortName
+                    : NoScalePortOption;
+                SelectedScaleBaud = scale.Value.BaudRate.ToString(CultureInfo.InvariantCulture);
+                SelectedScaleProtocol = scale.Value.Protocol;
+                SelectedScaleUnit = scale.Value.ScaleUnit;
+            }
+        }
+        else
+        {
+            SelectedScalePort = NoScalePortOption;
+        }
+
+        ScaleTestMessage = string.Empty;
         CaptureSnapshot();
         StatusMessage = string.Empty;
         ErrorMessage = string.Empty;
@@ -287,6 +463,25 @@ public sealed class BusinessSettingsViewModel : INotifyPropertyChanged
             return;
         }
 
+        if (updateScale is not null)
+        {
+            var scaleSaved = await updateScale.ExecuteAsync(
+                new Application.Scale.UpdateScaleSettingsRequest(
+                    ScaleEnabled,
+                    SelectedScalePort == NoScalePortOption ? null : SelectedScalePort,
+                    int.Parse(SelectedScaleBaud, CultureInfo.InvariantCulture),
+                    SelectedScaleProtocol,
+                    SelectedScaleUnit,
+                    1200),
+                CancellationToken.None);
+            if (!scaleSaved.IsSuccess)
+            {
+                ErrorMessage = scaleSaved.Error!.Message;
+                StatusMessage = string.Empty;
+                return;
+            }
+        }
+
         ErrorMessage = string.Empty;
         StatusMessage = "Configuración guardada.";
         CaptureSnapshot();
@@ -304,6 +499,13 @@ public sealed class BusinessSettingsViewModel : INotifyPropertyChanged
         SelectedPrinterOption = saved.PrinterOption is not null && printerOptions.Contains(saved.PrinterOption)
             ? saved.PrinterOption
             : NoPrinterOption;
+        ScaleEnabled = saved.ScaleEnabled;
+        SelectedScalePort = saved.ScalePort is not null && scalePortOptions.Contains(saved.ScalePort)
+            ? saved.ScalePort
+            : NoScalePortOption;
+        SelectedScaleBaud = saved.ScaleBaud;
+        SelectedScaleProtocol = saved.ScaleProtocol;
+        SelectedScaleUnit = saved.ScaleUnit;
         StatusMessage = string.Empty;
         ErrorMessage = string.Empty;
         RefreshDerived();
@@ -440,7 +642,9 @@ public sealed class BusinessSettingsViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(TicketPreviewText));
         OnPropertyChanged(nameof(PrinterDisplayText));
         OnPropertyChanged(nameof(CanPrintTest));
+        OnPropertyChanged(nameof(CanTestScale));
         PrintTestCommand.RaiseCanExecuteChanged();
+        ScaleTestCommand.RaiseCanExecuteChanged();
     }
 
     private void CaptureSnapshot() => saved = CurrentSnapshot();
@@ -451,7 +655,12 @@ public sealed class BusinessSettingsViewModel : INotifyPropertyChanged
         PhoneText,
         AddressText,
         FooterText,
-        SelectedPrinterOption);
+        SelectedPrinterOption,
+        ScaleEnabled,
+        SelectedScalePort,
+        SelectedScaleBaud,
+        SelectedScaleProtocol,
+        SelectedScaleUnit);
 
     private static string Hint(string text, int maxLength)
     {
@@ -491,8 +700,15 @@ public sealed class BusinessSettingsViewModel : INotifyPropertyChanged
         string Phone,
         string Address,
         string Footer,
-        string? PrinterOption)
+        string? PrinterOption,
+        bool ScaleEnabled,
+        string? ScalePort,
+        string ScaleBaud,
+        string ScaleProtocol,
+        string ScaleUnit)
     {
-        public static Snapshot Empty { get; } = new(string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, null);
+        public static Snapshot Empty { get; } = new(
+            string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, null,
+            false, null, "9600", Application.Scale.ScaleProtocols.Continuous, "KG");
     }
 }
