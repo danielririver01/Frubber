@@ -244,6 +244,6 @@ FROM seq;",
         Assert.Equal(100_000, result.Value.TotalCount);
         Assert.Equal(50, result.Value.Items.Count);
         Assert.Equal(100_000, result.Value.Items[0].SaleNumber); // más reciente primero
-        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(5), $"La consulta tardó {stopwatch.Elapsed}.");
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(3), $"La consulta tardó {stopwatch.Elapsed} (límite RNF-REN-006: 3 s).");
     }
 }
