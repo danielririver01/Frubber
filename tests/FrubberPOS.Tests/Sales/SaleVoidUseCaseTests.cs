@@ -19,7 +19,7 @@ namespace FrubberPOS.Tests.Sales;
 public sealed class SaleVoidUseCaseTests
 {
     private static VoidSaleUseCase Sut(ProductTestBed bed, FakeCurrentSession? session = null) =>
-        new(bed.Voids, bed.Sales, bed.Units, session ?? ProductTestBed.AdminSession(), bed.Clock);
+        new(bed.Voids, bed.Sales, bed.Units, session ?? ProductTestBed.AdminSession(), bed.Clock, bed.Gate);
 
     /// <summary>Seeds user + open cash and sells 1.250 KG of Mango at $ 6.000 (stock 5.000 → 3.750).</summary>
     private static async Task<int> SellMangoAsync(ProductTestBed bed)
@@ -40,7 +40,7 @@ public sealed class SaleVoidUseCaseTests
             .ExecuteAsync(new CreateProductRequest("M1", "Mango", ProductUnit.Kg, 6_000, 5_000), CancellationToken.None);
         Assert.True(created.IsSuccess, created.Error?.Message);
 
-        var finalized = await new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock)
+        var finalized = await new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock, bed.Gate)
             .ExecuteAsync(
                 new FinalizeSaleRequest(
                     [new DraftSaleLine(created.Value.ProductId, "M1", "Mango", ProductUnit.Kg, 6_000, 1_250)],
@@ -106,7 +106,7 @@ public sealed class SaleVoidUseCaseTests
     {
         await using var bed = await ProductTestBed.CreateAsync();
         var productId = await SellMangoAsync(bed);
-        var close = new CloseCashSessionUseCase(bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock);
+        var close = new CloseCashSessionUseCase(bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock, bed.Gate);
         var closed = await close.ExecuteAsync(new CloseCashSessionRequest(), CancellationToken.None);
         Assert.True(closed.IsSuccess, closed.Error?.Message);
 
@@ -150,6 +150,84 @@ public sealed class SaleVoidUseCaseTests
 
         Assert.True(result.IsFailure);
         Assert.Equal(ErrorCode.Validation, result.Error!.Code);
+    }
+
+    [Fact]
+    public async Task Void_MultiLineSale_ReintegratesEveryLine()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        var create = new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession());
+        var mango = await create.ExecuteAsync(
+            new CreateProductRequest("M1", "Mango", ProductUnit.Kg, 6_000, 5_000), CancellationToken.None);
+        var limon = await create.ExecuteAsync(
+            new CreateProductRequest("M2", "Limón", ProductUnit.Unit, 500, 8_000), CancellationToken.None);
+        await using (var connection = new SqliteConnection($"Data Source={bed.DbPath}"))
+        {
+            await connection.OpenAsync();
+            await connection.ExecuteAsync(
+                "INSERT INTO \"User\" (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
+                + " VALUES (1, 'Admin', 'ADMIN', 1, @Salt, @Hash, 1, 1);",
+                new { Salt = new byte[16], Hash = new byte[32] });
+            await connection.ExecuteAsync(
+                "INSERT INTO CashSession (OpenedAtUtcMs, OpenedAtOffsetMinutes, OpenedByUserId, OpenedByNameSnapshot, OpeningBalanceCop)"
+                + " VALUES (1, 0, 1, 'Admin', 0);");
+        }
+
+        // Venta de dos líneas con unidades distintas (RN-INV-005 cubre TODAS las líneas).
+        var finalized = await new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock, bed.Gate)
+            .ExecuteAsync(
+                new FinalizeSaleRequest(
+                [
+                    new DraftSaleLine(mango.Value.ProductId, "M1", "Mango", ProductUnit.Kg, 6_000, 1_250),
+                    new DraftSaleLine(limon.Value.ProductId, "M2", "Limón", ProductUnit.Unit, 500, 2_000),
+                ],
+                0, "CASH", 10_000),
+                CancellationToken.None);
+        Assert.True(finalized.IsSuccess, finalized.Error?.Message);
+        Assert.Equal(3_750, await StockOfAsync(bed, mango.Value.ProductId));
+        Assert.Equal(6_000, await StockOfAsync(bed, limon.Value.ProductId));
+
+        var result = await Sut(bed).ExecuteAsync(new VoidSaleRequest(1), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error?.Message);
+        Assert.Equal(5_000, await StockOfAsync(bed, mango.Value.ProductId));
+        Assert.Equal(8_000, await StockOfAsync(bed, limon.Value.ProductId));
+    }
+
+    [Fact]
+    public async Task Void_RecordsClockTimestamp_Automatically()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        await SellMangoAsync(bed);
+
+        // RN-HIS-010: el momento de la anulación se registra automáticamente, sin pedir motivo.
+        var result = await Sut(bed).ExecuteAsync(new VoidSaleRequest(1), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error?.Message);
+        await using var connection = new SqliteConnection($"Data Source={bed.DbPath}");
+        await connection.OpenAsync();
+        var stamps = await connection.QuerySingleAsync<(long At, int Offset)>(
+            "SELECT VoidedAtUtcMs AS At, VoidedAtOffsetMinutes AS Offset FROM SaleVoid WHERE SaleId = 1;");
+        Assert.Equal(bed.Clock.UtcNow.ToUnixTimeMilliseconds(), stamps.At);
+        Assert.Equal((int)bed.Clock.UtcNow.Offset.TotalMinutes, stamps.Offset);
+    }
+
+    [Fact]
+    public async Task Void_WhenGateBlocks_ReturnsLicenseBlocked()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        var productId = await SellMangoAsync(bed);
+
+        // P-DD §11.3/9.5: la anulación re-valida el estado operativo.
+        bed.Gate.Blocked = new Error(ErrorCode.LicenseBlocked, "El periodo de prueba terminó. Active la licencia para continuar.");
+        var result = await Sut(bed).ExecuteAsync(new VoidSaleRequest(1), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(ErrorCode.LicenseBlocked, result.Error!.Code);
+        Assert.Equal(3_750, await StockOfAsync(bed, productId));
+        await using var connection = new SqliteConnection($"Data Source={bed.DbPath}");
+        await connection.OpenAsync();
+        Assert.Equal(0, await connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM SaleVoid;"));
     }
 
     private sealed class SaleAfterVoidRow

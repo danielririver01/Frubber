@@ -31,7 +31,7 @@ public sealed class TpvKeyboardTests
         var printer = new FakeTicketPrinter();
         return (new TpvViewModel(
             new SearchProductsForSaleUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()),
-            new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock),
+            new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock, bed.Gate),
             new GetOpenCashSessionUseCase(bed.Sessions, bed.Units, ProductTestBed.AdminSession()),
             new GetTicketForSaleUseCase(bed.Sales, bed.Settings, bed.Units),
             printer,
@@ -374,7 +374,7 @@ public sealed class TpvKeyboardTests
         await using var bed = await ProductTestBed.CreateAsync();
         await CreateUnitProductAsync(bed, "L1", "Leche");
         await SeedAdminUserAsync(bed);
-        await new OpenCashSessionUseCase(bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock)
+        await new OpenCashSessionUseCase(bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock, bed.Gate)
             .ExecuteAsync(new OpenCashSessionRequest(0), CancellationToken.None);
 
         var (vm, nav, _) = Build(bed);

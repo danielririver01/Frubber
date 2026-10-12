@@ -37,6 +37,9 @@ internal sealed class CashTestBed : IAsyncDisposable
 
     public FakeClock Clock { get; } = new(new DateTimeOffset(2026, 9, 30, 12, 0, 0, TimeSpan.FromHours(-5)));
 
+    /// <summary>Licensing gate that allows every operation until a test blocks it (JHO-57).</summary>
+    public FakeOperationalGate Gate { get; } = new();
+
     public static FakeCurrentSession AdminSession()
     {
         var session = new FakeCurrentSession();

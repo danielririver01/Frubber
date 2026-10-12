@@ -378,4 +378,96 @@ public sealed class ProductUseCaseTests
 
         Assert.True(result.IsSuccess);
     }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task Create_EmptyName_Validation(string name)
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        var create = Create(bed, ProductTestBed.AdminSession());
+
+        // RN-PRO-004: el nombre no puede quedar vacío, también en el caso de uso.
+        var result = await create.ExecuteAsync(
+            new CreateProductRequest("N1", name, ProductUnit.Kg, 4500, 0), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(ErrorCode.Validation, result.Error!.Code);
+        Assert.Equal("Name", result.Error.Field);
+    }
+
+    [Fact]
+    public async Task Create_NameWithEdgeSpaces_SavesTrimmed()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        var create = Create(bed, ProductTestBed.AdminSession());
+
+        // RN-PRO-004: el nombre se guarda sin espacios extremos.
+        var created = await create.ExecuteAsync(
+            new CreateProductRequest("N2", "  Piña oro miel  ", ProductUnit.Kg, 4500, 0), CancellationToken.None);
+
+        Assert.True(created.IsSuccess, created.Error?.Message);
+        var get = new GetProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession());
+        var detail = await get.ExecuteAsync(new GetProductRequest(created.Value.ProductId), CancellationToken.None);
+        Assert.Equal("Piña oro miel", detail.Value.Product.Name);
+    }
+
+    [Fact]
+    public async Task Create_UndefinedUnit_Validation()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        var create = Create(bed, ProductTestBed.AdminSession());
+
+        // RN-PRO-010: la unidad es exactamente kg, lb o unidad.
+        var result = await create.ExecuteAsync(
+            new CreateProductRequest("N3", "Mango", (ProductUnit)9, 4500, 0), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(ErrorCode.Validation, result.Error!.Code);
+    }
+
+    [Fact]
+    public async Task Update_AsCashier_Authorization()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        var created = await Create(bed, ProductTestBed.AdminSession()).ExecuteAsync(
+            new CreateProductRequest("C1", "Cebolla", ProductUnit.Kg, 2000, 0), CancellationToken.None);
+        var update = new UpdateProductUseCase(bed.Products, bed.Units, ProductTestBed.CashierSession());
+
+        // RN-USR-004: el cajero no gestiona productos, aunque salte la interfaz (§6.3).
+        var result = await update.ExecuteAsync(
+            new UpdateProductRequest(created.Value.ProductId, "C1", "Cebolla", ProductUnit.Kg, 2500), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(ErrorCode.Authorization, result.Error!.Code);
+    }
+
+    [Fact]
+    public async Task Delete_AsCashier_Authorization()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        var created = await Create(bed, ProductTestBed.AdminSession()).ExecuteAsync(
+            new CreateProductRequest("C2", "Cilantro", ProductUnit.Unit, 500, 0), CancellationToken.None);
+        var delete = new DeleteProductUseCase(bed.Products, bed.Units, ProductTestBed.CashierSession());
+
+        var result = await delete.ExecuteAsync(new DeleteProductRequest(created.Value.ProductId), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(ErrorCode.Authorization, result.Error!.Code);
+    }
+
+    [Fact]
+    public async Task SetActiveState_AsCashier_Authorization()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        var created = await Create(bed, ProductTestBed.AdminSession()).ExecuteAsync(
+            new CreateProductRequest("C3", "Ajo", ProductUnit.Unit, 300, 0), CancellationToken.None);
+        var setActive = new SetProductActiveStateUseCase(bed.Products, bed.Units, ProductTestBed.CashierSession());
+
+        var result = await setActive.ExecuteAsync(
+            new SetProductActiveStateRequest(created.Value.ProductId, false), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(ErrorCode.Authorization, result.Error!.Code);
+    }
 }

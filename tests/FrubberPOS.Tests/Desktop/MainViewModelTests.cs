@@ -146,7 +146,7 @@ public sealed class MainViewModelTests
         var nav = new FakeNavigator { NextQuantityMilli = 1_000 };
         var tpv = new TpvViewModel(
             new FrubberPOS.Application.Sales.SearchProductsForSaleUseCase(bed.Products, bed.Units, FrubberPOS.Tests.Products.ProductTestBed.AdminSession()),
-            new FrubberPOS.Application.Sales.FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, FrubberPOS.Tests.Products.ProductTestBed.AdminSession(), bed.Clock),
+            new FrubberPOS.Application.Sales.FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, FrubberPOS.Tests.Products.ProductTestBed.AdminSession(), bed.Clock, bed.Gate),
             new FrubberPOS.Application.Cash.GetOpenCashSessionUseCase(bed.Sessions, bed.Units, FrubberPOS.Tests.Products.ProductTestBed.AdminSession()),
             new FrubberPOS.Application.Sales.GetTicketForSaleUseCase(bed.Sales, bed.Settings, bed.Units),
             new FakeTicketPrinter(),

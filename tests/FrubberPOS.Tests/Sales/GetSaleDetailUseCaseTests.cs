@@ -38,7 +38,7 @@ public sealed class GetSaleDetailUseCaseTests
             .ExecuteAsync(new CreateProductRequest("M1", "Mango", ProductUnit.Kg, 6_000, 5_000), CancellationToken.None);
         Assert.True(created.IsSuccess, created.Error?.Message);
 
-        var finalized = await new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock)
+        var finalized = await new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock, bed.Gate)
             .ExecuteAsync(
                 new FinalizeSaleRequest(
                     [new DraftSaleLine(created.Value.ProductId, "M1", "Mango", ProductUnit.Kg, 6_000, 1_250)],
@@ -143,5 +143,63 @@ public sealed class GetSaleDetailUseCaseTests
         var line = Assert.Single(result.Value.Lines);
         Assert.Equal("Mango", line.Name);
         Assert.Equal(6_000, line.UnitPriceCop);
+    }
+
+    [Fact]
+    public async Task ProductDeactivatedAfterSale_DetailKeepsTheSnapshots()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        var productId = await SellMangoAsync(bed);
+
+        // RN-HIS-003: desactivar el producto tampoco reescribe la venta anterior.
+        var deactivated = await new SetProductActiveStateUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession())
+            .ExecuteAsync(new SetProductActiveStateRequest(productId, false), CancellationToken.None);
+        Assert.True(deactivated.IsSuccess, deactivated.Error?.Message);
+
+        var result = await Sut(bed).ExecuteAsync(new GetSaleDetailRequest(1), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error?.Message);
+        var line = Assert.Single(result.Value.Lines);
+        Assert.Equal("M1", line.Plu);
+        Assert.Equal("Mango", line.Name);
+        Assert.Equal("KG", line.UnitCode);
+        Assert.Equal(1_250, line.QuantityMilli);
+        Assert.Equal(6_000, line.UnitPriceCop);
+        Assert.Equal(7_500, line.LineTotalCop);
+    }
+
+    [Fact]
+    public async Task SaleFromCashier_ShowsTheCashierName()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        await using (var connection = new SqliteConnection($"Data Source={bed.DbPath}"))
+        {
+            await connection.OpenAsync();
+            await connection.ExecuteAsync(
+                "INSERT INTO \"User\" (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
+                + " VALUES (1, 'Admin', 'ADMIN', 1, @Salt, @Hash, 1, 1), (2, 'Cajero', 'CASHIER', 1, @Salt, @Hash, 1, 1);",
+                new { Salt = new byte[16], Hash = new byte[32] });
+            await connection.ExecuteAsync(
+                "INSERT INTO CashSession (OpenedAtUtcMs, OpenedAtOffsetMinutes, OpenedByUserId, OpenedByNameSnapshot, OpeningBalanceCop)"
+                + " VALUES (1, 0, 2, 'Cajero', 0);");
+        }
+
+        var created = await new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession())
+            .ExecuteAsync(new CreateProductRequest("M1", "Mango", ProductUnit.Kg, 6_000, 5_000), CancellationToken.None);
+        Assert.True(created.IsSuccess, created.Error?.Message);
+
+        // RN-VEN-016 y RN-HIS-001: la venta queda asociada al usuario que la registró.
+        var finalized = await new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.CashierSession(), bed.Clock, bed.Gate)
+            .ExecuteAsync(
+                new FinalizeSaleRequest(
+                    [new DraftSaleLine(created.Value.ProductId, "M1", "Mango", ProductUnit.Kg, 6_000, 1_000)],
+                    0, "CASH", 6_000),
+                CancellationToken.None);
+        Assert.True(finalized.IsSuccess, finalized.Error?.Message);
+
+        var result = await Sut(bed).ExecuteAsync(new GetSaleDetailRequest(1), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error?.Message);
+        Assert.Equal("Cajero", result.Value.CashierName);
     }
 }

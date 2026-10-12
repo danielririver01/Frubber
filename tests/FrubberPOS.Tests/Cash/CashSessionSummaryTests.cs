@@ -49,7 +49,7 @@ public sealed class CashSessionSummaryTests
     public async Task Summary_OpenSession_ComputesRunningTotalsExcludingVoided()
     {
         await using var bed = await CashTestBed.CreateAsync();
-        var open = new OpenCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock);
+        var open = new OpenCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock, bed.Gate);
         var opened = await open.ExecuteAsync(new OpenCashSessionRequest(100_000), CancellationToken.None);
         var path = bed.DbPath;
         await SeedSaleAsync(path, 1, opened.Value.CashSessionId, "CASH", 20_000, 1_000);
@@ -75,12 +75,12 @@ public sealed class CashSessionSummaryTests
     public async Task Summary_ClosedSession_FreezesValidTotals()
     {
         await using var bed = await CashTestBed.CreateAsync();
-        var open = new OpenCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock);
+        var open = new OpenCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock, bed.Gate);
         var opened = await open.ExecuteAsync(new OpenCashSessionRequest(100_000), CancellationToken.None);
         await SeedSaleAsync(bed.DbPath, 1, opened.Value.CashSessionId, "CASH", 20_000, 1_000);
         await SeedSaleAsync(bed.DbPath, 2, opened.Value.CashSessionId, "TRANSFER", 30_000, 0);
 
-        var close = new CloseCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock);
+        var close = new CloseCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock, bed.Gate);
         Assert.True((await close.ExecuteAsync(new CloseCashSessionRequest(), CancellationToken.None)).IsSuccess);
 
         var s = (await UseCase(bed).ExecuteAsync(new GetCashSessionSummaryRequest(opened.Value.CashSessionId), CancellationToken.None)).Value.Summary;
@@ -107,7 +107,7 @@ public sealed class CashSessionSummaryTests
     public async Task Summary_WithoutSession_Authorization()
     {
         await using var bed = await CashTestBed.CreateAsync();
-        var open = new OpenCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock);
+        var open = new OpenCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock, bed.Gate);
         var opened = await open.ExecuteAsync(new OpenCashSessionRequest(0), CancellationToken.None);
 
         var useCase = new GetCashSessionSummaryUseCase(bed.Sessions, bed.Units, new TestDoubles.FakeCurrentSession());

@@ -19,7 +19,7 @@ public sealed class TpvViewModelTests
         var printer = new FakeTicketPrinter();
         return (new TpvViewModel(
             new SearchProductsForSaleUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()),
-            new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock),
+            new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock, bed.Gate),
             new GetOpenCashSessionUseCase(bed.Sessions, bed.Units, ProductTestBed.AdminSession()),
             new GetTicketForSaleUseCase(bed.Sales, bed.Settings, bed.Units),
             printer,
@@ -299,7 +299,7 @@ public sealed class TpvViewModelTests
         await new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()).ExecuteAsync(
             new CreateProductRequest("L1", "Leche", Domain.Products.ProductUnit.Unit, 4_200, 0), CancellationToken.None);
         await SeedAdminUserAsync(bed);
-        await new OpenCashSessionUseCase(bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock)
+        await new OpenCashSessionUseCase(bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock, bed.Gate)
             .ExecuteAsync(new OpenCashSessionRequest(0), CancellationToken.None);
 
         var (vm, _, _) = Build(bed);
@@ -546,7 +546,7 @@ public sealed class TpvViewModelTests
 
         Assert.False(vm.CanCharge); // con línea pero caja cerrada
 
-        await new OpenCashSessionUseCase(bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock)
+        await new OpenCashSessionUseCase(bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock, bed.Gate)
             .ExecuteAsync(new OpenCashSessionRequest(0), CancellationToken.None);
         await vm.RefreshCashStateAsync();
 

@@ -24,8 +24,8 @@ public sealed class CashViewTests
         var session = CashTestBed.AdminSession();
         var vm = new CashViewModel(
             new GetOpenCashSessionUseCase(bed.Sessions, bed.Units, session),
-            new OpenCashSessionUseCase(bed.Sessions, bed.Units, session, bed.Clock),
-            new CloseCashSessionUseCase(bed.Sessions, bed.Units, session, bed.Clock),
+            new OpenCashSessionUseCase(bed.Sessions, bed.Units, session, bed.Clock, bed.Gate),
+            new CloseCashSessionUseCase(bed.Sessions, bed.Units, session, bed.Clock, bed.Gate),
             new CorrectOpeningBalanceUseCase(bed.Sessions, bed.Units, session),
             session,
             nav);

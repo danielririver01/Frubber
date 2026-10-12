@@ -27,7 +27,7 @@ public sealed class OpeningBalanceCorrectionTests
             + " VALUES (@UserId, 'Admin', 'ADMIN', 1, @Salt, @Hash, 1, 1);",
             new { UserId = 1, Salt = new byte[16], Hash = new byte[32] });
 
-        var opened = await new OpenCashSessionUseCase(bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock)
+        var opened = await new OpenCashSessionUseCase(bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock, bed.Gate)
             .ExecuteAsync(new OpenCashSessionRequest(balanceCop), CancellationToken.None);
         Assert.True(opened.IsSuccess, opened.Error?.Message);
     }
@@ -55,7 +55,7 @@ public sealed class OpeningBalanceCorrectionTests
         var created = await new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession())
             .ExecuteAsync(new CreateProductRequest("M1", "Mango", ProductUnit.Kg, 6_000, 5_000), CancellationToken.None);
         Assert.True(created.IsSuccess, created.Error?.Message);
-        var finalized = await new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock)
+        var finalized = await new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock, bed.Gate)
             .ExecuteAsync(
                 new FinalizeSaleRequest([new DraftSaleLine(created.Value.ProductId, "M1", "Mango", ProductUnit.Kg, 6_000, 1_000)], 0, "CASH", 10_000),
                 CancellationToken.None);

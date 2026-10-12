@@ -50,6 +50,13 @@ public sealed class CreateUserUseCase : IUseCase<CreateUserRequest, CreateUserRe
                 ErrorCode.Validation, "El nombre debe tener entre 1 y 60 caracteres.", "DisplayName"));
         }
 
+        // RN-USR-001: only the two approved roles exist.
+        if (request.Role is not (UserRole.Admin or UserRole.Cashier))
+        {
+            return Result<CreateUserResponse>.Failure(new Error(
+                ErrorCode.Validation, "El rol no es válido.", "Role"));
+        }
+
         if (!PinRules.IsValidFormat(request.Pin))
         {
             return Result<CreateUserResponse>.Failure(new Error(

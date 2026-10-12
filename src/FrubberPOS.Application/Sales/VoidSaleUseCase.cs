@@ -3,6 +3,7 @@ using FrubberPOS.Application.Cash;
 using FrubberPOS.Application.Common;
 using FrubberPOS.Application.Persistence;
 using FrubberPOS.Application.System;
+using FrubberPOS.Application.Trial;
 
 namespace FrubberPOS.Application.Sales;
 
@@ -49,24 +50,28 @@ public sealed class VoidSaleUseCase : IUseCase<VoidSaleRequest, VoidSaleResponse
     private readonly IUnitOfWorkFactory units;
     private readonly ICurrentSession session;
     private readonly IClock clock;
+    private readonly IOperationalGate gate;
 
     public VoidSaleUseCase(
         ISaleVoidRepository voids,
         ISaleRepository sales,
         IUnitOfWorkFactory units,
         ICurrentSession session,
-        IClock clock)
+        IClock clock,
+        IOperationalGate gate)
     {
         ArgumentNullException.ThrowIfNull(voids);
         ArgumentNullException.ThrowIfNull(sales);
         ArgumentNullException.ThrowIfNull(units);
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(clock);
+        ArgumentNullException.ThrowIfNull(gate);
         this.voids = voids;
         this.sales = sales;
         this.units = units;
         this.session = session;
         this.clock = clock;
+        this.gate = gate;
     }
 
     public async Task<Result<VoidSaleResponse>> ExecuteAsync(VoidSaleRequest request, CancellationToken cancellationToken)
@@ -82,6 +87,13 @@ public sealed class VoidSaleUseCase : IUseCase<VoidSaleRequest, VoidSaleResponse
         if (request.SaleNumber <= 0)
         {
             return Result<VoidSaleResponse>.Failure(new Error(ErrorCode.Validation, "El número de venta no es válido."));
+        }
+
+        // P-DD §11.3/9.5: the operational state (license/clock) is validated again here.
+        var blocked = await gate.CheckAsync(cancellationToken);
+        if (blocked is not null)
+        {
+            return Result<VoidSaleResponse>.Failure(blocked);
         }
 
         var current = session.Current!;

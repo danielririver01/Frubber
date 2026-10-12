@@ -86,7 +86,7 @@ public sealed class ViewPreviewTests
             var navigator = new FakeNavigator { NextQuantityMilli = 1_000 };
             var tpv = new TpvViewModel(
                 new SearchProductsForSaleUseCase(prodBed.Products, prodBed.Units, ProductTestBed.AdminSession()),
-                new FinalizeSaleUseCase(prodBed.Sales, prodBed.Sessions, prodBed.Units, ProductTestBed.AdminSession(), prodBed.Clock),
+                new FinalizeSaleUseCase(prodBed.Sales, prodBed.Sessions, prodBed.Units, ProductTestBed.AdminSession(), prodBed.Clock, prodBed.Gate),
                 new GetOpenCashSessionUseCase(prodBed.Sessions, prodBed.Units, ProductTestBed.AdminSession()),
                 new GetTicketForSaleUseCase(prodBed.Sales, prodBed.Settings, prodBed.Units),
                 new FakeTicketPrinter(),

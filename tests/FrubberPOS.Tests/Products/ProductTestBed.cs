@@ -61,6 +61,9 @@ internal sealed class ProductTestBed : IAsyncDisposable
 
     public SqliteUnitOfWorkFactory Units { get; }
 
+    /// <summary>Licensing gate that allows every operation until a test blocks it (JHO-57).</summary>
+    public FakeOperationalGate Gate { get; } = new();
+
     public static FakeCurrentSession AdminSession()
     {
         var session = new FakeCurrentSession();

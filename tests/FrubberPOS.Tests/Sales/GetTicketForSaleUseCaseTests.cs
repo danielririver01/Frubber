@@ -36,7 +36,7 @@ public sealed class GetTicketForSaleUseCaseTests
             new CreateProductRequest("M1", "Mango", ProductUnit.Kg, 6_000, 5_000), CancellationToken.None);
         Assert.True(created.IsSuccess, created.Error?.Message);
 
-        var finalize = new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock);
+        var finalize = new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock, bed.Gate);
         var finalized = await finalize.ExecuteAsync(
             new FinalizeSaleRequest(
                 [new DraftSaleLine(created.Value.ProductId, "M1", "Mango", ProductUnit.Kg, 6_000, 1_250)],

@@ -256,4 +256,53 @@ public sealed class UserAdministrationUseCaseTests
             Assert.NotEqual(typeof(byte[]), property.PropertyType);
         }
     }
+
+    [Fact]
+    public async Task CreateUser_InvalidRole_Validation()
+    {
+        await using var bed = await AuthenticationTestBed.CreateAsync();
+        var create = new CreateUserUseCase(bed.Users, bed.Hasher, bed.Units, AuthenticationTestBed.AdminSession());
+
+        // RN-USR-001: solo existen administrador y cajero; ningún otro valor entra a la base.
+        var result = await create.ExecuteAsync(new CreateUserRequest("Sospechoso", (UserRole)9, "1234"), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(ErrorCode.Validation, result.Error!.Code);
+        Assert.Equal("Role", result.Error.Field);
+    }
+
+    [Fact]
+    public async Task UpdateUser_InvalidRole_Validation()
+    {
+        await using var bed = await AuthenticationTestBed.CreateAsync();
+        var update = new UpdateUserUseCase(bed.Users, bed.Units, AuthenticationTestBed.AdminSession());
+
+        var result = await update.ExecuteAsync(new UpdateUserRequest(2, "Zed Cajero", (UserRole)9), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(ErrorCode.Validation, result.Error!.Code);
+        Assert.Equal("Role", result.Error.Field);
+    }
+
+    [Fact]
+    public async Task DeleteUserBlockedByHistory_ThenDeactivation_IsTheApprovedPath()
+    {
+        await using var bed = await AuthenticationTestBed.CreateAsync();
+        await bed.SeedCashSessionAsync(2, "Zed Cajero");
+        var admin = AuthenticationTestBed.AdminSession();
+
+        // RN-USR-007/008: con historial no se elimina; el camino aprobado es desactivar.
+        var delete = new DeleteUserUseCase(bed.Users, bed.Units, admin);
+        var rejected = await delete.ExecuteAsync(new DeleteUserRequest(2), CancellationToken.None);
+        Assert.True(rejected.IsFailure);
+        Assert.Equal(ErrorCode.Conflict, rejected.Error!.Code);
+
+        var deactivate = new SetUserActiveStateUseCase(bed.Users, bed.Units, admin);
+        Assert.True((await deactivate.ExecuteAsync(new SetUserActiveStateRequest(2, false), CancellationToken.None)).IsSuccess);
+
+        var list = new ListUsersUseCase(bed.Users, bed.Units, admin);
+        var users = (await list.ExecuteAsync(new ListUsersRequest(), CancellationToken.None)).Value.Users;
+        var zed = Assert.Single(users, u => u.UserId == 2);
+        Assert.False(zed.IsActive); // permanece en el sistema, inactivo
+    }
 }

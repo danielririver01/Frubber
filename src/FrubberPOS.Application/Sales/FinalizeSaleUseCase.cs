@@ -3,6 +3,7 @@ using FrubberPOS.Application.Cash;
 using FrubberPOS.Application.Common;
 using FrubberPOS.Application.Persistence;
 using FrubberPOS.Application.System;
+using FrubberPOS.Application.Trial;
 
 namespace FrubberPOS.Application.Sales;
 
@@ -88,24 +89,28 @@ public sealed class FinalizeSaleUseCase : IUseCase<FinalizeSaleRequest, Finalize
     private readonly IUnitOfWorkFactory units;
     private readonly ICurrentSession session;
     private readonly IClock clock;
+    private readonly IOperationalGate gate;
 
     public FinalizeSaleUseCase(
         ISaleRepository sales,
         ICashSessionRepository sessions,
         IUnitOfWorkFactory units,
         ICurrentSession session,
-        IClock clock)
+        IClock clock,
+        IOperationalGate gate)
     {
         ArgumentNullException.ThrowIfNull(sales);
         ArgumentNullException.ThrowIfNull(sessions);
         ArgumentNullException.ThrowIfNull(units);
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(clock);
+        ArgumentNullException.ThrowIfNull(gate);
         this.sales = sales;
         this.sessions = sessions;
         this.units = units;
         this.session = session;
         this.clock = clock;
+        this.gate = gate;
     }
 
     public async Task<Result<FinalizeSaleResponse>> ExecuteAsync(FinalizeSaleRequest request, CancellationToken cancellationToken)
@@ -132,10 +137,24 @@ public sealed class FinalizeSaleUseCase : IUseCase<FinalizeSaleRequest, Finalize
             return Result<FinalizeSaleResponse>.Failure(new Error(ErrorCode.Validation, "Transferencia no admite recibido/cambio."));
         }
 
+        // RN-VEN-008: the discount never goes below zero nor above the subtotal.
+        if (request.DiscountCop < 0)
+        {
+            return Result<FinalizeSaleResponse>.Failure(new Error(
+                ErrorCode.Validation, "El descuento no puede ser negativo.", "DiscountCop"));
+        }
+
         var current = session.Current;
         if (current is null)
         {
             return Result<FinalizeSaleResponse>.Failure(new Error(ErrorCode.Authorization, "Debe iniciar sesión."));
+        }
+
+        // P-DD §11.3: the licensing/clock decision is re-evaluated before every sale.
+        var blocked = await gate.CheckAsync(cancellationToken);
+        if (blocked is not null)
+        {
+            return Result<FinalizeSaleResponse>.Failure(blocked);
         }
 
         await using var unit = await units.CreateAsync(UnitOfWorkMode.WriteImmediate, cancellationToken);

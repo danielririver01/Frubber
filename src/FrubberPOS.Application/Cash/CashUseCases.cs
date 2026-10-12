@@ -2,6 +2,7 @@ using FrubberPOS.Application.Authentication;
 using FrubberPOS.Application.Common;
 using FrubberPOS.Application.Persistence;
 using FrubberPOS.Application.System;
+using FrubberPOS.Application.Trial;
 
 namespace FrubberPOS.Application.Cash;
 
@@ -60,17 +61,20 @@ public sealed class OpenCashSessionUseCase : IUseCase<OpenCashSessionRequest, Op
     private readonly IUnitOfWorkFactory units;
     private readonly ICurrentSession session;
     private readonly IClock clock;
+    private readonly IOperationalGate gate;
 
-    public OpenCashSessionUseCase(ICashSessionRepository sessions, IUnitOfWorkFactory units, ICurrentSession session, IClock clock)
+    public OpenCashSessionUseCase(ICashSessionRepository sessions, IUnitOfWorkFactory units, ICurrentSession session, IClock clock, IOperationalGate gate)
     {
         ArgumentNullException.ThrowIfNull(sessions);
         ArgumentNullException.ThrowIfNull(units);
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(clock);
+        ArgumentNullException.ThrowIfNull(gate);
         this.sessions = sessions;
         this.units = units;
         this.session = session;
         this.clock = clock;
+        this.gate = gate;
     }
 
     public async Task<Result<OpenCashSessionResponse>> ExecuteAsync(OpenCashSessionRequest request, CancellationToken cancellationToken)
@@ -87,6 +91,13 @@ public sealed class OpenCashSessionUseCase : IUseCase<OpenCashSessionRequest, Op
         {
             return Result<OpenCashSessionResponse>.Failure(new Error(
                 ErrorCode.Validation, "El saldo inicial no puede ser negativo.", "OpeningBalanceCop"));
+        }
+
+        // P-DD §11.3: re-check the licensing/clock decision before opening cash.
+        var blocked = await gate.CheckAsync(cancellationToken);
+        if (blocked is not null)
+        {
+            return Result<OpenCashSessionResponse>.Failure(blocked);
         }
 
         // BEGIN IMMEDIATE: the check-and-insert must be atomic against
@@ -228,17 +239,20 @@ public sealed class CloseCashSessionUseCase : IUseCase<CloseCashSessionRequest, 
     private readonly IUnitOfWorkFactory units;
     private readonly ICurrentSession session;
     private readonly IClock clock;
+    private readonly IOperationalGate gate;
 
-    public CloseCashSessionUseCase(ICashSessionRepository sessions, IUnitOfWorkFactory units, ICurrentSession session, IClock clock)
+    public CloseCashSessionUseCase(ICashSessionRepository sessions, IUnitOfWorkFactory units, ICurrentSession session, IClock clock, IOperationalGate gate)
     {
         ArgumentNullException.ThrowIfNull(sessions);
         ArgumentNullException.ThrowIfNull(units);
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(clock);
+        ArgumentNullException.ThrowIfNull(gate);
         this.sessions = sessions;
         this.units = units;
         this.session = session;
         this.clock = clock;
+        this.gate = gate;
     }
 
     public async Task<Result<CloseCashSessionResponse>> ExecuteAsync(CloseCashSessionRequest request, CancellationToken cancellationToken)
@@ -249,6 +263,13 @@ public sealed class CloseCashSessionUseCase : IUseCase<CloseCashSessionRequest, 
         if (denied is not null)
         {
             return Result<CloseCashSessionResponse>.Failure(denied);
+        }
+
+        // P-DD §11.3: re-check the licensing/clock decision before closing cash.
+        var blocked = await gate.CheckAsync(cancellationToken);
+        if (blocked is not null)
+        {
+            return Result<CloseCashSessionResponse>.Failure(blocked);
         }
 
         await using var unit = await units.CreateAsync(UnitOfWorkMode.WriteImmediate, cancellationToken);

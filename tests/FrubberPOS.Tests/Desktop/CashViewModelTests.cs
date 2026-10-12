@@ -19,8 +19,8 @@ public sealed class CashViewModelTests
         var session = CashTestBed.AdminSession();
         var vm = new CashViewModel(
             new GetOpenCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession()),
-            new OpenCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock),
-            new CloseCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock),
+            new OpenCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock, bed.Gate),
+            new CloseCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock, bed.Gate),
             new CorrectOpeningBalanceUseCase(bed.Sessions, bed.Units, session),
             session,
             nav);
@@ -126,7 +126,7 @@ public sealed class CashViewModelTests
             .ExecuteAsync(new CreateProductRequest("M1", "Mango", ProductUnit.Kg, 6_000, 5_000), CancellationToken.None);
         Assert.True(created.IsSuccess, created.Error?.Message);
         var finalized = await new FinalizeSaleUseCase(
-                new DapperSaleRepository(), bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock)
+                new DapperSaleRepository(), bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock, bed.Gate)
             .ExecuteAsync(
                 new FinalizeSaleRequest([new DraftSaleLine(created.Value.ProductId, "M1", "Mango", ProductUnit.Kg, 6_000, 1_000)], 0, "CASH", 10_000),
                 CancellationToken.None);

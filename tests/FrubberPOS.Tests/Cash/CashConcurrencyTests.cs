@@ -20,8 +20,8 @@ public sealed class CashConcurrencyTests
         await using var bed = await CashTestBed.CreateAsync();
         var clock = bed.Clock;
 
-        var openA = new OpenCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), clock);
-        var openB = new OpenCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), clock);
+        var openA = new OpenCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), clock, bed.Gate);
+        var openB = new OpenCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), clock, bed.Gate);
 
         var results = await Task.WhenAll(
             openA.ExecuteAsync(new OpenCashSessionRequest(0), CancellationToken.None),
@@ -39,7 +39,7 @@ public sealed class CashConcurrencyTests
     public async Task GetOpen_IsIdempotent_ReadDoesNotChangeState()
     {
         await using var bed = await CashTestBed.CreateAsync();
-        var open = new OpenCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock);
+        var open = new OpenCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock, bed.Gate);
         await open.ExecuteAsync(new OpenCashSessionRequest(10_000), CancellationToken.None);
 
         var get = new GetOpenCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession());
@@ -54,10 +54,10 @@ public sealed class CashConcurrencyTests
     public async Task Close_IsIdempotent_SecondCloseConflicts()
     {
         await using var bed = await CashTestBed.CreateAsync();
-        var open = new OpenCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock);
+        var open = new OpenCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock, bed.Gate);
         await open.ExecuteAsync(new OpenCashSessionRequest(0), CancellationToken.None);
 
-        var close = new CloseCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock);
+        var close = new CloseCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock, bed.Gate);
         Assert.True((await close.ExecuteAsync(new CloseCashSessionRequest(), CancellationToken.None)).IsSuccess);
         var again = await close.ExecuteAsync(new CloseCashSessionRequest(), CancellationToken.None);
         Assert.False(again.IsSuccess);
@@ -67,7 +67,7 @@ public sealed class CashConcurrencyTests
     public async Task Totals_MatchBothPaymentMethodsAndVoidEffect()
     {
         await using var bed = await CashTestBed.CreateAsync();
-        var open = new OpenCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock);
+        var open = new OpenCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock, bed.Gate);
         var opened = await open.ExecuteAsync(new OpenCashSessionRequest(100_000), CancellationToken.None);
 
         await SeedAsync(bed.DbPath, 1, opened.Value.CashSessionId, "CASH", 20_000, 1_000);
@@ -92,7 +92,7 @@ public sealed class CashConcurrencyTests
         Assert.Equal(2, s.SaleCount);
         Assert.Equal(120_000, s.ExpectedCashCop);
 
-        var close = new CloseCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock);
+        var close = new CloseCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock, bed.Gate);
         Assert.True((await close.ExecuteAsync(new CloseCashSessionRequest(), CancellationToken.None)).IsSuccess);
 
         var summary = new GetCashSessionSummaryUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession());
@@ -110,7 +110,7 @@ public sealed class CashConcurrencyTests
         await using var bed = await CashTestBed.CreateAsync();
 
         // Salary negativo → falla antes de abrir; no queda ninguna caja abierta.
-        var badOpen = new OpenCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock);
+        var badOpen = new OpenCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock, bed.Gate);
         var failed = await badOpen.ExecuteAsync(new OpenCashSessionRequest(-100), CancellationToken.None);
         Assert.False(failed.IsSuccess);
 
@@ -118,7 +118,7 @@ public sealed class CashConcurrencyTests
         Assert.Null((await get.ExecuteAsync(new GetOpenCashSessionRequest(), CancellationToken.None)).Value.Session);
 
         // Cerrar sin caja → falla; y sigue sin caja abierta.
-        var close = new CloseCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock);
+        var close = new CloseCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock, bed.Gate);
         Assert.False((await close.ExecuteAsync(new CloseCashSessionRequest(), CancellationToken.None)).IsSuccess);
         Assert.Null((await get.ExecuteAsync(new GetOpenCashSessionRequest(), CancellationToken.None)).Value.Session);
     }

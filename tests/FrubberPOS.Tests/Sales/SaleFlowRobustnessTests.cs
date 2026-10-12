@@ -38,7 +38,7 @@ public sealed class SaleFlowRobustnessTests
         var printer = new FakeTicketPrinter();
         return (new TpvViewModel(
             new SearchProductsForSaleUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()),
-            new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock),
+            new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock, bed.Gate),
             new GetOpenCashSessionUseCase(bed.Sessions, bed.Units, ProductTestBed.AdminSession()),
             new GetTicketForSaleUseCase(bed.Sales, bed.Settings, bed.Units),
             printer,
@@ -193,6 +193,7 @@ public sealed class SaleFlowRobustnessTests
     [InlineData(2_001, 500, 1_001)]  // 1.000,5 → 1.001
     [InlineData(3_333, 500, 1_667)]  // 1.666,5 → 1.667
     [InlineData(3_333, 501, 1_670)]  // 1.669,833 → 1.670
+    [InlineData(2_500, 1_123, 2_808)] // ejemplo normativo RN-VEN-005: $2.500/kg × 1,123 kg = $2.807,50 → $2.808
     public void LineTotal_RoundsHalfUp_InWholeCop(long priceCop, long quantityMilli, long expectedCop)
     {
         var draft = new DraftSale();

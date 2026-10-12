@@ -47,6 +47,13 @@ public sealed class UpdateUserUseCase : IUseCase<UpdateUserRequest, UpdateUserRe
                 ErrorCode.Validation, "El nombre debe tener entre 1 y 60 caracteres.", "DisplayName"));
         }
 
+        // RN-USR-001: only the two approved roles exist.
+        if (request.Role is not (UserRole.Admin or UserRole.Cashier))
+        {
+            return Result<UpdateUserResponse>.Failure(new Error(
+                ErrorCode.Validation, "El rol no es válido.", "Role"));
+        }
+
         await using var unit = await units.CreateAsync(UnitOfWorkMode.WriteImmediate, cancellationToken);
 
         var current = await users.FindByIdAsync(unit, request.UserId, cancellationToken);

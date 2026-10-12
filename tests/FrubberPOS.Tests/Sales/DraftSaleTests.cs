@@ -51,6 +51,22 @@ public sealed class DraftSaleTests
         Assert.Empty(draft.Lines);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1_000)]
+    public void Add_ZeroOrNegativeQuantity_Validation(long quantityMilli)
+    {
+        var draft = new DraftSale();
+
+        // RN-UNI-004: toda cantidad agregada a una venta debe ser mayor que cero.
+        var result = draft.AddOrAccumulate(KgProduct(), quantityMilli);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(ErrorCode.Validation, result.Error!.Code);
+        Assert.Equal("Quantity", result.Error.Field);
+        Assert.Empty(draft.Lines);
+    }
+
     [Fact]
     public void Subtotal_LineTotalRoundsHalfUp()
     {

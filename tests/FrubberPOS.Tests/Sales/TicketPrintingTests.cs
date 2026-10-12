@@ -44,7 +44,7 @@ public sealed class TicketPrintingTests
         var printer = new FakeTicketPrinter();
         return (new TpvViewModel(
             new SearchProductsForSaleUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()),
-            new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock),
+            new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock, bed.Gate),
             new GetOpenCashSessionUseCase(bed.Sessions, bed.Units, ProductTestBed.AdminSession()),
             new GetTicketForSaleUseCase(bed.Sales, bed.Settings, bed.Units),
             printer,
@@ -68,7 +68,7 @@ public sealed class TicketPrintingTests
         var printer = new FakeTicketPrinter();
         var vm = new TpvViewModel(
             new SearchProductsForSaleUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()),
-            new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock),
+            new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock, bed.Gate),
             new GetOpenCashSessionUseCase(bed.Sessions, bed.Units, ProductTestBed.AdminSession()),
             new GetTicketForSaleUseCase(bed.Sales, bed.Settings, bed.Units),
             printer,

@@ -21,7 +21,7 @@ public sealed class SaleDetailViewModelTests
         var nav = new FakeNavigator();
         return (new SaleDetailViewModel(
             new GetSaleDetailUseCase(bed.History, bed.Units, ProductTestBed.AdminSession()),
-            new VoidSaleUseCase(bed.Voids, bed.Sales, bed.Units, ProductTestBed.AdminSession(), bed.Clock),
+            new VoidSaleUseCase(bed.Voids, bed.Sales, bed.Units, ProductTestBed.AdminSession(), bed.Clock, bed.Gate),
             nav), nav);
     }
 
@@ -43,7 +43,7 @@ public sealed class SaleDetailViewModelTests
             .ExecuteAsync(new CreateProductRequest("M1", "Mango", ProductUnit.Kg, 6_000, 5_000), CancellationToken.None);
         Assert.True(created.IsSuccess, created.Error?.Message);
 
-        var finalized = await new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock)
+        var finalized = await new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock, bed.Gate)
             .ExecuteAsync(
                 new FinalizeSaleRequest(
                     [new DraftSaleLine(created.Value.ProductId, "M1", "Mango", ProductUnit.Kg, 6_000, 1_250)],
@@ -139,7 +139,7 @@ public sealed class SaleDetailViewModelTests
         await using var bed = await ProductTestBed.CreateAsync();
         await SellMangoAsync(bed);
         var close = new FrubberPOS.Application.Cash.CloseCashSessionUseCase(
-            bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock);
+            bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock, bed.Gate);
         Assert.True((await close.ExecuteAsync(new FrubberPOS.Application.Cash.CloseCashSessionRequest(), CancellationToken.None)).IsSuccess);
 
         var (vm, _) = Build(bed);

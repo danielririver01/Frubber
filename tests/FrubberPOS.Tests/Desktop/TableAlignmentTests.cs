@@ -35,7 +35,7 @@ public sealed class TableAlignmentTests
         {
             var vm = new TpvViewModel(
                 new SearchProductsForSaleUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession()),
-                new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock),
+                new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock, bed.Gate),
                 new GetOpenCashSessionUseCase(bed.Sessions, bed.Units, ProductTestBed.AdminSession()),
                 new GetTicketForSaleUseCase(bed.Sales, bed.Settings, bed.Units),
                 new FakeTicketPrinter(),
@@ -119,7 +119,7 @@ public sealed class TableAlignmentTests
         {
             var vm = new SaleDetailViewModel(
                 new GetSaleDetailUseCase(bed.History, bed.Units, ProductTestBed.AdminSession()),
-                new VoidSaleUseCase(bed.Voids, bed.Sales, bed.Units, ProductTestBed.AdminSession(), bed.Clock),
+                new VoidSaleUseCase(bed.Voids, bed.Sales, bed.Units, ProductTestBed.AdminSession(), bed.Clock, bed.Gate),
                 new FakeNavigator());
             vm.LoadAsync(1, viewerIsAdmin: true).GetAwaiter().GetResult();
             Assert.True(vm.Lines.Count > 0);
@@ -193,7 +193,7 @@ public sealed class TableAlignmentTests
             .ExecuteAsync(new CreateProductRequest("M1", "Mango", ProductUnit.Kg, 6_000, 5_000), CancellationToken.None);
         Assert.True(created.IsSuccess, created.Error?.Message);
 
-        var finalized = await new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock)
+        var finalized = await new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock, bed.Gate)
             .ExecuteAsync(
                 new FinalizeSaleRequest(
                     [new DraftSaleLine(created.Value.ProductId, "M1", "Mango", ProductUnit.Kg, 6_000, 1_250)],

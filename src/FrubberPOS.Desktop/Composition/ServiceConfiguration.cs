@@ -90,6 +90,7 @@ public static class ServiceConfiguration
         services.AddTransient<ActivateLicenseUseCase>();
         services.AddTransient<GetLicenseStatusUseCase>();
         services.AddTransient<EvaluateTrialUseCase>();
+        services.AddTransient<IOperationalGate, OperationalGate>();
         services.AddTransient<CreateProductUseCase>();
         services.AddTransient<UpdateProductUseCase>();
         services.AddTransient<GetProductUseCase>();
