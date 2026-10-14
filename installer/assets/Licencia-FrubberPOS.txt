@@ -1,0 +1,19 @@
+FRUBBER POS — TÉRMINOS Y CONDICIONES DE LICENCIA DE USO
+
+1. Titularidad del software
+Frubber POS, incluyendo su código, diseño, estructura, interfaz, documentación y demás componentes originales, pertenece a su autor o titular legítimo de los derechos de propiedad intelectual. La compra de una licencia de uso no implica la transferencia de la propiedad del software ni de sus derechos de autor al cliente.
+
+2. Concesión de la licencia
+Una vez realizado el pago total acordado, el titular concede al cliente una licencia de uso de carácter permanente, no exclusiva y sin pagos periódicos de renovación, para utilizar Frubber POS en el negocio y en las condiciones correspondientes a la licencia adquirida.
+
+3. Restricciones de uso
+El cliente no podrá vender, sublicenciar, alquilar, publicar, distribuir ni compartir copias de Frubber POS con terceros, ni comercializar el software por cuenta propia, sin autorización previa y escrita del titular, salvo los usos permitidos por la legislación aplicable.
+
+4. Derecho de distribución y comercialización
+El titular conserva el derecho de desarrollar, modificar, actualizar, distribuir, licenciar y comercializar Frubber POS a otros clientes, sin que la adquisición de una licencia otorgue exclusividad al comprador.
+
+5. Actualizaciones y soporte
+La licencia permanente de uso no implica, por sí sola, la obligación de proporcionar gratuitamente futuras versiones, nuevas funcionalidades, soporte técnico ilimitado ni servicios adicionales. Estos servicios se regirán por las condiciones que se acuerden expresamente.
+
+6. Aceptación
+Al aceptar estos términos, el cliente declara haber leído y comprendido las condiciones de la licencia de uso de Frubber POS.

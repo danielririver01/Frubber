@@ -14,7 +14,7 @@ técnicos ni internet.
 
 1. Ejecutar `FrubberPOS-Setup-1.0.0.exe` (lo genera `installer\build-installer.ps1`
    con Inno Setup 6; el script vive fuera de la solución).
-2. Aceptar el destino sugerido (Archivos de programa). La app crea sola, en el
+2. Leer el contrato de licencia y marcar «Acepto el contrato» (si no se acepta, el instalador se cierra sin instalar nada). Aceptar el destino sugerido (Archivos de programa). La app crea sola, en el
    primer arranque, su carpeta de datos en `C:\ProgramData\FrubberPOS`.
 3. Al primer inicio, el asistente crea el **primer administrador** con su PIN de
    4 dígitos. No existe PIN predeterminado.
@@ -27,7 +27,7 @@ técnicos ni internet.
   (el cierre no pide conteo).
 - **Venta (TPV):** buscar por PLU o nombre; en productos por kg/lb se digita el
   peso o se toma de la báscula con «Leer báscula»; cobrar en efectivo (calcula
-  el cambio) o transferencia; imprimir es opcional.
+  el cambio) o transferencia; imprimir es opcional. El mismo botón existe al crear el producto (existencia inicial) y en «Ajustar existencia»: se pone la canasta o el balde en la báscula (con TARA si hay envase) y el peso entra solo.
 - **Historial (administrador):** consulta por fechas y anulación de ventas con
   la caja aún abierta (reintegra inventario; nunca borra el registro).
 - **Productos (administrador):** crear, editar, activar/desactivar, ajustar
@@ -48,5 +48,5 @@ borrarlos hay que eliminar esa carpeta a mano, a propósito.
 ## 5. Trazabilidad de la versión
 
 Los binarios de la 1.0 corresponden al código etiquetado `v1.0.0` y a la suite
-de pruebas aprobada (699/699). El artefacto no incluye servidor, nube,
+de pruebas aprobada (732/732). El artefacto no incluye servidor, nube,
 suscripciones ni módulos excluidos del alcance.

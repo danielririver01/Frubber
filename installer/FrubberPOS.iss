@@ -1,6 +1,8 @@
 ; Frubber POS 1.0 — Instalador Inno Setup (JHO-54, ADR-020 §16.8)
 ; Este script vive FUERA de la solución (no es un proyecto de FrubberPOS.sln).
-; Compilar con: installer\build-installer.ps1 (requiere Inno Setup 6).
+; Compilar con: installer\build-installer.ps1 (requiere Inno Setup 6.3+,
+; que es el que trae el asistente con estilo moderno).
+; Los assets de assets\ se regeneran con installer\make-assets.ps1.
 
 #ifndef MyAppVersion
   #define MyAppVersion "1.0.0"
@@ -19,8 +21,13 @@ PrivilegesRequired=admin
 OutputDir=output
 OutputBaseFilename=FrubberPOS-Setup-{#MyAppVersion}
 SetupIconFile=..\src\FrubberPOS.Desktop\Resources\frubber-pos.ico
-WizardImageFile=..\src\FrubberPOS.Desktop\Resources\frubber-pos.ico
-WizardSmallImageFile=..\src\FrubberPOS.Desktop\Resources\frubber-pos.ico
+; Contrato de licencia (Licencia+RTF): hasta «Acepto» no se puede avanzar;
+; «No acepto» solo permite Cancelar y el instalador se cierra sin tocar nada.
+LicenseFile=assets\Licencia-FrubberPOS.rtf
+; Estilo de asistente moderno + bitmaps de marca (generados por make-assets.ps1).
+WizardStyle=modern
+WizardImageFile=assets\wizard-164.bmp
+WizardSmallImageFile=assets\wizard-55.bmp
 Compression=lzma2
 SolidCompression=yes
 ArchitecturesAllowed=x64compatible
