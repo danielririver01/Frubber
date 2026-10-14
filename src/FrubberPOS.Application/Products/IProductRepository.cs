@@ -17,6 +17,13 @@ public interface IProductRepository
     Task<bool> PluExistsAsync(IUnitOfWork unit, string plu, int? excludeProductId, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Next free numeric PLU (JHO-87): MAX(numeric PLU)+1, starting at 1;
+    /// alphanumeric PLUs count as zero and never raise the suggestion.
+    /// A convenience for the editor — uniqueness is enforced at save time.
+    /// </summary>
+    Task<string> GetNextPluAsync(IUnitOfWork unit, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Matches by PLU prefix or name substring (case-insensitive). An empty
     /// term lists everything under <paramref name="filter"/>. Result is
     /// capped at 500 rows ordered by active first, then name.

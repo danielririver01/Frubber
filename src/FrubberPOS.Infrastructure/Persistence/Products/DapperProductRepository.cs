@@ -1,3 +1,4 @@
+using System.Globalization;
 using Dapper;
 using FrubberPOS.Application.Persistence;
 using FrubberPOS.Application.Products;
@@ -46,6 +47,17 @@ public sealed class DapperProductRepository : IProductRepository
         var count = await unit.Connection.QuerySingleAsync<long>(
             sql, new { Plu = plu, Exclude = (int?)excludeProductId }, unit.Transaction);
         return count > 0;
+    }
+
+    public async Task<string> GetNextPluAsync(IUnitOfWork unit, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(unit);
+
+        // JHO-87: numeric PLUs only — CAST turns 'ABC'/'M1' into 0, so an
+        // alphanumeric PLU never raises the suggestion past the true max.
+        const string sql = "SELECT COALESCE(MAX(CAST(Plu AS INTEGER)), 0) + 1 FROM Product;";
+        var next = await unit.Connection.QuerySingleAsync<long>(sql, transaction: unit.Transaction);
+        return next.ToString(CultureInfo.InvariantCulture);
     }
 
     public async Task<IReadOnlyList<ProductDto>> SearchAsync(IUnitOfWork unit, string term, ProductStatusFilter filter, CancellationToken cancellationToken)

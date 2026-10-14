@@ -21,6 +21,13 @@ public partial class ProductEditorDialog : Window
         viewModel.Load(existing);
         InitializeComponent();
         viewModel.RequestClose += OnRequestClose;
+        Loaded += OnLoaded;
+    }
+
+    /// <summary>JHO-87: a new product opens pre-filled with the next free PLU.</summary>
+    private async void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        await viewModel.SuggestNextPluAsync();
     }
 
     private void OnRequestClose(object? sender, bool saved)

@@ -23,6 +23,7 @@ public sealed class ProductEditorViewModel : INotifyPropertyChanged
 {
     private readonly CreateProductUseCase createProduct;
     private readonly UpdateProductUseCase updateProduct;
+    private readonly SuggestNextPluUseCase? suggestPlu;
 
     private ProductDto? existing;
     private string plu = string.Empty;
@@ -33,12 +34,16 @@ public sealed class ProductEditorViewModel : INotifyPropertyChanged
     private ProductUnit unitSelection = ProductUnit.Kg;
     private string errorMessage = string.Empty;
 
-    public ProductEditorViewModel(CreateProductUseCase createProduct, UpdateProductUseCase updateProduct)
+    public ProductEditorViewModel(
+        CreateProductUseCase createProduct,
+        UpdateProductUseCase updateProduct,
+        SuggestNextPluUseCase? suggestPlu = null)
     {
         ArgumentNullException.ThrowIfNull(createProduct);
         ArgumentNullException.ThrowIfNull(updateProduct);
         this.createProduct = createProduct;
         this.updateProduct = updateProduct;
+        this.suggestPlu = suggestPlu;
 
         SaveCommand = new AsyncCommand(_ => SaveAsync());
     }
@@ -150,6 +155,26 @@ public sealed class ProductEditorViewModel : INotifyPropertyChanged
 
     /// <summary>PLU is uppercased when the field loses focus (§12.2).</summary>
     public void NormalizePlu() => Plu = Plu.Trim().ToUpperInvariant();
+
+    /// <summary>
+    /// Fills the PLU of a NEW product with the next free number (JHO-87,
+    /// aprobado 2026-10-14). Never runs in edit mode and never overwrites
+    /// what the operator already typed; a suggestion failure leaves the
+    /// field as it is (the operator can still type a PLU by hand).
+    /// </summary>
+    public async Task SuggestNextPluAsync()
+    {
+        if (suggestPlu is null || existing is not null || !string.IsNullOrWhiteSpace(Plu))
+        {
+            return;
+        }
+
+        var suggested = await suggestPlu.ExecuteAsync(new SuggestNextPluRequest(), CancellationToken.None);
+        if (suggested.IsSuccess)
+        {
+            Plu = suggested.Value.Plu;
+        }
+    }
 
     public async Task SaveAsync()
     {

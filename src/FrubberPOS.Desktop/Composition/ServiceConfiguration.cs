@@ -97,6 +97,7 @@ public static class ServiceConfiguration
         services.AddTransient<EvaluateTrialUseCase>();
         services.AddTransient<IOperationalGate, OperationalGate>();
         services.AddTransient<CreateProductUseCase>();
+        services.AddTransient<SuggestNextPluUseCase>();
         services.AddTransient<UpdateProductUseCase>();
         services.AddTransient<GetProductUseCase>();
         services.AddTransient<SearchProductsUseCase>();
