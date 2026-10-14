@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Frubber POS — Instalador propio estilo maqueta (JHO-93). PROYECTO SUELTO:
+       NO se agrega a FrubberPOS.sln (los instaladores viven fuera, ADR-020 §16.8).
+       Se publica con installer\build-installer.ps1. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>FrubberPOS-Setup</AssemblyName>
+    <ApplicationIcon>frubber-pos.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Version></Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Product>Frubber POS</Product>
+    <Company>Frubber</Company>
+    <Description>Asistente de instalación de Frubber POS</Description>
+  </PropertyGroup>
+
+  <!-- El payload de la app (artifacts\publish comprimido en payload.zip) viaja
+       DENTRO del exe para entregar un solo archivo. Lo genera build-installer.ps1. -->
+  <ItemGroup Condition="Exists('$(MSBuildProjectDirectory)\payload.zip')">
+    <EmbeddedResource Include="payload.zip" />
+  </ItemGroup>
+
+  <!-- Fuentes de marca embebidas (Inter): el instalador se ve con Inter aunque el PC no la tenga. -->
+  <ItemGroup>
+    <Resource Include="Fonts\Inter-Regular.ttf" />
+    <Resource Include="Fonts\Inter-SemiBold.ttf" />
+    <Resource Include="Fonts\Inter-Bold.ttf" />
+    <Resource Include="Fonts\Inter-ExtraBold.ttf" />
+  </ItemGroup>
+
+  <!-- El contrato mostrado en el paso «Licencia» (mismo texto del instalador Inno). -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\assets\Licencia-FrubberPOS.txt" Condition="Exists('$(MSBuildProjectDirectory)\..\assets\Licencia-FrubberPOS.txt')">
+      <LogicalName>FrubberPOS.Installer.Licencia-FrubberPOS.txt</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>

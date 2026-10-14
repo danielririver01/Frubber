@@ -1,0 +1,384 @@
+<Window x:Class="FrubberPOS.Installer.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Frubber POS — Asistente de instalación"
+        Width="1170" Height="730" WindowStartupLocation="CenterScreen"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="NoResize" SizeToContent="Height"
+        FontFamily="pack://application:,,,/Fonts/#Inter">
+    <Border CornerRadius="25" Background="White" BorderBrush="#12012632" BorderThickness="0">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="30" ShadowDepth="4" Direction="270" Color="#132E3F" Opacity="0.15"/>
+        </Border.Effect>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="276"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- ===== RAIL (pasos) ===== -->
+            <Border Grid.Column="0" CornerRadius="25,0,0,25" Padding="30,30,22,24"
+                    MouseLeftButtonDown="OnDragMove">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0.6,1">
+                        <GradientStop Color="#0D1B2A" Offset="0"/>
+                        <GradientStop Color="#102839" Offset="0.75"/>
+                        <GradientStop Color="#0E3B43" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,0">
+                        <Border Width="42" Height="42" CornerRadius="13">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="#3DE0C6" Offset="0"/>
+                                    <GradientStop Color="#0B897E" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <TextBlock Text="F" Foreground="White" FontSize="19" FontWeight="ExtraBold"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Orientation="Vertical" Margin="11,1,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="Frubber" Foreground="White" FontSize="16" FontWeight="Bold"/>
+                            <TextBlock Text="PUNTO DE VENTA" Foreground="#A9C7CD" FontSize="9" FontWeight="Bold"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <TextBlock DockPanel.Dock="Top" Text="INSTALACIÓN SENCILLA" Margin="2,46,0,15"
+                               Foreground="#91AEB8" FontSize="10" FontWeight="Bold"/>
+
+                    <StackPanel DockPanel.Dock="Top" x:Name="StepsHost"/>
+
+                    <Border DockPanel.Dock="Bottom" BorderBrush="#1E3A44" BorderThickness="1" CornerRadius="15"
+                            Background="#0C1F27" Padding="15" Margin="0,0,0,14">
+                        <StackPanel>
+                            <Border Width="29" Height="29" CornerRadius="9" Background="#173B3A" Margin="0,0,0,9">
+                                <TextBlock Text="↻" Foreground="#57DFC8" HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" FontWeight="Bold"/>
+                            </Border>
+                            <TextBlock Text="Sin afán" Foreground="#EDF8F7" FontSize="12" FontWeight="Bold"/>
+                            <TextBlock Text="Puedes volver al paso anterior antes de instalar." Foreground="#9DB8BF"
+                                       FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+                    <TextBlock DockPanel.Dock="Bottom" Text="Frubber POS · v1.0.0" Foreground="#77949E" FontSize="10"/>
+                </DockPanel>
+            </Border>
+
+            <!-- ===== MAIN ===== -->
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="70"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" BorderBrush="#F0F3F4" BorderThickness="0,0,0,1" Padding="38,0">
+                    <Grid>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" MouseLeftButtonDown="OnDragMove">
+                            <TextBlock Text="⚙" Foreground="#91A4AE" VerticalAlignment="Center"/>
+                            <TextBlock Text="  Asistente de instalación" Foreground="#748895" FontSize="12"
+                                       FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <Button HorizontalAlignment="Right" Content="✕" Click="OnCloseClick"
+                                Background="Transparent" BorderThickness="0" FontSize="12" Foreground="#8BA0AB"
+                                Cursor="Hand" Padding="8,4" ToolTip="Cerrar el asistente"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,34,0">
+                            <Border x:Name="StateBadge" CornerRadius="999" Padding="7,11,11,7" Background="#F1FBF8" BorderBrush="#D8F1EB" BorderThickness="1">
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse Width="7" Height="7" Fill="{StaticResource TealBrush}" Margin="4,3,8,0"/>
+                                    <TextBlock x:Name="StateBadgeText" Text="Sin internet necesario" Foreground="#26766C"
+                                               FontSize="10" FontWeight="Bold"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Grid Grid.Row="1" Margin="52,36,52,26">
+                    <!-- 1. Bienvenida -->
+                    <Grid Visibility="{Binding CurrentStep, Converter={StaticResource StepEq}, ConverterParameter=1}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="335"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="FRUBBER POS · PARA ESTE EQUIPO" Foreground="{StaticResource TealDarkBrush}"
+                                       FontSize="10" FontWeight="Bold" Margin="0,0,0,13"/>
+                            <TextBlock Text="Tu punto de venta, listo para el día a día." FontSize="40" FontWeight="Bold"
+                                       Foreground="{StaticResource InkBrush}" TextWrapping="Wrap"
+                                       LineHeight="44" LineStackingStrategy="BlockLineHeight"/>
+                            <TextBlock Text="Instala Frubber POS en este computador y organiza las ventas, la caja y los productos desde un solo lugar."
+                                       Foreground="{StaticResource MutedBrush}" FontSize="15" TextWrapping="Wrap"
+                                       LineHeight="25" LineStackingStrategy="BlockLineHeight" Margin="0,16,0,0"/>
+                            <StackPanel Margin="0,25,0,0">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                    <Border Style="{StaticResource CheckGlyph}">
+                                        <TextBlock Text="✓" Foreground="#159D83" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11"/>
+                                    </Border>
+                                    <TextBlock Text="Funciona sin conexión a internet" Foreground="#344B58" FontSize="13"
+                                               FontWeight="SemiBold" VerticalAlignment="Center" Margin="11,0,0,0"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                    <Border Style="{StaticResource CheckGlyph}">
+                                        <TextBlock Text="✓" Foreground="#159D83" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11"/>
+                                    </Border>
+                                    <TextBlock Text="Tu información siempre queda en este equipo" Foreground="#344B58" FontSize="13"
+                                               FontWeight="SemiBold" VerticalAlignment="Center" Margin="11,0,0,0"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Style="{StaticResource CheckGlyph}">
+                                        <TextBlock Text="✓" Foreground="#159D83" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11"/>
+                                    </Border>
+                                    <TextBlock Text="Instalación clara, paso a paso, en minutos" Foreground="#344B58" FontSize="13"
+                                               FontWeight="SemiBold" VerticalAlignment="Center" Margin="11,0,0,0"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                        <!-- Tarjeta ilustrativa (mock de Caja) -->
+                        <Border Grid.Column="1" VerticalAlignment="Center" Padding="14" CornerRadius="19" BorderBrush="#E5EDEE" BorderThickness="1" RenderTransformOrigin="0.5,0.5">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="#FBFEFD" Offset="0"/>
+                                    <GradientStop Color="#F2FAF8" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <StackPanel>
+                                <Border CornerRadius="14" BorderBrush="#E7EEEE" BorderThickness="1" Background="White">
+                                    <StackPanel>
+                                        <Border Height="39" BorderBrush="#F0F3F3" BorderThickness="0,0,0,1" Padding="12,0">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Ellipse Width="6" Height="6" Fill="#DAE4E5"/>
+                                                <Ellipse Width="6" Height="6" Fill="#DAE4E5" Margin="6,0"/>
+                                                <Ellipse Width="6" Height="6" Fill="#DAE4E5"/>
+                                                <TextBlock Text="Frubber POS · Caja" Foreground="#71848C" FontSize="9" FontWeight="Bold" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <StackPanel Margin="14">
+                                            <DockPanel>
+                                                <Border HorizontalAlignment="Right" CornerRadius="99" Background="#EEFAF4" Padding="7,4">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Ellipse Width="5" Height="5" Fill="#36B779" Margin="0,3,5,0"/>
+                                                        <TextBlock Text="Caja abierta" Foreground="#29835E" FontSize="8" FontWeight="Bold"/>
+                                                    </StackPanel>
+                                                </Border>
+                                                <TextBlock Text="TU JORNADA, EN ORDEN" Foreground="#83939B" FontSize="8" FontWeight="Bold" VerticalAlignment="Center"/>
+                                            </DockPanel>
+                                            <UniformGrid Columns="2" Margin="0,13,0,0">
+                                                <Border BorderBrush="#EDF1F1" BorderThickness="1" CornerRadius="10" Padding="10" Margin="0,0,4,0">
+                                                    <StackPanel>
+                                                        <TextBlock Text="VENTAS DEL TURNO" Foreground="#91A0A7" FontSize="8" FontWeight="Bold"/>
+                                                        <TextBlock Text="$ 240.000" Foreground="#1B2D3B" FontSize="16" FontWeight="Bold" Margin="0,4,0,0"/>
+                                                    </StackPanel>
+                                                </Border>
+                                                <Border BorderBrush="#EDF1F1" BorderThickness="1" CornerRadius="10" Padding="10" Margin="4,0,0,0">
+                                                    <StackPanel>
+                                                        <TextBlock Text="EN EFECTIVO" Foreground="#91A0A7" FontSize="8" FontWeight="Bold"/>
+                                                        <TextBlock Text="$ 240.000" Foreground="#1B2D3B" FontSize="16" FontWeight="Bold" Margin="0,4,0,0"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </UniformGrid>
+                                            <Border Margin="0,9,0,0" BorderBrush="#CCEFE5" BorderThickness="1" CornerRadius="11" Padding="13">
+                                                <Border.Background>
+                                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                        <GradientStop Color="#EFFCF8" Offset="0"/>
+                                                        <GradientStop Color="#FAFFFD" Offset="1"/>
+                                                    </LinearGradientBrush>
+                                                </Border.Background>
+                                                <StackPanel>
+                                                    <TextBlock Text="■ EFECTIVO ESPERADO" Foreground="#348B7D" FontSize="8" FontWeight="Bold"/>
+                                                    <TextBlock Text="$ 250.000" Foreground="#117B6D" FontSize="22" FontWeight="Bold" Margin="0,5,0,0"/>
+                                                    <TextBlock Text="Saldo inicial más ventas en efectivo" Foreground="#87979E" FontSize="8" Margin="0,3,0,0"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                                <Border HorizontalAlignment="Right" Margin="0,10,0,0" BorderBrush="#E0ECEB" BorderThickness="1"
+                                        CornerRadius="11" Background="White" Padding="10,10,12,10">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Width="22" Height="22" CornerRadius="7" Background="#ECFAF6">
+                                            <TextBlock Text="＋" Foreground="#199D85" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12"/>
+                                        </Border>
+                                        <TextBlock Text="Hecho para tu negocio" Foreground="#526872" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- 2. Licencia -->
+                    <Grid Visibility="{Binding CurrentStep, Converter={StaticResource StepEq}, ConverterParameter=2}">
+                        <StackPanel VerticalAlignment="Center" MaxWidth="680">
+                            <TextBlock Text="PASO 2 DE 5 · LICENCIA DE USO" Foreground="{StaticResource TealDarkBrush}" FontSize="10" FontWeight="Bold" Margin="0,0,0,10"/>
+                            <TextBlock Text="Lee las condiciones de uso." FontSize="34" FontWeight="Bold" Foreground="{StaticResource InkBrush}"/>
+                            <TextBlock Text="Revisa los términos de la licencia antes de instalar." Foreground="#6B7F8B" FontSize="14" Margin="0,10,0,22" TextWrapping="Wrap"/>
+                            <Border BorderBrush="#E3EBEC" BorderThickness="1" CornerRadius="14" Background="White">
+                                <ScrollViewer x:Name="LicenseScroll" MaxHeight="310" VerticalScrollBarVisibility="Auto" Padding="19,17">
+                                    <StackPanel x:Name="LicenseBody"/>
+                                </ScrollViewer>
+                            </Border>
+                            <Border x:Name="AcceptBox" BorderBrush="#E1EAEA" BorderThickness="1" CornerRadius="12"
+                                    Background="#FBFDFD" Margin="0,13,0,0" Padding="14,13">
+                                <CheckBox x:Name="AcceptCheck" VerticalContentAlignment="Top" Checked="OnAcceptChanged" Unchecked="OnAcceptChanged">
+                                    <StackPanel Margin="11,0,0,0">
+                                        <TextBlock Text="He leído y acepto estos términos y condiciones" Foreground="#294650" FontSize="13" FontWeight="Bold"/>
+                                        <TextBlock Text="Debes marcar esta casilla para poder instalar." Foreground="#4E6570" FontSize="11" Margin="0,3,0,0"/>
+                                    </StackPanel>
+                                </CheckBox>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- 3. Ubicación -->
+                    <Grid Visibility="{Binding CurrentStep, Converter={StaticResource StepEq}, ConverterParameter=3}">
+                        <StackPanel VerticalAlignment="Center" MaxWidth="680">
+                            <TextBlock Text="PASO 3 DE 5 · UBICACIÓN" Foreground="{StaticResource TealDarkBrush}" FontSize="10" FontWeight="Bold" Margin="0,0,0,10"/>
+                            <TextBlock Text="Elige dónde instalarlo." FontSize="34" FontWeight="Bold" Foreground="{StaticResource InkBrush}"/>
+                            <TextBlock Text="Usa la carpeta recomendada o escoge otra ubicación en este equipo." Foreground="#6B7F8B" FontSize="14" Margin="0,10,0,22" TextWrapping="Wrap"/>
+                            <TextBlock Text="Carpeta de instalación" Foreground="#344B58" FontSize="12" FontWeight="Bold" Margin="0,0,0,8"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="PathBox" TextChanged="OnPathChanged" Height="48" Padding="14,0"
+                                         VerticalContentAlignment="Center" FontSize="13"
+                                         BorderBrush="#DCE6E8" BorderThickness="1" Background="#FBFDFD">
+                                    <TextBox.Resources>
+                                        <Style TargetType="Border">
+                                            <Setter Property="CornerRadius" Value="11"/>
+                                        </Style>
+                                    </TextBox.Resources>
+                                </TextBox>
+                                <Button Grid.Column="1" Content="Cambiar…" Style="{StaticResource SecondaryButton}"
+                                        Margin="9,0,0,0" Click="OnBrowseClick" FontSize="12"/>
+                            </Grid>
+                            <TextBlock Text="Puedes cambiarla antes de comenzar." Foreground="#8798A1" FontSize="11" Margin="0,8,0,0"/>
+                            <Border BorderBrush="#E8EEEE" BorderThickness="1" CornerRadius="12" Background="White" Margin="0,23,0,0" Padding="15">
+                                <CheckBox x:Name="ShortcutCheck" IsChecked="True" VerticalContentAlignment="Top">
+                                    <StackPanel Margin="12,0,0,0">
+                                        <TextBlock Text="Crear acceso directo en el escritorio" Foreground="#314854" FontSize="12" FontWeight="Bold"/>
+                                        <TextBlock Text="Así puedes abrir Frubber POS más fácilmente." Foreground="#80919A" FontSize="11" Margin="0,3,0,0"/>
+                                    </StackPanel>
+                                </CheckBox>
+                            </Border>
+                            <Border BorderBrush="#DEF0EC" BorderThickness="1" CornerRadius="12" Background="#F4FBF9" Margin="0,22,0,0" Padding="13,15">
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Style="{StaticResource InfoBoxIcon}">
+                                        <TextBlock Text="i" Foreground="#188F7E" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold"/>
+                                    </Border>
+                                    <TextBlock Text="Frubber POS funciona sin internet. Tus datos siempre se quedan en este equipo (C:\ProgramData\FrubberPOS) y se conservan aunque desinstales el programa."
+                                               Foreground="#47716B" FontSize="11" TextWrapping="Wrap" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- 4. Instalación -->
+                    <Grid Visibility="{Binding CurrentStep, Converter={StaticResource StepEq}, ConverterParameter=4}">
+                        <StackPanel VerticalAlignment="Center" MaxWidth="680">
+                            <TextBlock Text="PASO 4 DE 5 · CONFIRMACIÓN" Foreground="{StaticResource TealDarkBrush}" FontSize="10" FontWeight="Bold" Margin="0,0,0,10"/>
+                            <TextBlock Text="Todo listo para instalar." FontSize="34" FontWeight="Bold" Foreground="{StaticResource InkBrush}"/>
+                            <TextBlock Text="Revisa la ubicación y tus opciones. Si están bien, comienza la instalación." Foreground="#6B7F8B" FontSize="14" Margin="0,10,0,22" TextWrapping="Wrap"/>
+                            <Border BorderBrush="#E7EDED" BorderThickness="1" CornerRadius="14" Background="White" Margin="0,8,0,0">
+                                <StackPanel>
+                                    <Border Padding="16,14" BorderBrush="#EEF2F2" BorderThickness="0,0,0,1">
+                                        <DockPanel>
+                                            <TextBlock Text="Instalar en" Foreground="#6B7E88" FontSize="12"/>
+                                            <TextBlock x:Name="SummaryPath" HorizontalAlignment="Right" Foreground="#314753" FontSize="12" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
+                                        </DockPanel>
+                                    </Border>
+                                    <Border Padding="16,14" BorderBrush="#EEF2F2" BorderThickness="0,0,0,1">
+                                        <DockPanel>
+                                            <TextBlock Text="Acceso directo" Foreground="#6B7E88" FontSize="12"/>
+                                            <TextBlock x:Name="SummaryShortcut" HorizontalAlignment="Right" Foreground="#314753" FontSize="12" FontWeight="Bold"/>
+                                        </DockPanel>
+                                    </Border>
+                                    <Border Padding="16,14">
+                                        <DockPanel>
+                                            <TextBlock Text="Conexión a internet" Foreground="#6B7E88" FontSize="12"/>
+                                            <TextBlock Text="No necesaria para usarlo" HorizontalAlignment="Right" Foreground="#314753" FontSize="12" FontWeight="Bold"/>
+                                        </DockPanel>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+                            <Button x:Name="InstallBtn" Content="Comenzar instalación →" Style="{StaticResource PrimaryButton}"
+                                    Height="50" Margin="0,22,0,0" Click="OnInstallClick" FontSize="13"/>
+                            <StackPanel x:Name="ProgressWrap" Visibility="Collapsed" Margin="0,25,0,0">
+                                <DockPanel>
+                                    <TextBlock Text="{Binding ProgressPercent}" HorizontalAlignment="Right" Foreground="#506671" FontSize="11" FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="ProgressLabel" Foreground="#506671" FontSize="11" FontWeight="SemiBold"/>
+                                </DockPanel>
+                                <Border Height="8" CornerRadius="99" Background="#EAF1F1" Margin="0,10,0,0">
+                                    <Border x:Name="ProgressFill" HorizontalAlignment="Left" Width="0" CornerRadius="99">
+                                        <Border.Background>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                <GradientStop Color="#19B9A3" Offset="0"/>
+                                                <GradientStop Color="#61D6BE" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </Border.Background>
+                                    </Border>
+                                </Border>
+                                <TextBlock x:Name="ProgressHint" Foreground="#84959D" FontSize="10" Margin="0,9,0,0"/>
+                                <TextBlock x:Name="InstallError" Foreground="#B91C1C" FontSize="11" TextWrapping="Wrap"
+                                           Margin="0,6,0,0" Visibility="Collapsed"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- 5. Listo -->
+                    <Grid Visibility="{Binding CurrentStep, Converter={StaticResource StepEq}, ConverterParameter=5}">
+                        <StackPanel VerticalAlignment="Center" MaxWidth="680">
+                            <Border Width="72" Height="72" CornerRadius="23" Margin="0,0,0,22"
+                                    BorderBrush="#D3F0E4" BorderThickness="1">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#EFFBF5" Offset="0"/>
+                                        <GradientStop Color="#E5F8EF" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <TextBlock Text="✓" Foreground="#22A879" FontSize="30" FontWeight="Bold"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock Text="PASO 5 DE 5 · INSTALADO" x:Name="DoneEyebrow" Foreground="{StaticResource TealDarkBrush}" FontSize="10" FontWeight="Bold" Margin="0,0,0,10"/>
+                            <TextBlock Text="Frubber POS quedó listo en este equipo." FontSize="34" FontWeight="Bold" Foreground="{StaticResource InkBrush}"/>
+                            <TextBlock x:Name="DoneLead" Text="Puedes abrirlo ya, o cerrar el asistente y abrirlo después desde el escritorio."
+                                       Foreground="#6B7F8B" FontSize="14" Margin="0,10,0,0" TextWrapping="Wrap"/>
+                            <Border BorderBrush="#E5EEEE" BorderThickness="1" CornerRadius="12" Background="#FAFCFC"
+                                    Margin="0,25,0,0" Padding="15">
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Style="{StaticResource InfoBoxIcon}">
+                                        <TextBlock Text="i" Foreground="#188F7E" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold"/>
+                                    </Border>
+                                    <TextBlock Text="Los datos del negocio (ventas, productos y licencia) se guardan en C:\ProgramData\FrubberPOS y se conservan aunque desinstales el programa."
+                                               Foreground="#657B86" FontSize="11" TextWrapping="Wrap" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                            <StackPanel Orientation="Horizontal" Margin="0,25,0,0">
+                                <Button Content="Abrir Frubber POS ahora" Style="{StaticResource PrimaryButton}" Click="OnOpenAppClick"/>
+                                <Button Content="Cerrar" Style="{StaticResource SecondaryButton}" Margin="10,0,0,0" Click="OnCloseClick"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+
+                <Border Grid.Row="2" BorderBrush="#EFF2F2" BorderThickness="0,1,0,0" Padding="42,0">
+                    <Grid Height="76">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Ellipse Width="7" Height="7" Fill="#31B797"/>
+                            <TextBlock x:Name="FooterStep" Text="Paso 1 de 5" Foreground="#83939B" FontSize="11" FontWeight="SemiBold" Margin="10,0,0,0"/>
+                            <TextBlock Text="  ·  Sin internet · tus datos quedan en este equipo" Foreground="#83939B" FontSize="11"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <Button x:Name="BackBtn" Content="Volver" Style="{StaticResource SecondaryButton}"
+                                    MinWidth="95" MinHeight="39" Margin="0,0,9,0" Click="OnBackClick" IsEnabled="False" FontSize="12"/>
+                            <Button x:Name="NextBtn" Content="Continuar →" Style="{StaticResource PrimaryButton}"
+                                    MinWidth="95" MinHeight="39" Click="OnNextClick" IsEnabled="False" FontSize="12"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

@@ -12,9 +12,16 @@ técnicos ni internet.
 
 ## 2. Instalación
 
-1. Ejecutar `FrubberPOS-Setup-1.0.0.exe` (lo genera `installer\build-installer.ps1`
-   con Inno Setup 6; el script vive fuera de la solución).
-2. Leer el contrato de licencia y marcar «Acepto el contrato» (si no se acepta, el instalador se cierra sin instalar nada). Aceptar el destino sugerido (Archivos de programa). La app crea sola, en el
+1. Ejecutar `FrubberPOS-Setup-1.0.0.exe` (lo genera `installer\build-installer.ps1`;
+   es el asistente propio en WPF —estilo maqueta del dueño—, un solo .exe
+   autocontenido con la app dentro. El Inno Setup heredado queda como respaldo
+   en `installer\FrubberPOS.iss`).
+2. Seguir los 5 pasos del asistente: bienvenida → licencia → ubicación →
+   resumen → listo. En la licencia hay que marcar **«He leído y acepto»** para
+   poder continuar (si no se acepta, no instala nada). En Ubicación puede
+   cambiarse la carpeta (por defecto `C:\Program Files\Frubber POS`) y elegir si
+   se crea acceso directo en el escritorio. El asistente pide permiso de
+   administrador (UAC). La app crea sola, en el
    primer arranque, su carpeta de datos en `C:\ProgramData\FrubberPOS`.
 3. Al primer inicio, el asistente crea el **primer administrador** con su PIN de
    4 dígitos. No existe PIN predeterminado.

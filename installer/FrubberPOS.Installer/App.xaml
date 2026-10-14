@@ -1,0 +1,80 @@
+<Application x:Class="FrubberPOS.Installer.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:FrubberPOS.Installer"
+             DispatcherUnhandledException="OnDispatcherUnhandledException">
+    <Application.Resources>
+        <!-- Tipografía de marca embebida: <FontFamily>pack://application:,,,/Fonts/#Inter</FontFamily> -->
+
+        <SolidColorBrush x:Key="RailBrush1" Color="#0D1B2A"/>
+        <SolidColorBrush x:Key="RailBrush2" Color="#102839"/>
+        <SolidColorBrush x:Key="RailBrush3" Color="#0E3B43"/>
+        <SolidColorBrush x:Key="InkBrush" Color="#102132"/>
+        <SolidColorBrush x:Key="MutedBrush" Color="#657B87"/>
+        <SolidColorBrush x:Key="TealBrush" Color="#16B6A5"/>
+        <SolidColorBrush x:Key="TealDarkBrush" Color="#0E8078"/>
+        <SolidColorBrush x:Key="GreenBrush" Color="#22A879"/>
+        <SolidColorBrush x:Key="MintSoftBrush" Color="#F1FBF8"/>
+        <SolidColorBrush x:Key="MintDeepBrush" Color="#D8F1EB"/>
+        <SolidColorBrush x:Key="LineBrush" Color="#E5ECEE"/>
+        <SolidColorBrush x:Key="CardBrush" Color="#FBFDFD"/>
+        <SolidColorBrush x:Key="RailMutedBrush" Color="#92A9B2"/>
+        <SolidColorBrush x:Key="RailStepBrush" Color="#122B3A"/>
+        <SolidColorBrush x:Key="RailStepTextBrush" Color="#A4BDC5"/>
+
+        <local:BoolToVisibilityConverter x:Key="BoolToVis"/>
+        <local:StepEqualsToVisibilityConverter x:Key="StepEq"/>
+        <local:StepStateBrushConverter x:Key="StepBg"/>
+        <local:StepNumberBrushConverter x:Key="StepNumBg"/>
+        <local:StepTextBrushConverter x:Key="StepText"/>
+
+        <Style x:Key="SecondaryButton" TargetType="Button">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#E2E9EA"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="#506570"/>
+            <Setter Property="Padding" Value="22,0"/>
+            <Setter Property="MinHeight" Value="46"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1" CornerRadius="11" Padding="{TemplateBinding Padding}"
+                                Opacity="{TemplateBinding Opacity}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter Property="Opacity" Value="0.9"/></Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+            <Setter Property="Background" Value="#119D91"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#119D91"/>
+        </Style>
+
+        <Style x:Key="CheckGlyph" TargetType="Border">
+            <Setter Property="Width" Value="23"/>
+            <Setter Property="Height" Value="23"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Background" Value="#F0FBF7"/>
+            <Setter Property="BorderBrush" Value="#D3EEE6"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <Style x:Key="InfoBoxIcon" TargetType="Border">
+            <Setter Property="Width" Value="27"/>
+            <Setter Property="Height" Value="27"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Background" Value="#E1F5F0"/>
+        </Style>
+    </Application.Resources>
+</Application>

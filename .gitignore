@@ -25,3 +25,8 @@ Desktop.ini
 # Publicación e instalador (JHO-54)
 artifacts/
 installer/output/
+
+installer/FrubberPOS.Installer/payload.zip
+installer/FrubberPOS.Installer/bin/
+installer/FrubberPOS.Installer/obj/
+
