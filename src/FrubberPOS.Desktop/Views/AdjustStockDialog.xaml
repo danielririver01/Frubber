@@ -19,7 +19,16 @@
             </Border>
 
             <TextBlock Text="Nueva existencia (puede ser negativa):" Style="{DynamicResource FieldLabel}"/>
-            <TextBox Text="{Binding NewStockText, UpdateSourceTrigger=PropertyChanged}" FontSize="16"/>
+            <DockPanel>
+                <!-- JHO-92: la báscula (canasta/balde sobre el plato) rellena la nueva
+                     existencia; el envase se descarga con la tecla TARA de la báscula. -->
+                <Button DockPanel.Dock="Right" Content="Leer báscula" Command="{Binding ReadScaleCommand}"
+                        Style="{DynamicResource SecondaryButton}" MinHeight="30" Padding="10,2" Margin="8,0,0,0"
+                        AutomationProperties.Name="Leer báscula ajuste"/>
+                <TextBox Text="{Binding NewStockText, UpdateSourceTrigger=PropertyChanged}" FontSize="16"/>
+            </DockPanel>
+            <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource SecondaryTextBrush}"
+                       FontSize="12" Margin="0,4,0,0" AutomationProperties.Name="Estado báscula ajuste"/>
 
             <TextBlock Text="{Binding ErrorMessage}" Style="{DynamicResource ErrorText}" Margin="0,10,0,0"/>
 

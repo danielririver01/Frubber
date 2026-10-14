@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using FrubberPOS.Application.Products;
+using FrubberPOS.Application.Scale;
 using FrubberPOS.Desktop.Common;
 using FrubberPOS.Domain.Products;
 
@@ -24,6 +25,7 @@ public sealed class ProductEditorViewModel : INotifyPropertyChanged
     private readonly CreateProductUseCase createProduct;
     private readonly UpdateProductUseCase updateProduct;
     private readonly SuggestNextPluUseCase? suggestPlu;
+    private readonly ReadScaleWeightUseCase? readScale;
 
     private ProductDto? existing;
     private string plu = string.Empty;
@@ -33,19 +35,23 @@ public sealed class ProductEditorViewModel : INotifyPropertyChanged
     private bool isActive = true;
     private ProductUnit unitSelection = ProductUnit.Kg;
     private string errorMessage = string.Empty;
+    private string statusMessage = string.Empty;
 
     public ProductEditorViewModel(
         CreateProductUseCase createProduct,
         UpdateProductUseCase updateProduct,
-        SuggestNextPluUseCase? suggestPlu = null)
+        SuggestNextPluUseCase? suggestPlu = null,
+        ReadScaleWeightUseCase? readScale = null)
     {
         ArgumentNullException.ThrowIfNull(createProduct);
         ArgumentNullException.ThrowIfNull(updateProduct);
         this.createProduct = createProduct;
         this.updateProduct = updateProduct;
         this.suggestPlu = suggestPlu;
+        this.readScale = readScale;
 
         SaveCommand = new AsyncCommand(_ => SaveAsync());
+        ReadScaleCommand = new AsyncCommand(_ => ReadScaleAsync(), () => ScaleAvailable);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -112,7 +118,14 @@ public sealed class ProductEditorViewModel : INotifyPropertyChanged
     public ProductUnit UnitSelection
     {
         get => unitSelection;
-        set => SetProperty(ref unitSelection, value);
+        set
+        {
+            if (SetProperty(ref unitSelection, value))
+            {
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ScaleAvailable)));
+                ReadScaleCommand.RaiseCanExecuteChanged();
+            }
+        }
     }
 
     public UnitOption? SelectedUnit
@@ -133,7 +146,25 @@ public sealed class ProductEditorViewModel : INotifyPropertyChanged
         private set => SetProperty(ref errorMessage, value);
     }
 
+    /// <summary>Green info line for the scale read (same as the TPV dialog, JHO-86).</summary>
+    public string StatusMessage
+    {
+        get => statusMessage;
+        private set => SetProperty(ref statusMessage, value);
+    }
+
+    /// <summary>
+    /// JHO-92: «Leer báscula» only makes sense while the initial stock is
+    /// editable (create mode) and the product sells by weight — a scale
+    /// weighs, a UNIT product does not.
+    /// </summary>
+    public bool ScaleAvailable => readScale is not null
+        && existing is null
+        && unitSelection is ProductUnit.Kg or ProductUnit.Lb;
+
     public AsyncCommand SaveCommand { get; }
+
+    public AsyncCommand ReadScaleCommand { get; }
 
     public void Load(ProductDto? product)
     {
@@ -149,8 +180,10 @@ public sealed class ProductEditorViewModel : INotifyPropertyChanged
         }
 
         errorMessage = string.Empty;
+        statusMessage = string.Empty;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
         SaveCommand.RaiseCanExecuteChanged();
+        ReadScaleCommand.RaiseCanExecuteChanged();
     }
 
     /// <summary>PLU is uppercased when the field loses focus (§12.2).</summary>
@@ -176,9 +209,39 @@ public sealed class ProductEditorViewModel : INotifyPropertyChanged
         }
     }
 
+    /// <summary>
+    /// JHO-92: fills the initial stock from the scale (canasta o balde
+    /// sobre la báscula). The reading only fills the text box — no tare is
+    /// stored here; the operator presses TARE on the scale itself and can
+    /// still correct the amount by hand. Any failure keeps what was typed.
+    /// </summary>
+    public async Task ReadScaleAsync()
+    {
+        if (!ScaleAvailable)
+        {
+            return;
+        }
+
+        StatusMessage = "Leyendo báscula…";
+        ErrorMessage = string.Empty;
+        var unitCode = ProductUnits.ToCode(unitSelection);
+        var result = await readScale!.ExecuteAsync(new ReadScaleWeightRequest(unitCode), CancellationToken.None);
+        if (!result.IsSuccess)
+        {
+            StatusMessage = string.Empty;
+            ErrorMessage = result.Error!.Message;
+            return;
+        }
+
+        StockText = QuantityText.Format(result.Value.QuantityMilli, unitSelection);
+        ErrorMessage = string.Empty;
+        StatusMessage = "Peso tomado de la báscula.";
+    }
+
     public async Task SaveAsync()
     {
         ErrorMessage = string.Empty;
+        StatusMessage = string.Empty;
 
         if (!MoneyText.TryParseCop(PriceText, out var priceCop) || priceCop <= 0)
         {

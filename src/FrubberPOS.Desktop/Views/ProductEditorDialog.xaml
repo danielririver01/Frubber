@@ -48,8 +48,17 @@
             <StackPanel Visibility="{Binding IsEditing, Converter={StaticResource InverseBoolToVis}}">
                 <TextBlock Text="Existencia inicial (kg/lb con 3 decimales; unidad entera):"
                            Style="{DynamicResource FieldLabel}" Margin="0,10,0,4"/>
-                <TextBox Text="{Binding StockText, UpdateSourceTrigger=PropertyChanged}"
-                         AutomationProperties.Name="Existencia inicial"/>
+                <DockPanel>
+                    <!-- JHO-92: la báscula (canasta/balde sobre el plato) rellena la
+                         existencia; el envase se descarga con la tecla TARA de la báscula. -->
+                    <Button DockPanel.Dock="Right" Content="Leer báscula" Command="{Binding ReadScaleCommand}"
+                            Style="{DynamicResource SecondaryButton}" MinHeight="30" Padding="10,2" Margin="8,0,0,0"
+                            AutomationProperties.Name="Leer báscula producto"/>
+                    <TextBox Text="{Binding StockText, UpdateSourceTrigger=PropertyChanged}"
+                             AutomationProperties.Name="Existencia inicial"/>
+                </DockPanel>
+                <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource SecondaryTextBrush}"
+                           FontSize="12" Margin="0,4,0,0" AutomationProperties.Name="Estado báscula producto"/>
             </StackPanel>
 
             <CheckBox Content="Producto activo" IsChecked="{Binding IsActive}" Margin="0,14,0,0" FontSize="14"/>
