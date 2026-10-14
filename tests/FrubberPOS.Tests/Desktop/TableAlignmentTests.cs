@@ -120,6 +120,8 @@ public sealed class TableAlignmentTests
             var vm = new SaleDetailViewModel(
                 new GetSaleDetailUseCase(bed.History, bed.Units, ProductTestBed.AdminSession()),
                 new VoidSaleUseCase(bed.Voids, bed.Sales, bed.Units, ProductTestBed.AdminSession(), bed.Clock, bed.Gate),
+                new GetTicketForSaleUseCase(bed.Sales, bed.Settings, bed.Units),
+                new FakeTicketPrinter(),
                 new FakeNavigator());
             vm.LoadAsync(1, viewerIsAdmin: true).GetAwaiter().GetResult();
             Assert.True(vm.Lines.Count > 0);
