@@ -103,56 +103,92 @@
         </Border>
 
         <Border Style="{DynamicResource Card}" Padding="0,0,0,8">
-            <DataGrid ItemsSource="{Binding Products}" SelectedItem="{Binding SelectedProduct}"
-                      AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
-                      HeadersVisibility="Column"
-                      CanUserAddRows="False"
-                      AutomationProperties.Name="Tabla de productos">
-                <DataGrid.Columns>
-                    <!-- JHO-74: anchos mapeados del colgroup del prototipo sin
-                         columnas de check, categoría ni acciones (86/92/130/130/118). -->
-                    <DataGridTextColumn Header="PLU" Binding="{Binding Plu}" Width="90"
-                                        ElementStyle="{StaticResource CellText}"/>
-                    <DataGridTextColumn Header="Producto" Binding="{Binding Name}" Width="*"
-                                        ElementStyle="{StaticResource CellText}"/>
-                    <DataGridTextColumn Header="Unidad" Binding="{Binding UnitText}" Width="92"
-                                        ElementStyle="{StaticResource CellText}"/>
-                    <!-- JHO-74: Precio/Existencia alineados a la derecha en
-                         encabezado y valor (como el prototipo) y con ancho
-                         fijo para que Existencia no se pegue a Estado. -->
-                    <DataGridTextColumn Binding="{Binding PriceText}" Width="130"
-                                        HeaderStyle="{StaticResource HeaderRight}"
-                                        ElementStyle="{StaticResource CellTextRight}">
-                        <DataGridTextColumn.Header>
-                            <TextBlock Text="Precio" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                        </DataGridTextColumn.Header>
-                    </DataGridTextColumn>
-                    <DataGridTemplateColumn Width="130" HeaderStyle="{StaticResource HeaderRight}">
-                        <DataGridTemplateColumn.Header>
-                            <TextBlock Text="Existencia" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                        </DataGridTemplateColumn.Header>
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding StockText}"
-                                           AutomationProperties.Name="{Binding StockA11yText}">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource CellTextRight}">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsNegativeStock}" Value="True">
-                                                    <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}"/>
-                                                    <Setter Property="FontWeight" Value="Bold"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    <DataGridTextColumn Header="Estado" Binding="{Binding StateText}" Width="118"
-                                        ElementStyle="{StaticResource CellText}"/>
-                </DataGrid.Columns>
-            </DataGrid>
+            <Grid>
+                <!-- JHO-89: estado vacío contextual del prototipo frubber-pos-productos
+                     (.empty): la tabla se oculta y aparecen mensaje + CTA según el
+                     caso (búsqueda sin coincidencias / catálogo vacío / sin inactivos). -->
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,32"
+                            Visibility="{Binding EmptyVisible, Converter={StaticResource BoolToVis}}">
+                    <Grid Width="64" Height="64" HorizontalAlignment="Center">
+                        <Ellipse Fill="{DynamicResource SurfaceBrush}"
+                                 Stroke="{DynamicResource BorderHoverBrush}" StrokeThickness="1.6"/>
+                        <Viewbox Width="30" Height="30" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Canvas Width="24" Height="24">
+                                <Polyline Points="21,8 12,3 3,8 12,13 21,8"
+                                          Stroke="{DynamicResource BorderHoverBrush}" StrokeThickness="1.5"
+                                          StrokeLineJoin="Round"/>
+                                <Polyline Points="3,8 3,16 12,21 21,16 21,8"
+                                          Stroke="{DynamicResource BorderHoverBrush}" StrokeThickness="1.5"
+                                          StrokeLineJoin="Round"/>
+                                <Line X1="12" Y1="13" X2="12" Y2="21"
+                                      Stroke="{DynamicResource BorderHoverBrush}" StrokeThickness="1.5"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                            </Canvas>
+                        </Viewbox>
+                    </Grid>
+                    <TextBlock Text="{Binding EmptyTitle}" FontSize="16" FontWeight="SemiBold"
+                               Foreground="{DynamicResource SecondaryTextBrush}"
+                               HorizontalAlignment="Center" AutomationProperties.Name="Título del estado vacío"/>
+                    <TextBlock Text="{Binding EmptySub}" FontSize="13" Margin="0,6,0,0" MaxWidth="380" TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextSubBrush}"
+                               HorizontalAlignment="Center" AutomationProperties.Name="Descripción del estado vacío"/>
+                    <Button Content="{Binding EmptyCtaText}" Command="{Binding EmptyCtaCommand}"
+                            Margin="0,16,0,0" MinHeight="36" FontSize="13" HorizontalAlignment="Center"
+                            AutomationProperties.Name="Acción del estado vacío"/>
+                </StackPanel>
+
+                <DataGrid ItemsSource="{Binding Products}" SelectedItem="{Binding SelectedProduct}"
+                          AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
+                          HeadersVisibility="Column"
+                          CanUserAddRows="False"
+                          Visibility="{Binding RowsVisible, Converter={StaticResource BoolToVis}}"
+                          AutomationProperties.Name="Tabla de productos">
+                    <DataGrid.Columns>
+                        <!-- JHO-74: anchos mapeados del colgroup del prototipo sin
+                             columnas de check, categoría ni acciones (86/92/130/130/118). -->
+                        <DataGridTextColumn Header="PLU" Binding="{Binding Plu}" Width="90"
+                                            ElementStyle="{StaticResource CellText}"/>
+                        <DataGridTextColumn Header="Producto" Binding="{Binding Name}" Width="*"
+                                            ElementStyle="{StaticResource CellText}"/>
+                        <DataGridTextColumn Header="Unidad" Binding="{Binding UnitText}" Width="92"
+                                            ElementStyle="{StaticResource CellText}"/>
+                        <!-- JHO-74: Precio/Existencia alineados a la derecha en
+                             encabezado y valor (como el prototipo) y con ancho
+                             fijo para que Existencia no se pegue a Estado. -->
+                        <DataGridTextColumn Binding="{Binding PriceText}" Width="130"
+                                            HeaderStyle="{StaticResource HeaderRight}"
+                                            ElementStyle="{StaticResource CellTextRight}">
+                            <DataGridTextColumn.Header>
+                                <TextBlock Text="Precio" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            </DataGridTextColumn.Header>
+                        </DataGridTextColumn>
+                        <DataGridTemplateColumn Width="130" HeaderStyle="{StaticResource HeaderRight}">
+                            <DataGridTemplateColumn.Header>
+                                <TextBlock Text="Existencia" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            </DataGridTemplateColumn.Header>
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding StockText}"
+                                               AutomationProperties.Name="{Binding StockA11yText}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource CellTextRight}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsNegativeStock}" Value="True">
+                                                        <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}"/>
+                                                        <Setter Property="FontWeight" Value="Bold"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Estado" Binding="{Binding StateText}" Width="118"
+                                            ElementStyle="{StaticResource CellText}"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
         </Border>
     </DockPanel>
 </UserControl>

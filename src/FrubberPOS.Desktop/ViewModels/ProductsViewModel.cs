@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Windows.Input;
 using FrubberPOS.Application.Navigation;
 using FrubberPOS.Application.Products;
 using FrubberPOS.Desktop.Common;
@@ -23,6 +24,12 @@ public sealed class ProductsViewModel : INotifyPropertyChanged
 
     private string searchText = string.Empty;
     private CancellationTokenSource? searchCts;
+    private bool rowsVisible = true;
+    private bool emptyVisible;
+    private string emptyTitle = string.Empty;
+    private string emptySub = string.Empty;
+    private string emptyCtaText = string.Empty;
+    private ICommand? emptyCtaCommand;
     private ProductStatusFilter filter = ProductStatusFilter.Todos;
     private string errorMessage = string.Empty;
     private ProductRowViewModel? selectedProduct;
@@ -43,6 +50,7 @@ public sealed class ProductsViewModel : INotifyPropertyChanged
         this.navigation = navigation;
 
         SearchCommand = new AsyncCommand(_ => SearchAsync());
+        ClearSearchCommand = new AsyncCommand(_ => ClearSearchAsync());
         NewCommand = new AsyncCommand(_ => NewAsync());
         EditCommand = new AsyncCommand(_ => EditAsync(), () => SelectedProduct is not null);
         AdjustStockCommand = new AsyncCommand(_ => AdjustStockAsync(), () => SelectedProduct is not null);
@@ -97,7 +105,45 @@ public sealed class ProductsViewModel : INotifyPropertyChanged
 
     public bool IsFilterInactivos => Filter == ProductStatusFilter.Inactivos;
 
+    public bool RowsVisible
+    {
+        get => rowsVisible;
+        private set => SetProperty(ref rowsVisible, value);
+    }
+
+    public bool EmptyVisible
+    {
+        get => emptyVisible;
+        private set => SetProperty(ref emptyVisible, value);
+    }
+
+    public string EmptyTitle
+    {
+        get => emptyTitle;
+        private set => SetProperty(ref emptyTitle, value);
+    }
+
+    public string EmptySub
+    {
+        get => emptySub;
+        private set => SetProperty(ref emptySub, value);
+    }
+
+    public string EmptyCtaText
+    {
+        get => emptyCtaText;
+        private set => SetProperty(ref emptyCtaText, value);
+    }
+
+    public ICommand? EmptyCtaCommand
+    {
+        get => emptyCtaCommand;
+        private set => SetProperty(ref emptyCtaCommand, value);
+    }
+
     public AsyncCommand SearchCommand { get; }
+
+    public AsyncCommand ClearSearchCommand { get; }
 
     public AsyncCommand NewCommand { get; }
 
@@ -146,10 +192,55 @@ public sealed class ProductsViewModel : INotifyPropertyChanged
             {
                 SelectedProduct = Products.FirstOrDefault(p => p.ProductId == previousId.Value);
             }
+
+            RefreshEmptyState();
         }
         catch (OperationCanceledException)
         {
             // Búsqueda reemplazada por una más reciente: conservar la tabla.
+        }
+    }
+
+    /// <summary>JHO-89: CTA del estado vacío — borra la búsqueda (el setter
+    /// de SearchText dispara la búsqueda en tiempo real y restaura la tabla).</summary>
+    private Task ClearSearchAsync()
+    {
+        SearchText = string.Empty;
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// JHO-89: estado vacío contextual del prototipo aprobado — la tabla se
+    /// oculta y aparece mensaje + CTA según el caso: búsqueda sin
+    /// coincidencias (Limpiar búsqueda), catálogo vacío o filtro Inactivos
+    /// sin filas (Crear producto). Sin "categoría": fuera de alcance (ADR).
+    /// </summary>
+    private void RefreshEmptyState()
+    {
+        var hasRows = Products.Count > 0;
+        RowsVisible = hasRows;
+        EmptyVisible = !hasRows;
+        if (hasRows)
+        {
+            return;
+        }
+
+        var term = SearchText.Trim();
+        if (term.Length > 0)
+        {
+            EmptyTitle = "No encontramos productos";
+            EmptySub = $"Ningún producto coincide con \"{term}\". Prueba con otro nombre o PLU.";
+            EmptyCtaText = "Limpiar búsqueda";
+            EmptyCtaCommand = ClearSearchCommand;
+        }
+        else
+        {
+            EmptyTitle = "No hay productos para mostrar";
+            EmptySub = filter == ProductStatusFilter.Inactivos
+                ? "Todos tus productos están activos. Buen trabajo."
+                : "Empieza creando tu primer producto para tu catálogo";
+            EmptyCtaText = "Crear producto";
+            EmptyCtaCommand = NewCommand;
         }
     }
 

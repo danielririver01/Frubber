@@ -109,6 +109,78 @@ public sealed class ProductsViewModelTests
     }
 
     [Fact]
+    public async Task EmptyState_SearchWithoutMatch_ShowsMessageAndClearsSearch()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        var create = new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession());
+        await create.ExecuteAsync(new CreateProductRequest("1001", "Manzana Gala", ProductUnit.Kg, 6000, 0), CancellationToken.None);
+        await create.ExecuteAsync(new CreateProductRequest("2030", "Leche entera", ProductUnit.Unit, 4200, 0), CancellationToken.None);
+
+        var (vm, _) = Build(bed);
+        await vm.SearchAsync();
+        Assert.Equal(2, vm.Products.Count);
+
+        // JHO-89: buscar algo inexistente muestra el estado vacío (no tabla en blanco).
+        vm.SearchText = "zzz";
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (!vm.EmptyVisible && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(10);
+        }
+
+        Assert.True(vm.EmptyVisible);
+        Assert.False(vm.RowsVisible);
+        Assert.Equal(0, vm.Products.Count);
+        Assert.Equal("No encontramos productos", vm.EmptyTitle);
+        Assert.Equal("Ningún producto coincide con \"zzz\". Prueba con otro nombre o PLU.", vm.EmptySub);
+        Assert.Equal("Limpiar búsqueda", vm.EmptyCtaText);
+
+        // El CTA borra la búsqueda y restaura la lista en tiempo real.
+        vm.EmptyCtaCommand!.Execute(null);
+        deadline = DateTime.UtcNow.AddSeconds(5);
+        while ((vm.Products.Count != 2 || vm.EmptyVisible) && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(10);
+        }
+
+        Assert.Equal(2, vm.Products.Count);
+        Assert.False(vm.EmptyVisible);
+        Assert.True(vm.RowsVisible);
+    }
+
+    [Fact]
+    public async Task EmptyState_EmptyCatalog_InvitesCreatingProduct()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+
+        var (vm, _) = Build(bed);
+        await vm.SearchAsync();
+
+        Assert.True(vm.EmptyVisible);
+        Assert.False(vm.RowsVisible);
+        Assert.Equal("No hay productos para mostrar", vm.EmptyTitle);
+        Assert.Equal("Empieza creando tu primer producto para tu catálogo", vm.EmptySub);
+        Assert.Equal("Crear producto", vm.EmptyCtaText);
+        Assert.Same(vm.NewCommand, vm.EmptyCtaCommand);
+    }
+
+    [Fact]
+    public async Task EmptyState_NoInactive_SaysAllActive()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        var create = new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession());
+        await create.ExecuteAsync(new CreateProductRequest("1001", "Manzana Gala", ProductUnit.Kg, 6000, 0), CancellationToken.None);
+
+        var (vm, _) = Build(bed);
+        await vm.SetFilterAsync(ProductStatusFilter.Inactivos);
+
+        Assert.True(vm.EmptyVisible);
+        Assert.Equal("No hay productos para mostrar", vm.EmptyTitle);
+        Assert.Equal("Todos tus productos están activos. Buen trabajo.", vm.EmptySub);
+        Assert.Equal("Crear producto", vm.EmptyCtaText);
+    }
+
+    [Fact]
     public async Task NegativeStock_RowShowsSignAndAccessibleText()
     {
         await using var bed = await ProductTestBed.CreateAsync();
