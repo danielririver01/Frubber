@@ -12,17 +12,22 @@ namespace FrubberPOS.Tests.Sales;
 /// <summary>
 /// Sale detail dialog ViewModel (JHO-46, P-UX §13.3/13.4): read-only
 /// snapshot rendering, Anular only for ADMIN with an open cash session,
-/// confirm-cancel leaves everything untouched.
+/// confirm-cancel leaves everything untouched. JHO-91 adds the same
+/// optional reprint flow as the TPV (picker cancel = silence, printer
+/// failure = safe message, sale never touched).
 /// </summary>
 public sealed class SaleDetailViewModelTests
 {
-    private static (SaleDetailViewModel vm, FakeNavigator nav) Build(ProductTestBed bed)
+    private static (SaleDetailViewModel vm, FakeNavigator nav, FakeTicketPrinter printer) Build(ProductTestBed bed)
     {
         var nav = new FakeNavigator();
+        var printer = new FakeTicketPrinter();
         return (new SaleDetailViewModel(
             new GetSaleDetailUseCase(bed.History, bed.Units, ProductTestBed.AdminSession()),
             new VoidSaleUseCase(bed.Voids, bed.Sales, bed.Units, ProductTestBed.AdminSession(), bed.Clock, bed.Gate),
-            nav), nav);
+            new GetTicketForSaleUseCase(bed.Sales, bed.Settings, bed.Units),
+            printer,
+            nav), nav, printer);
     }
 
     private static async Task<int> SellMangoAsync(ProductTestBed bed)
@@ -58,7 +63,7 @@ public sealed class SaleDetailViewModelTests
     {
         await using var bed = await ProductTestBed.CreateAsync();
         await SellMangoAsync(bed);
-        var (vm, _) = Build(bed);
+        var (vm, _, _) = Build(bed);
 
         await vm.LoadAsync(1, viewerIsAdmin: true);
 
@@ -85,7 +90,7 @@ public sealed class SaleDetailViewModelTests
     {
         await using var bed = await ProductTestBed.CreateAsync();
         await SellMangoAsync(bed);
-        var (vm, _) = Build(bed);
+        var (vm, _, _) = Build(bed);
 
         await vm.LoadAsync(1, viewerIsAdmin: false);
 
@@ -99,7 +104,7 @@ public sealed class SaleDetailViewModelTests
     {
         await using var bed = await ProductTestBed.CreateAsync();
         await SellMangoAsync(bed);
-        var (vm, nav) = Build(bed);
+        var (vm, nav, _) = Build(bed);
 
         await vm.LoadAsync(1, viewerIsAdmin: true);
         Assert.True(vm.VoidButtonVisible);
@@ -121,7 +126,7 @@ public sealed class SaleDetailViewModelTests
     {
         await using var bed = await ProductTestBed.CreateAsync();
         await SellMangoAsync(bed);
-        var (vm, nav) = Build(bed);
+        var (vm, nav, _) = Build(bed);
         await vm.LoadAsync(1, viewerIsAdmin: true);
 
         nav.NextSaleVoidConfirmed = false;
@@ -142,12 +147,100 @@ public sealed class SaleDetailViewModelTests
             bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock, bed.Gate);
         Assert.True((await close.ExecuteAsync(new FrubberPOS.Application.Cash.CloseCashSessionRequest(), CancellationToken.None)).IsSuccess);
 
-        var (vm, _) = Build(bed);
+        var (vm, _, _) = Build(bed);
         await vm.LoadAsync(1, viewerIsAdmin: true);
 
         Assert.True(vm.VoidButtonVisible); // el rol sí lo ve
         Assert.False(vm.CanVoid);          // pero la regla lo deshabilita
         Assert.False(vm.VoidCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task Print_WithSelectedPrinter_ReprintsTheHistoricalTicket()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        await SellMangoAsync(bed);
+        var (vm, nav, printer) = Build(bed);
+        await vm.LoadAsync(1, viewerIsAdmin: false); // reimprimir no es exclusivo de ADMIN
+
+        nav.NextPrinterName = "POS-58";
+        await vm.PrintAsync();
+
+        Assert.Equal(1, nav.AskPrinterCount);
+        Assert.Equal(1, printer.PrintCount);
+        Assert.Equal("POS-58", printer.LastPrinterName);
+        Assert.Equal("V-000001", printer.LastTicket!.SaleNumberText);
+        Assert.Contains(printer.LastTicket.Lines, line => line.Contains("Mango"));
+        Assert.Equal("Ticket impreso.", vm.StatusMessage);
+        Assert.Equal(string.Empty, vm.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Print_PickerCanceled_PrintsNothingAndSaysNothing()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        await SellMangoAsync(bed);
+        var (vm, nav, printer) = Build(bed);
+        await vm.LoadAsync(1, viewerIsAdmin: true);
+
+        nav.NextPrinterName = null; // el operador cancela el selector
+        await vm.PrintAsync();
+
+        Assert.Equal(1, nav.AskPrinterCount);
+        Assert.Equal(0, printer.PrintCount);
+        Assert.Equal(string.Empty, vm.StatusMessage);
+        Assert.Equal(string.Empty, vm.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Print_PrinterFailure_ShowsSafeMessage_AndKeepsTheSaleActive()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        await SellMangoAsync(bed);
+        var (vm, nav, printer) = Build(bed);
+        printer.NextError = "Sin papel";
+        await vm.LoadAsync(1, viewerIsAdmin: true);
+
+        nav.NextPrinterName = "POS-58";
+        await vm.PrintAsync();
+
+        Assert.Equal(1, printer.PrintCount);
+        Assert.Equal("Sin papel", vm.ErrorMessage);
+        Assert.Equal(string.Empty, vm.StatusMessage);
+        Assert.Equal("Vigente", vm.StatusText); // el fallo de papel no toca la venta
+        Assert.Equal(5_000 - 1_250, await StockAsync(bed, 1));
+    }
+
+    [Fact]
+    public async Task Print_AfterVoid_StillReprintsTheFrozenTicket()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        await SellMangoAsync(bed);
+        var (vm, nav, printer) = Build(bed);
+        await vm.LoadAsync(1, viewerIsAdmin: true);
+        nav.NextSaleVoidConfirmed = true;
+        await vm.VoidAsync();
+
+        nav.NextPrinterName = "POS-58";
+        await vm.PrintAsync();
+
+        Assert.Equal(1, printer.PrintCount);
+        Assert.Equal("V-000001", printer.LastTicket!.SaleNumberText);
+        Assert.Contains(printer.LastTicket.Lines, line => line.Contains("Mango"));
+    }
+
+    [Fact]
+    public async Task Print_BeforeLoad_DoesNothing()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        await SellMangoAsync(bed);
+        var (vm, nav, printer) = Build(bed);
+
+        await vm.PrintAsync();
+
+        Assert.Equal(0, nav.AskPrinterCount);
+        Assert.Equal(0, printer.PrintCount);
+        Assert.False(vm.PrintCommand.CanExecute(null));
     }
 
     private static async Task<long> StockAsync(ProductTestBed bed, int productId)

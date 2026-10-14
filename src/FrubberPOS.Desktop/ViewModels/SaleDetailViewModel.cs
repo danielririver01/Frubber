@@ -16,11 +16,16 @@ namespace FrubberPOS.Desktop.ViewModels;
 /// only shows for ADMIN and enables while the sale is active and its cash
 /// session stays open (RN-HIS-005/007); F9 confirms, Esc cancels, and the
 /// confirmation states the inventory reintegration without asking motive.
+/// "Imprimir ticket" (JHO-91) reprints a past sale through the very same
+/// seam as the TPV: historical data only, optional printer, and a failure
+/// that never touches the saved sale (RN-IMP-005).
 /// </summary>
 public sealed class SaleDetailViewModel : INotifyPropertyChanged
 {
     private readonly GetSaleDetailUseCase getDetail;
     private readonly VoidSaleUseCase voidSale;
+    private readonly GetTicketForSaleUseCase getTicketForSale;
+    private readonly ITicketPrinter ticketPrinter;
     private readonly INavigationService navigation;
     private readonly ObservableCollection<SaleDetailLineViewModel> lines = [];
 
@@ -28,21 +33,30 @@ public sealed class SaleDetailViewModel : INotifyPropertyChanged
     private bool isAdmin;
     private SaleDetailDto? detail;
     private string errorMessage = string.Empty;
+    private string statusMessage = string.Empty;
+    private bool isPrinting;
     private bool voidedHere;
 
     public SaleDetailViewModel(
         GetSaleDetailUseCase getDetail,
         VoidSaleUseCase voidSale,
+        GetTicketForSaleUseCase getTicketForSale,
+        ITicketPrinter ticketPrinter,
         INavigationService navigation)
     {
         ArgumentNullException.ThrowIfNull(getDetail);
         ArgumentNullException.ThrowIfNull(voidSale);
+        ArgumentNullException.ThrowIfNull(getTicketForSale);
+        ArgumentNullException.ThrowIfNull(ticketPrinter);
         ArgumentNullException.ThrowIfNull(navigation);
         this.getDetail = getDetail;
         this.voidSale = voidSale;
+        this.getTicketForSale = getTicketForSale;
+        this.ticketPrinter = ticketPrinter;
         this.navigation = navigation;
 
         VoidCommand = new AsyncCommand(_ => VoidAsync(), () => CanVoid);
+        PrintCommand = new AsyncCommand(_ => PrintAsync(), () => CanPrint);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -94,7 +108,32 @@ public sealed class SaleDetailViewModel : INotifyPropertyChanged
         private set => SetProperty(ref errorMessage, value);
     }
 
+    /// <summary>Green confirmation line (same pattern as Configuración/Caja).</summary>
+    public string StatusMessage
+    {
+        get => statusMessage;
+        private set => SetProperty(ref statusMessage, value);
+    }
+
     public AsyncCommand VoidCommand { get; }
+
+    public AsyncCommand PrintCommand { get; }
+
+    /// <summary>JHO-91: reprint is available to every role, active or voided sale.</summary>
+    public bool CanPrint => detail is not null && !isPrinting;
+
+    public bool IsPrinting
+    {
+        get => isPrinting;
+        private set
+        {
+            if (SetProperty(ref isPrinting, value))
+            {
+                OnPropertyChanged(nameof(CanPrint));
+                PrintCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
 
     public async Task LoadAsync(long saleNumberToLoad, bool viewerIsAdmin)
     {
@@ -140,12 +179,63 @@ public sealed class SaleDetailViewModel : INotifyPropertyChanged
         }
     }
 
+    /// <summary>
+    /// JHO-91: reimprime el ticket de una venta pasada con el MISMO flujo
+    /// del TPV (JHO-45) — dato histórico, selector de impresora opcional y
+    /// fallo inofensivo; el cobro jamás se vuelve a ejecutar (RN-IMP-005).
+    /// </summary>
+    public async Task PrintAsync()
+    {
+        if (!CanPrint)
+        {
+            return;
+        }
+
+        IsPrinting = true;
+        try
+        {
+            var ticket = await getTicketForSale.ExecuteAsync(
+                new GetTicketForSaleRequest(saleNumber), CancellationToken.None);
+            if (!ticket.IsSuccess)
+            {
+                StatusMessage = string.Empty;
+                ErrorMessage = ticket.Error!.Message;
+                return;
+            }
+
+            var printerName = navigation.AskPrinter(ticket.Value.ConfiguredPrinterName);
+            if (printerName is null)
+            {
+                // Cancelar el selector no es un error: no se imprime nada.
+                ErrorMessage = string.Empty;
+                StatusMessage = string.Empty;
+                return;
+            }
+
+            var failure = ticketPrinter.Print(ticket.Value, printerName);
+            if (failure is not null)
+            {
+                StatusMessage = string.Empty;
+                ErrorMessage = failure;
+                return;
+            }
+
+            ErrorMessage = string.Empty;
+            StatusMessage = "Ticket impreso.";
+        }
+        finally
+        {
+            IsPrinting = false;
+        }
+    }
+
     public void Close() => RequestClose?.Invoke(this, voidedHere);
 
     private void Apply(SaleDetailDto value)
     {
         detail = value;
         ErrorMessage = string.Empty;
+        StatusMessage = string.Empty;
 
         SaleNumberText = $"V-{value.SaleNumber:D6}";
         MomentText = FormatMoment(value.SoldAtUtcMs, value.SoldAtOffsetMinutes);
@@ -188,6 +278,8 @@ public sealed class SaleDetailViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(CanVoid));
         OnPropertyChanged(nameof(VoidButtonVisible));
         VoidCommand.RaiseCanExecuteChanged();
+        OnPropertyChanged(nameof(CanPrint));
+        PrintCommand.RaiseCanExecuteChanged();
     }
 
     private static string FormatMoment(long utcMs, int offsetMinutes) =>

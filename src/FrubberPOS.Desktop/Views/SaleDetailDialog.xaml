@@ -107,11 +107,17 @@
             </DockPanel>
 
             <TextBlock Text="{Binding ErrorMessage}" Style="{DynamicResource ErrorText}" Margin="0,8,0,0"/>
+            <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource SuccessBrush}"
+                       FontWeight="SemiBold" Margin="0,8,0,0"
+                       AutomationProperties.Name="Aviso de impresión"/>
 
             <DockPanel Margin="0,14,0,0">
                 <Button DockPanel.Dock="Right" Content="Cerrar" Click="OnClose" IsCancel="True"
                         Style="{DynamicResource SecondaryButton}" MinWidth="100"
                         AutomationProperties.Name="Cerrar detalle"/>
+                <Button DockPanel.Dock="Left" Content="Imprimir ticket" Command="{Binding PrintCommand}"
+                        Style="{DynamicResource SecondaryButton}" MinWidth="130" Margin="0,0,10,0"
+                        AutomationProperties.Name="Imprimir ticket"/>
                 <Button Content="Anular venta" Command="{Binding VoidCommand}"
                         Style="{DynamicResource DangerButton}" HorizontalAlignment="Left"
                         Visibility="{Binding VoidButtonVisible, Converter={StaticResource BoolToVis}}"
