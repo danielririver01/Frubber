@@ -1,0 +1,6 @@
+# Scripts SQL (migraciones): ADR-008 exige que los checksums SHA-256 sean
+# idénticos en todas las máquinas. Forzamos CRLF (Windows) en el área de
+# trabajo para que la compilación empaquete siempre los mismos bytes; sin
+# esto, la conversión LF/CRLF de git cambia el script "aplicado" y la app
+# bloquea el arranque por seguridad (incidente JHO-86, 2026-10-14).
+*.sql text eol=crlf
