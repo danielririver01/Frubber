@@ -197,7 +197,14 @@ public sealed class LicenseActivationViewModelTests
         viewModel.NotifyCopied();
         Assert.Equal("Copiado", viewModel.CopyLabel);
 
-        await Task.Delay(150);
+        // Espera con plazo: la restauración es un Task.Delay interno; bajo
+        // carga de la suite, fijar una espera corta y fija era aleatorio.
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (viewModel.CopyLabel != "Copiar" && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(20);
+        }
+
         Assert.Equal("Copiar", viewModel.CopyLabel);
     }
 

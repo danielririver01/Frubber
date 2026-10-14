@@ -7,10 +7,12 @@ namespace FrubberPOS.Infrastructure.Scale;
 /// <summary>
 /// COM-port scale reader (JHO-86): works the same for native RS232 and for
 /// USB converters (HL-340/CH340), which Windows exposes as COM ports.
-/// Polling protocols send their request byte ('P' Torrey, 'W' CAS, ENQ
-/// Systel); CONTINUOUS scales just stream. One weighing is read per call
-/// with the configured timeout; the weight never blocks the sale: any
-/// failure is returned as a user-safe error and manual entry remains.
+/// Validated against the owner's physical BBG MARKET-30: a CONTINUOUS scale
+/// (frames <c>01 02 "S 01.010kga" 03 04 00</c> at 9600 8N1); polling
+/// protocols send their request byte ('P' Torrey, 'W' CAS, ENQ Systel).
+/// For CONTINUOUS scales two consecutive frames are collected so movement
+/// can be detected by comparison (see <see cref="ScaleFrameParser"/>); any
+/// failure is a user-safe error and manual entry keeps working (RN-VEN-004).
 /// </summary>
 public sealed class SerialPortScaleReader : IScaleReader
 {
@@ -49,44 +51,49 @@ public sealed class SerialPortScaleReader : IScaleReader
 
     private static Result<ScaleReading> ReadOnce(ScaleSnapshot settings, CancellationToken cancellationToken)
     {
-        using var port = new SerialPort(settings.PortName!, settings.BaudRate)
-        {
-            Parity = Parity.None,
-            DataBits = 8,
-            StopBits = StopBits.One,
-            ReadTimeout = settings.ReadTimeoutMs,
-            WriteTimeout = settings.ReadTimeoutMs,
-        };
-        port.Open();
-        port.DiscardInBuffer();
+        using var connection = new NativeSerialConnection(settings.PortName!, settings.BaudRate, settings.ReadTimeoutMs);
+        connection.Open();
+        connection.Purge();
 
         if (settings.Protocol != ScaleProtocols.Continuous)
         {
-            var command = settings.Protocol switch
+            connection.Write(settings.Protocol switch
             {
                 ScaleProtocols.Torrey => "P",
                 ScaleProtocols.Cas => "W",
                 _ => "\u0005", // Systel: ENQ
-            };
-            port.Write(command);
+            });
         }
 
-        var buffer = new byte[512];
+        var buffer = new byte[1024];
         var total = 0;
         var deadline = DateTime.UtcNow.AddMilliseconds(settings.ReadTimeoutMs);
-        while (DateTime.UtcNow < deadline)
+        while (DateTime.UtcNow < deadline && total < buffer.Length)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            try
+            var chunk = new byte[Math.Min(256, buffer.Length - total)];
+            var read = connection.ReadChunk(chunk);
+            if (read <= 0)
             {
-                var read = port.Read(buffer, total, buffer.Length - total);
-                total += read;
-                if (read == 0)
+                if (total > 0)
                 {
-                    break;
+                    break; // protocolo por solicitud: la respuesta ya llegó
+                }
+
+                continue; // sin datos aún: el plazo manda
+            }
+
+            Buffer.BlockCopy(chunk, 0, buffer, total, read);
+            total += read;
+
+            if (settings.Protocol == ScaleProtocols.Continuous)
+            {
+                if (CountFrames(buffer, total) >= 2)
+                {
+                    break; // dos tramas bastan para juzgar estabilidad
                 }
             }
-            catch (TimeoutException)
+            else
             {
                 break;
             }
@@ -98,12 +105,26 @@ public sealed class SerialPortScaleReader : IScaleReader
                 ErrorCode.Storage, "La báscula no respondió. Revise el cable y el protocolo elegido."));
         }
 
-        if (!ScaleFrameParser.TryParse(buffer, total, out var reading))
+        if (!ScaleFrameParser.TryParseLatest(buffer, total, out var reading))
         {
             return Result<ScaleReading>.Failure(new Error(
                 ErrorCode.Storage, "La báscula respondió con datos no reconocidos. Pruebe otro protocolo."));
         }
 
         return Result<ScaleReading>.Success(reading);
+    }
+
+    private static int CountFrames(byte[] buffer, int count)
+    {
+        var frames = 0;
+        for (var i = 0; i < count; i++)
+        {
+            if (buffer[i] == 0x01)
+            {
+                frames++;
+            }
+        }
+
+        return frames;
     }
 }

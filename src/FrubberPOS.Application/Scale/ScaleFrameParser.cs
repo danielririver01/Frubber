@@ -64,8 +64,76 @@ public static class ScaleFrameParser
 
     /// <summary>Decodes raw bytes as ASCII, dropping control characters before parsing.</summary>
     public static bool TryParse(byte[] buffer, int count, out ScaleReading reading)
+        => TryParse(buffer, 0, count, out reading);
+
+    /// <summary>
+    /// Decodes the LATEST complete frame of a capture (JHO-86, verificado en
+    /// la báscula real BBG MARKET-30): those frames start with SOH (0x01) —
+    /// <c>01 02 "S 01.010kga" 03 04 00</c>. When the capture holds two or
+    /// more frames, the reading is marked stable only when the last two
+    /// weighings agree: movement is detected without depending on a vendor
+    /// stability marker. A truncated trailing frame (read cut mid-number) is
+    /// discarded. Buffers without SOH (Torrey/CAS-style streams) fall back
+    /// to whole-buffer parsing.
+    /// </summary>
+    public static bool TryParseLatest(byte[] buffer, int count, out ScaleReading reading)
     {
-        var text = Encoding.ASCII.GetString(buffer, 0, count);
+        reading = new ScaleReading(0, false);
+        if (buffer is null || count <= 0)
+        {
+            return false;
+        }
+
+        var frames = new List<ScaleReading>();
+        var segmentStart = -1;
+        var hasSoh = false;
+        for (var i = 0; i < count; i++)
+        {
+            if (buffer[i] != 0x01)
+            {
+                continue;
+            }
+
+            if (segmentStart >= 0 && i - segmentStart > 1)
+            {
+                if (TryParse(buffer, segmentStart, i - segmentStart, out var frame))
+                {
+                    frames.Add(frame);
+                }
+            }
+
+            segmentStart = i + 1;
+            hasSoh = true;
+        }
+
+        if (!hasSoh)
+        {
+            return TryParse(buffer, count, out reading);
+        }
+
+        // Último segmento: solo cuenta si trae ETX (trama completa).
+        if (segmentStart >= 0 && count - segmentStart > 1
+            && global::System.Array.IndexOf(buffer, (byte)0x03, segmentStart, count - segmentStart) >= 0
+            && TryParse(buffer, segmentStart, count - segmentStart, out var last))
+        {
+            frames.Add(last);
+        }
+
+        if (frames.Count == 0)
+        {
+            return false;
+        }
+
+        var latest = frames[^1];
+        var stable = latest.Stable
+            && (frames.Count < 2 || latest.WeightMilli == frames[^2].WeightMilli);
+        reading = new ScaleReading(latest.WeightMilli, stable);
+        return true;
+    }
+
+    private static bool TryParse(byte[] buffer, int offset, int count, out ScaleReading reading)
+    {
+        var text = Encoding.ASCII.GetString(buffer, offset, count);
         var sb = new StringBuilder(text.Length);
         foreach (var c in text)
         {
