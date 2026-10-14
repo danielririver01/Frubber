@@ -22,6 +22,7 @@ public sealed class ProductsViewModel : INotifyPropertyChanged
     private readonly INavigationService navigation;
 
     private string searchText = string.Empty;
+    private CancellationTokenSource? searchCts;
     private ProductStatusFilter filter = ProductStatusFilter.Todos;
     private string errorMessage = string.Empty;
     private ProductRowViewModel? selectedProduct;
@@ -56,7 +57,15 @@ public sealed class ProductsViewModel : INotifyPropertyChanged
     public string SearchText
     {
         get => searchText;
-        set => SetProperty(ref searchText, value);
+        set
+        {
+            // JHO-88: búsqueda en tiempo real al digitar (mismo patrón que
+            // el TPV): cada tecla lanza la consulta y la última gana.
+            if (SetProperty(ref searchText, value))
+            {
+                _ = SearchAsync();
+            }
+        }
     }
 
     public ProductStatusFilter Filter => filter;
@@ -102,25 +111,45 @@ public sealed class ProductsViewModel : INotifyPropertyChanged
 
     public async Task SearchAsync()
     {
-        var result = await searchProducts.ExecuteAsync(
-            new SearchProductsRequest(SearchText, filter), CancellationToken.None);
-        if (!result.IsSuccess)
-        {
-            ErrorMessage = result.Error!.Message;
-            return;
-        }
+        // JHO-88: la última tecla manda — cancela la consulta anterior en
+        // vuelo para que un resultado viejo no pise la tabla (patrón TPV).
+        var stale = Interlocked.Exchange(ref searchCts, new CancellationTokenSource());
+        stale?.Cancel();
+        stale?.Dispose();
+        var current = searchCts;
 
-        ErrorMessage = string.Empty;
-        var previousId = SelectedProduct?.ProductId;
-        Products.Clear();
-        foreach (var product in result.Value.Products)
+        try
         {
-            Products.Add(ProductRowViewModel.From(product));
-        }
+            var result = await searchProducts.ExecuteAsync(
+                new SearchProductsRequest(SearchText, filter), current!.Token);
 
-        if (previousId.HasValue)
+            if (!ReferenceEquals(current, searchCts) || current.IsCancellationRequested)
+            {
+                return;
+            }
+
+            if (!result.IsSuccess)
+            {
+                ErrorMessage = result.Error!.Message;
+                return;
+            }
+
+            ErrorMessage = string.Empty;
+            var previousId = SelectedProduct?.ProductId;
+            Products.Clear();
+            foreach (var product in result.Value.Products)
+            {
+                Products.Add(ProductRowViewModel.From(product));
+            }
+
+            if (previousId.HasValue)
+            {
+                SelectedProduct = Products.FirstOrDefault(p => p.ProductId == previousId.Value);
+            }
+        }
+        catch (OperationCanceledException)
         {
-            SelectedProduct = Products.FirstOrDefault(p => p.ProductId == previousId.Value);
+            // Búsqueda reemplazada por una más reciente: conservar la tabla.
         }
     }
 

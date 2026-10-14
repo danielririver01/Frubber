@@ -65,6 +65,50 @@ public sealed class ProductsViewModelTests
     }
 
     [Fact]
+    public async Task SearchText_Typing_FiltersInRealTimeWithoutExplicitSearch()
+    {
+        await using var bed = await ProductTestBed.CreateAsync();
+        var create = new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession());
+        await create.ExecuteAsync(new CreateProductRequest("1001", "Manzana Gala", ProductUnit.Kg, 6000, 0), CancellationToken.None);
+        await create.ExecuteAsync(new CreateProductRequest("2030", "Leche entera", ProductUnit.Unit, 4200, 0), CancellationToken.None);
+
+        var (vm, _) = Build(bed);
+        await vm.SearchAsync();
+        Assert.Equal(2, vm.Products.Count);
+
+        // JHO-88: SIN llamar a SearchAsync a mano — el setter debe disparar
+        // la búsqueda solo; se espera con plazo (patrón de polling del fix
+        // de tests flaky) y se verifica que la tabla se filtra sola.
+        vm.SearchText = "manzana";
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (vm.Products.Count != 1 && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(10);
+        }
+
+        Assert.Equal(1, vm.Products.Count);
+        Assert.Equal("1001", vm.Products[0].Plu);
+
+        vm.SearchText = "leche";
+        deadline = DateTime.UtcNow.AddSeconds(5);
+        while ((vm.Products.Count != 1 || vm.Products[0].Plu != "2030") && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(10);
+        }
+
+        Assert.Equal("2030", vm.Products[0].Plu);
+
+        vm.SearchText = string.Empty;
+        deadline = DateTime.UtcNow.AddSeconds(5);
+        while (vm.Products.Count != 2 && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(10);
+        }
+
+        Assert.Equal(2, vm.Products.Count);
+    }
+
+    [Fact]
     public async Task NegativeStock_RowShowsSignAndAccessibleText()
     {
         await using var bed = await ProductTestBed.CreateAsync();
