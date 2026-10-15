@@ -36,7 +36,7 @@ public partial class UninstallWindow : Window
 
         try
         {
-            await installer.UninstallAsync(target, progress, CancellationToken.None);
+            await Task.Run(() => installer.Uninstall(target, progress, CancellationToken.None));
             QuestionText.Text = "Frubber POS se desinstaló. Tus datos del negocio siguen guardados en C:\\ProgramData\\FrubberPOS.";
             Actions.Visibility = Visibility.Collapsed;
             DoneBtn.Visibility = Visibility.Visible;

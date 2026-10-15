@@ -125,7 +125,9 @@ public sealed class InstallService
 
     // ---------- Desinstalación (regla: jamás borrar C:\ProgramData\FrubberPOS) ----------
 
-    public async Task UninstallAsync(string installDir, IProgress<(double Fraction, string Stage)> progress, CancellationToken cancellationToken)
+    /// <summary>Síncrono a propósito: ejecutar desde un hilo de fondo (Task.Run)
+    /// para no bloquear el hilo de UI de WPF.</summary>
+    public void Uninstall(string installDir, IProgress<(double Fraction, string Stage)> progress, CancellationToken cancellationToken)
     {
         if (!Directory.Exists(installDir)) return;
 
@@ -168,7 +170,6 @@ public sealed class InstallService
         }
 
         progress.Report((1.0, "Desinstalación terminada. Tus datos siguen en C:\\ProgramData\\FrubberPOS."));
-        await Task.Delay(150, cancellationToken);
     }
 
     private static void CreateShortcut(string path, string target, string workDir)

@@ -16,10 +16,11 @@ public partial class App : Application
         if (QuietMode && UninstallMode)
         {
             // Desinstalación silenciosa (sin UI): misma regla — datos jamás tocados.
-            new InstallService().UninstallAsync(
+            // Síncrono a propósito: nada de esperas que puedan colgar el hilo de UI.
+            new InstallService().Uninstall(
                 InstallService.GetInstalledLocation() ?? InstallService.DefaultInstallDir,
                 new Progress<(double, string)>(_ => { }),
-                CancellationToken.None).GetAwaiter().GetResult();
+                CancellationToken.None);
             Shutdown();
             return;
         }

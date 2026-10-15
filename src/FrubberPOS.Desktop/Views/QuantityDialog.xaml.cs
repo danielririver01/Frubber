@@ -20,7 +20,25 @@ public partial class QuantityDialog : Window
             DialogResult = saved;
             Close();
         };
-        Loaded += (_, _) => QuantityBox.Focus();
+        Loaded += (_, _) => FocusActiveBox();
+    }
+
+    /// <summary>JHO-94: el foco salta a la caja del modo activo.</summary>
+    private void FocusActiveBox()
+    {
+        if (viewModel.IsAmountMode)
+        {
+            AmountBox.Focus();
+        }
+        else
+        {
+            QuantityBox.Focus();
+        }
+    }
+
+    private void OnAmountModeChanged(object sender, RoutedEventArgs e)
+    {
+        FocusActiveBox();
     }
 
     private void OnCancel(object sender, RoutedEventArgs e)

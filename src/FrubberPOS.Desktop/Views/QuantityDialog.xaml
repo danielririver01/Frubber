@@ -10,18 +10,36 @@
     </Window.Resources>
     <Border Style="{DynamicResource DialogCard}" Margin="16">
         <StackPanel>
-            <TextBlock Text="Cantidad" FontSize="20" FontWeight="Bold"/>
+            <TextBlock Text="{Binding DialogTitle}" FontSize="20" FontWeight="Bold"/>
             <Border Background="{DynamicResource MintBrush}" CornerRadius="8" Padding="12,8" Margin="0,12,0,8">
                 <StackPanel>
                     <TextBlock Text="{Binding ProductLabel}" FontWeight="Bold" FontSize="15"/>
                     <TextBlock Text="{Binding UnitCode, StringFormat='Unidad: {0}'}"
                                Style="{DynamicResource PageSubtitle}"/>
+                    <TextBlock Text="{Binding PriceHint}" Style="{DynamicResource PageSubtitle}"/>
                 </StackPanel>
             </Border>
+            <CheckBox Content="Vender por monto ($)" IsChecked="{Binding AmountMode, Mode=TwoWay}"
+                      Visibility="{Binding AmountModeAvailable, Converter={StaticResource BoolToVis}}"
+                      FontWeight="SemiBold" Margin="0,4,0,0"
+                      Checked="OnAmountModeChanged" Unchecked="OnAmountModeChanged"
+                      AutomationProperties.Name="Vender por monto"/>
+            <TextBlock Text="{Binding InputHint}" FontSize="12" FontWeight="SemiBold"
+                       Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,10,0,4"/>
             <TextBox x:Name="QuantityBox" Text="{Binding QuantityText, UpdateSourceTrigger=PropertyChanged}"
-                     FontSize="18" FontWeight="SemiBold" MinHeight="48" AutomationProperties.Name="Cantidad"/>
+                     FontSize="18" FontWeight="SemiBold" MinHeight="48"
+                     Visibility="{Binding IsQuantityMode, Converter={StaticResource BoolToVis}}"
+                     AutomationProperties.Name="Cantidad"/>
+            <TextBox x:Name="AmountBox" Text="{Binding AmountText, UpdateSourceTrigger=PropertyChanged}"
+                     FontSize="18" FontWeight="SemiBold" MinHeight="48"
+                     Visibility="{Binding IsAmountMode, Converter={StaticResource BoolToVis}}"
+                     AutomationProperties.Name="Monto a cobrar"/>
+            <TextBlock Text="{Binding PreviewMessage}"
+                       Visibility="{Binding HasPreview, Converter={StaticResource BoolToVis}}"
+                       FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource SecondaryTextBrush}"
+                       Margin="0,7,0,0" AutomationProperties.Name="Vista previa"/>
             <Button Content="Leer báscula" Command="{Binding ReadScaleCommand}"
-                    Visibility="{Binding ScaleAvailable, Converter={StaticResource BoolToVis}}"
+                    Visibility="{Binding ScaleButtonVisible, Converter={StaticResource BoolToVis}}"
                     Style="{DynamicResource SecondaryButton}" Margin="0,8,0,0" MinHeight="36"
                     AutomationProperties.Name="Leer báscula"/>
             <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource SecondaryTextBrush}"
