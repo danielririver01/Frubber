@@ -61,7 +61,7 @@
                                        FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Border>
-                    <TextBlock DockPanel.Dock="Bottom" Text="Frubber POS · v1.0.0" Foreground="#77949E" FontSize="10"/>
+                    <TextBlock DockPanel.Dock="Bottom" Text="Frubber POS · v1.0.1" Foreground="#77949E" FontSize="10"/>
                 </DockPanel>
             </Border>
 

@@ -35,6 +35,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             if (currentStep == value) return;
             currentStep = value;
+            // JHO-95: al (re)entrar al paso 4 el botón vuelve a su texto normal;
+            // tras un fallo se queda en «Intentar de nuevo» hasta navegar.
+            if (value == 4) InstallBtn.Content = "Comenzar instalación →";
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CurrentStep)));
             UpdateUi();
         }
@@ -237,6 +240,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
+        // JHO-95: si eligió la raíz de un disco (F:\), se instala en
+        // <disco>:\Frubber POS y la carpeta real queda visible en el resumen.
+        target = InstallService.NormalizeTargetDir(target);
+        if (!string.Equals(PathBox.Text, target, StringComparison.Ordinal)) PathBox.Text = target;
+
         installing = true;
         InstallBtn.IsEnabled = false;
         InstallError.Visibility = Visibility.Collapsed;
@@ -260,11 +268,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
         catch (Exception ex)
         {
-            InstallError.Text = ex is IOException or UnauthorizedAccessException
-                ? "No se pudieron copiar los archivos. Cierra Frubber POS si está abierto, revisa la carpeta e intenta de nuevo."
-                : "La instalación no pudo completarse: " + ex.Message;
+            // JHO-95: mensaje según la fase que falló (copiar / accesos / registro)
+            // y una salida clara: reintentar o volver para cambiar la carpeta.
+            InstallError.Text = ex is InstallFailedException failed
+                ? failed.Message
+                : ex is IOException or UnauthorizedAccessException
+                    ? "No se pudieron copiar los archivos. Cierra Frubber POS si está abierto, revisa la carpeta e intenta de nuevo."
+                    : "La instalación no pudo completarse: " + ex.Message;
             InstallError.Visibility = Visibility.Visible;
-            ProgressHint.Text = string.Empty;
+            ProgressHint.Text = "Puedes usar «Volver» para cambiar la carpeta y reintentar.";
+            InstallBtn.Content = "Intentar de nuevo →";
         }
         finally
         {

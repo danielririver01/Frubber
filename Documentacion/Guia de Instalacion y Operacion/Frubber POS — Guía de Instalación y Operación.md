@@ -12,7 +12,7 @@ técnicos ni internet.
 
 ## 2. Instalación
 
-1. Ejecutar `FrubberPOS-Setup-1.0.0.exe` (lo genera `installer\build-installer.ps1`;
+1. Ejecutar `FrubberPOS-Setup-1.0.1.exe` (lo genera `installer\build-installer.ps1`;
    es el asistente propio en WPF —estilo maqueta del dueño—, un solo .exe
    autocontenido con la app dentro. El Inno Setup heredado queda como respaldo
    en `installer\FrubberPOS.iss`).

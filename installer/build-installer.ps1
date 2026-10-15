@@ -1,12 +1,12 @@
 # Frubber POS — construir el instalador WPF (JHO-93; el script Inno Setup
 # heredado queda como respaldo junto a este mismo archivo).
 # Requiere: .NET 10 SDK. NADA más (no necesita Inno Setup).
-# Uso:  powershell -File installer\build-installer.ps1 [-Version 1.0.0]
+# Uso:  powershell -File installer\build-installer.ps1 [-Version 1.0.1]
 # El instalador final queda en installer\output\FrubberPOS-Setup-<version>.exe
 # (un solo .exe autocontenido: la app viaja embebida como payload.zip).
 
 param(
-    [string]$Version = "1.0.0",
+    [string]$Version = "1.0.1",
     # Solo compila la app (artifacts/publish) sin re-generar el instalador.
     [switch]$AppOnly
 )
