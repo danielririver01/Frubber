@@ -17,6 +17,10 @@ public partial class FirstStartWindow : Window
         this.viewModel = viewModel;
         DataContext = viewModel;
         InitializeComponent();
+
+        // JHO-96: en pantallas con poco área de trabajo la ventana se ajusta en
+        // vez de salirse; el ScrollViewer de la tarjeta cubre el resto.
+        MaxHeight = SystemParameters.WorkArea.Height;
     }
 
     private void PinBox_PasswordChanged(object sender, RoutedEventArgs e)

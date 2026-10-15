@@ -65,7 +65,7 @@
 
             <TextBlock Text="Frubber POS" FontSize="28" FontWeight="SemiBold" Foreground="White"
                        HorizontalAlignment="Center" Margin="0,0,0,8"/>
-            <TextBlock Text="Versión 1.0.0" FontSize="14" Foreground="#94A3B8"
+            <TextBlock Text="Versión 1.0.1" FontSize="14" Foreground="#94A3B8"
                        HorizontalAlignment="Center" Margin="0,0,0,32"/>
 
             <!-- Ecualizador de carga: 6 barras teal -->
