@@ -5,17 +5,18 @@
 
 ## 1. Qué es Frubber POS (resumen)
 
-Aplicación de escritorio **offline**, para verdulería/fruver en **un solo PC** con
-Windows 10/11 x64. Gestión de productos (kg/lb/unidad), inventario básico,
+Aplicación de escritorio **offline** (la red del local; sin internet) para
+verdulería/fruver: **1.0 monopuesto** en **un solo PC** con Windows 10/11 x64,
+**2.0 multi-puesto** con puestos conectados al motor de datos en la red del local. Gestión de productos (kg/lb/unidad), inventario básico,
 ventas, caja básica, usuarios (ADMIN/CASHIER con PIN de 4 dígitos), historial
 inmutable, impresión Windows, respaldo manual y licencia offline vitalicia.
 
 Stack aprobado (ADR-001…ADR-020):
 
 - C# sobre **.NET 10 LTS**, Desktop con `net10.0-windows`. WPF + MVVM.
-- **SQLite** embebido + `Microsoft.Data.Sqlite` + **Dapper**, SQL explícito parametrizado. Sin EF Core.
+- **PostgreSQL** + **Npgsql** + **Dapper**, SQL explícito parametrizado. Sin EF Core.
 - Monolito modular. Publicación autocontenida x64 + Inno Setup (se decide después, fuera de JHO-16).
-- Sin MediatR, sin bus de mensajes, sin CQRS extra, sin servidor, sin cloud, sin IA.
+- Sin MediatR, sin bus de mensajes, sin CQRS extra, sin API/servidor de aplicación, sin cloud, sin IA.
 
 ## 2. Fuente de verdad documental
 
@@ -125,7 +126,7 @@ verde, sin warnings de referencia, y `git status` limpio salvo los archivos nuev
 
 ## 6. Prohibiciones explícitas
 
-MediatR, EF Core, servidor/API, cloud, IA, categorías, precio de compra,
+MediatR, EF Core, API/servidor de aplicación (el motor de datos PostgreSQL en la red local no es un API), cloud, IA, categorías, precio de compra,
 impuestos separados, pagos combinados, devoluciones parciales, egresos de caja,
 reportes/exportaciones, restauración desde UI, ESC/POS
 directo, biblioteca externa de impresión, generador de licencias o clave privada
@@ -190,5 +191,5 @@ Por tarea:
 2. TFMs correctos (`net10.0-windows` + `UseWPF` solo en Desktop).
 3. Referencias exactamente como §4; `dotnet list reference` sin extras.
 4. `dotnet restore` + `dotnet build -c Release` en verde en Windows 10/11 x64.
-5. Sin paquetes MediatR ni referencias a servidor.
+5. Sin paquetes MediatR ni APIs/servidores de aplicación.
 6. Issue en `Done` con comentario de evidencia del build.
