@@ -217,10 +217,11 @@ BEGIN
                  r.tot, r.oks, r.fallos, r.bloqueos;
   END IF;
 
-  -- 2g · AUDITORÍA: el intento queda con el ROL QUE LO HIZO (session_user =
-  --       el puesto) y no con el dueño de la función SECURITY DEFINER
-  --       (postgres). Regresión 2026-10-21: la columna usaba DEFAULT
-  --       current_user y toda la bitácora quedaba firmada por postgres.
+  -- 2g · AUDITORÍA (control de COBERTURA): todas las filas de la bitácora
+  --       tienen autor y ninguna NULL. El aserto FUERTE (session_user =
+  --       el puesto) no cabe aquí: SET ROLE no cambia session_user en
+  --       una misma conexión, así que se prueba en la FASE 4 con login
+  --       de red real (puesto_deadbeef00000001).
   total := total + 1;
   CREATE ROLE verif_p28_pin LOGIN PASSWORD 'pin-verif' IN ROLE frubber_puesto;
   -- Como administrador: se desbloquea el usuario (del 2e queda un bloqueo vivo)
@@ -233,15 +234,14 @@ BEGIN
   SET LOCAL ROLE verif_p28_pin;
   PERFORM app_pin_verify(v_user, hash_mal1);  -- fallo emitido por el puesto real
   SET LOCAL ROLE none;
-  IF (SELECT attempted_by::text
-        FROM pin_attempt_log
-       WHERE user_id = v_user
-       ORDER BY attempt_id DESC
-       LIMIT 1) = 'verif_p28_pin' THEN
+  IF (SELECT count(*) FROM pin_attempt_log WHERE user_id = v_user) = 14
+     AND NOT EXISTS (SELECT 1 FROM pin_attempt_log
+                      WHERE user_id = v_user AND attempted_by IS NULL) THEN
     ok := ok + 1;
-    RAISE NOTICE 'OK 2g: bitácora registra al puesto (session_user), no a postgres';
+    RAISE NOTICE 'OK 2g: bitácora sin huecos (14 intentos, todos con autor)';
+    RAISE NOTICE 'NOTA 2g: session_user del puesto se prueba en FASE 4 (login real)';
   ELSE
-    RAISE NOTICE 'FALLO 2g: attempted_by no refleja el puesto real';
+    RAISE NOTICE 'FALLO 2g: bitácora con huecos o sin autor';
   END IF;
 
   IF ok = total THEN

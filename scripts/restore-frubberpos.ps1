@@ -25,25 +25,25 @@ param(
     [string]$BackupFile,
     [Parameter(Mandatory=$true)][string]$TargetDb,
     [string]$PgRestorePath = "pg_restore",
+    [string]$PsPath = "psql",       # ruta exacta a psql.exe (si no esta en PATH)
     [bool]$ConfirmReplace = $false,
     [string]$RolesFile = ""         # opcional: FrubberPOS_roles_*.sql
 )
 
 if (-not (Get-Command $PgRestorePath -ErrorAction SilentlyContinue)) { throw "pg_restore no esta en el PATH" }
-if (-not (Get-Command "psql" -ErrorAction SilentlyContinue)) { throw "psql no esta en el PATH (se usa para el candado y la verificacion)" }
 
 if (-not $env:PGUSER) { throw "PGUSER no definido" }
 if (-not $env:PGDATABASE) { $env:PGDATABASE = $TargetDb }   # console verification uses target DB
 
 # --- candado: no sobrescribir sin permiso explicito -------------------
 $existsSql = "SELECT 1 FROM pg_database WHERE datname = '$TargetDb'"
-$exists = (psql -t -A -c $existsSql 2>$null)
+$exists = (& $PsPath -d postgres -t -A -c $existsSql 2>$null)
 if ($exists -match "1") {
     if (-not $ConfirmReplace) {
         throw "La base '$TargetDb' YA EXISTE. Para reemplazarla pasa -ConfirmReplace `$true (esto destruira su contenido)."
     }
 } else {
-    psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE `"$TargetDb`" OWNER $env:PGUSER"
+    & $PsPath -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE `"$TargetDb`" OWNER $env:PGUSER"
     if ($LASTEXITCODE -ne 0) { throw "No se pudo crear la base destino '$TargetDb'" }
     Write-Host "Base destino creada: $TargetDb"
 }
@@ -52,7 +52,7 @@ if ($exists -match "1") {
 if ($RolesFile -and (Test-Path $RolesFile)) {
     Write-Host "Aplicando archivo de roles: $RolesFile"
     # tolerante: en un mismo servidor los roles preexisten; solo interesan los NUEVOS
-    psql -f $RolesFile 2>&1 | Select-String -Pattern "ERROR|error:"
+    & $PsPath -f $RolesFile 2>&1 | Select-String -Pattern "ERROR|error:"
     Write-Host "Resultados de rol aplicados (los duplicados se ignoran con un aviso visible arriba)."
 }
 
@@ -63,6 +63,6 @@ if ($LASTEXITCODE -ne 0) { Write-Error "pg_restore fallo ($LASTEXITCODE)"; exit 
 
 # --- verificacion de integridad para la evidencia ---------------------
 Write-Host "---- CUADRE POST-RESTAURACION ----"
-psql -t -A -F " | " -c "SELECT 'sale_rows', count(*) FROM sale UNION ALL SELECT 'sale_line_rows', count(*) FROM sale_line UNION ALL SELECT 'cash_session_rows', count(*) FROM cash_session UNION ALL SELECT 'schema_migration_rows', count(*) FROM schema_migration"
+& $PsPath -t -A -F " | " -c "SELECT 'sale_rows', count(*) FROM sale UNION ALL SELECT 'sale_line_rows', count(*) FROM sale_line UNION ALL SELECT 'cash_session_rows', count(*) FROM cash_session UNION ALL SELECT 'schema_migration_rows', count(*) FROM schema_migration"
 if ($LASTEXITCODE -ne 0) { Write-Error "La verificacion de integridad fallo: revisar logs."; exit 1 }
 Write-Host "Restauracion verificada."
