@@ -90,7 +90,11 @@ SELECT
   CASE WHEN NOT has_function_privilege('frubber_puesto', 'register_terminal(text,char(16))', 'execute')
        THEN 'OK' ELSE 'FALLO' END AS "alta_puestos_denegada",
   CASE WHEN NOT has_function_privilege('frubber_puesto', 'deactivate_terminal(char(16))', 'execute')
-       THEN 'OK' ELSE 'FALLO' END AS "baja_puestos_denegada";
+       THEN 'OK' ELSE 'FALLO' END AS "baja_puestos_denegada",
+  CASE WHEN EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'ux_product_plu')
+       THEN 'OK' ELSE 'FALLO' END AS "plu_único (paridad 1.0)",
+  CASE WHEN EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'ux_app_user_display_name')
+       THEN 'OK' ELSE 'FALLO' END AS "nombre_usuario_unico (paridad 1.0)";
 
 
 -- =============================================================================
@@ -213,8 +217,35 @@ BEGIN
                  r.tot, r.oks, r.fallos, r.bloqueos;
   END IF;
 
+  -- 2g · AUDITORÍA: el intento queda con el ROL QUE LO HIZO (session_user =
+  --       el puesto) y no con el dueño de la función SECURITY DEFINER
+  --       (postgres). Regresión 2026-10-21: la columna usaba DEFAULT
+  --       current_user y toda la bitácora quedaba firmada por postgres.
+  total := total + 1;
+  CREATE ROLE verif_p28_pin LOGIN PASSWORD 'pin-verif' IN ROLE frubber_puesto;
+  -- Como administrador: se desbloquea el usuario (del 2e queda un bloqueo vivo)
+  -- ANTES de asumir el rol del puesto, que no puede tocar pin_lock_state.
+  UPDATE pin_lock_state
+     SET blocked_until = clock_timestamp() - interval '1 second',
+         blocked_count = 1,
+         consecutive_failures = 4
+   WHERE user_id = v_user;
+  SET LOCAL ROLE verif_p28_pin;
+  PERFORM app_pin_verify(v_user, hash_mal1);  -- fallo emitido por el puesto real
+  SET LOCAL ROLE none;
+  IF (SELECT attempted_by::text
+        FROM pin_attempt_log
+       WHERE user_id = v_user
+       ORDER BY attempt_id DESC
+       LIMIT 1) = 'verif_p28_pin' THEN
+    ok := ok + 1;
+    RAISE NOTICE 'OK 2g: bitácora registra al puesto (session_user), no a postgres';
+  ELSE
+    RAISE NOTICE 'FALLO 2g: attempted_by no refleja el puesto real';
+  END IF;
+
   IF ok = total THEN
-    RAISE NOTICE 'FASE 2 COMPLETA: 6 de 6';
+    RAISE NOTICE 'FASE 2 COMPLETA: % de %', ok, total;
   ELSE
     RAISE NOTICE 'FASE 2 INCOMPLETA: % de %', ok, total;
   END IF;
@@ -429,6 +460,23 @@ BEGIN
   END;
 
   SET LOCAL ROLE none;
+
+  -- 3n · La baja NO procede si el puesto tiene una caja abierta (Regla de Oro
+  --       3): un rol NOLOGIN no volvería a conectar para cerrar la caja.
+  --       Se prueba como administrador para llegar a la lógica del guard.
+  total := total + 1;
+  SET LOCAL ROLE none;
+  BEGIN
+    PERFORM deactivate_terminal('DEADBEEFABCDEF01');
+    RAISE NOTICE 'FALLO 3n: se desactivó un puesto con caja abierta';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM LIKE 'El puesto tiene una caja abierta%' THEN
+      ok := ok + 1;
+      RAISE NOTICE 'OK 3n: baja con caja abierta rechazada';
+    ELSE
+      RAISE;
+    END IF;
+  END;
 
   IF ok = total THEN
     RAISE NOTICE 'FASE 3 COMPLETA: % de %', ok, total;

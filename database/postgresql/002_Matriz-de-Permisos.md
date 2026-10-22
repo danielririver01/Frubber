@@ -88,6 +88,15 @@ normal, no al revés.
    al terminar (sin ROLLBACK pendiente).
 8. `app_user_directory()` devuelve `user_id, display_name, role` de los usuarios
    activos (la pantalla de login necesita la lista), nunca sal ni hash.
+9. Por omisión PostgreSQL concede `EXECUTE` de toda función NUEVA a PUBLIC:
+   el `ALTER DEFAULT PRIVILEGES` de 002 lo revoca de nacimiento. "Cerrada por
+   omisión" no depende de acordarse de revocar a mano. Si M2-32 introduce un
+   rol de administración propio, ese rol también necesita su propio
+   `ALTER DEFAULT PRIVILEGES` equivalente.
+10. La bitácora guarda `session_user` (el puesto conectado), no `current_user`
+   (que dentro de las funciones SECURITY DEFINER es `postgres`). Regresión
+   corregida el 2026-10-21/22; hay un caso de verificación (2g) que lo
+   comprueba contra un puesto real.
 
 ## 4. Ciclo de vida del puesto (alta y baja, solo administrador)
 
@@ -142,9 +151,12 @@ verificó en el propio `pg_hba.conf` de instalación).
 ## 7. Cómo se probó (evidencia)
 
 1. `prototipo/verificacion-seguridad-real.sql` sobre la base `frubber` real:
-   23/23 declarativas, 6/6 PIN, 13/13 de escritura/lectura denegada en la práctica (42501).
+   25/25 declarativas (incluye paridad de índices únicos con la 1.0),
+   8/8 de PIN y auditoría (2g: el log firma al puesto real), 14/14 de
+   escritura/lectura denegada y guard de baja (3n), en la práctica (42501).
 2. Alta real de un puesto con `register_terminal`, login con `psql` usando su
    contraseña (scram-sha-256): aceptado; contraseña incorrecta → `FATAL`.
-3. `deactivate_terminal`: la fila queda `is_active=false`, el rol a `NOLOGIN`,
-   y un reingreso da `FATAL: la autentificación password falló`.
+3. `deactivate_terminal`: la fila queda `is_active=false`, el rol a `NOLOGIN`
+   y un reingreso da `FATAL: la autentificación password falló`; y si el
+   puesto tiene una caja abierta, la baja se RECHAZA (Regla de Oro 3).
 4. Evidencia completa en la bitácora 6.2 (E-07 = esquema, E-08 = seguridad).

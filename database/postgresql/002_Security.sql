@@ -88,12 +88,25 @@ REVOKE ALL ON DATABASE frubber FROM PUBLIC;
 GRANT CONNECT ON DATABASE frubber TO postgres;
 GRANT CONNECT ON DATABASE frubber TO frubber_puesto;
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
-GRANT USAGE ON SCHEMA public TO PUBLIC;
+-- El USAGE del esquema solo lo necesita quien tiene grants aquí (los puestos,
+-- valedores de frubber_puesto). PUBLIC no lo necesita: cerrar el USAGE también
+-- bloquea exploración de catálogo por roles no autorizados del mismo servidor.
+REVOKE USAGE ON SCHEMA public FROM PUBLIC;
 
 -- -----------------------------------------------------------------------------
 -- 3 · MATRIZ DE PERMISOS DEL PUESTO (rol de grupo)
 -- -----------------------------------------------------------------------------
+
 GRANT USAGE ON SCHEMA public TO frubber_puesto;
+
+-- Por omisión PostgreSQL concede EXECUTE de toda función nueva a PUBLIC. Se
+-- revoca desde la creación para que "cerrada por omisión" no dependa de que
+-- alguien se acuerde de revocar a mano cuando M2-29 (numeración) y M2-19
+-- (cobro idempotente) agreguen funciones. Nota: DEFAULT PRIVILEGES es por rol
+-- creador; si M2-32 introduce un rol de administración propio, este también
+-- debe ejecutar un ALTER DEFAULT PRIVILEGES igual.
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+    REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
 
 
 -- LECTURAS de trabajo del TPV (mínimo):
@@ -130,11 +143,19 @@ CREATE TABLE pin_attempt_log (
     attempt_id    bigserial   PRIMARY KEY,
     user_id       bigint      NOT NULL REFERENCES app_user (user_id) ON DELETE RESTRICT,
     outcome       text        NOT NULL CHECK (outcome IN ('OK', 'FALLO', 'BLOQUEO')),
-    attempted_by  name        NOT NULL DEFAULT current_user,
+    -- session_user, NO current_user: los INSERT de esta bitácora se ejecutan
+    -- dentro de funciones SECURITY DEFINER (app_pin_verify), donde current_user
+    -- es el dueño de la función (postgres). Lo que se audita es quién SE CONECTÓ:
+    -- session_user = puesto_xxx. Paridad con la matriz de permisos (§3.6).
+    attempted_by  name        NOT NULL DEFAULT session_user,
     attempted_at  timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE INDEX ix_pin_attempt_log_user_time ON pin_attempt_log (user_id, attempted_at);
+
+-- PENDIENTE M2-32: política de retención/archivo de esta bitácora (crece por
+-- siempre). Las ventanas de bloqueo dependen de pin_lock_state (contadores),
+-- no de esta tabla; solo es volumen histórico.
 
 CREATE TABLE pin_lock_state (
     user_id               bigint PRIMARY KEY REFERENCES app_user (user_id) ON DELETE RESTRICT,
@@ -194,10 +215,16 @@ BEGIN
         RETURN;
     END IF;
 
+    -- La fila quedó asegurada y BLOQUEADA: dos puestos concurrentes no pierden
+    -- conteos de fallos por read-modify-write (SELECT FOR UPDATE serializa).
+    INSERT INTO pin_lock_state (user_id) VALUES (p_user_id)
+        ON CONFLICT (user_id) DO NOTHING;
+
     SELECT consecutive_failures, blocked_count, blocked_until
       INTO v_failures, v_blocks, v_blocked_until
       FROM pin_lock_state
-     WHERE user_id = p_user_id;
+     WHERE user_id = p_user_id
+       FOR UPDATE;
     IF NOT FOUND THEN
         v_failures := 0; v_blocks := 0; v_blocked_until := NULL;
     END IF;
@@ -341,6 +368,20 @@ DECLARE
     v_machine_clean char(16) := upper(btrim(p_machine_code::text));
     v_role_name     text;
 BEGIN
+    -- REGLA DE ORO 3: no se desactiva un puesto cuya caja sigue abierta. Un rol
+    -- NOLOGIN no puede conectarse de nuevo para cerrar esa caja: quedaría
+    -- huérfana para siempre.
+    IF EXISTS (
+        SELECT 1
+          FROM cash_session cs
+          JOIN terminal t ON t.terminal_id = cs.terminal_id
+         WHERE t.machine_code = v_machine_clean
+           AND cs.closed_at IS NULL
+    ) THEN
+        RAISE EXCEPTION 'El puesto tiene una caja abierta; cierre la caja antes de desactivarlo'
+            USING ERRCODE = 'restrict_violation';
+    END IF;
+
     UPDATE terminal SET is_active = false WHERE machine_code = v_machine_clean;
     IF NOT FOUND THEN
         RAISE EXCEPTION 'No existe un puesto con el codigo de equipo %', v_machine_clean;

@@ -81,6 +81,16 @@ CREATE TABLE app_user (
     pin_algorithm_version  integer NOT NULL CHECK (pin_algorithm_version > 0)
 );
 
+-- UX_User_DisplayName_NoCase de la 1.0: nombres de usuario únicos sin importar
+-- mayúsculas/minúsculas (índice por expresión sobre lower()). Sin esto, la
+-- pantalla de login puede presentar dos usuarios con el mismo nombre visible.
+CREATE UNIQUE INDEX ux_app_user_display_name
+    ON app_user (lower(display_name));
+
+-- Índice del directorio de login (paridad 1.0, IX_User_Active_DisplayName).
+CREATE INDEX ix_app_user_active_display_name
+    ON app_user (is_active, display_name);
+
 
 -- =============================================================================
 --  TABLA 4 · product
@@ -100,6 +110,18 @@ CREATE TABLE product (
     CHECK (unit <> 'UNIT' OR stock_milli % 1000 = 0),
     CHECK (stock_milli = 0 OR unit_locked)
 );
+
+-- UX_Product_Plu_NoCase de la 1.0: el PLU es ÚNICO en toda la tabla. Sin esto
+-- el buscador del TPV puede encontrar dos productos con el mismo código y el
+-- cobro queda ambiguo. El CHECK de formato garantiza MAYÚSCULAS sin bordes,
+-- así que un índice simple basta (equivalente al COLLATE NOCASE de SQLite).
+CREATE UNIQUE INDEX ux_product_plu
+    ON product (plu);
+
+-- Índice de búsqueda por nombre del TPV (paridad 1.0, IX_Product_Active_Name):
+-- el buscador filtra is_active ORDER BY name; sin este índice es full scan.
+CREATE INDEX ix_product_active_name
+    ON product (is_active, name);
 
 
 -- =============================================================================
