@@ -9,6 +9,7 @@ using FrubberPOS.Tests.TestDoubles;
 using FrubberPOS.Tests.TestInfrastructure;
 using Npgsql;
 
+using FrubberPOS.Infrastructure.Persistence;
 using FrubberPOS.Infrastructure.Persistence.Cash;
 using FrubberPOS.Infrastructure.Persistence.Sales;
 namespace FrubberPOS.Tests.Sales;
@@ -210,9 +211,9 @@ public sealed class FinalizeSaleUseCaseTests
             new FinalizeSaleRequest([Line(created.Value.ProductId)], 0, "CASH", 5_000), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Error?.Message);
-        await using var connection = PostgresTestDb.NewConnection();
-        await connection.OpenAsync();
-        var cashierId = await connection.ExecuteScalarAsync<int>(
+        await using var verifyConnection = PostgresTestDb.NewConnection();
+        await verifyConnection.OpenAsync();
+        var cashierId = await verifyConnection.ExecuteScalarAsync<int>(
             "SELECT CashierUserId FROM Sale WHERE SaleNumber = 1;");
         Assert.Equal(2, cashierId);
     }

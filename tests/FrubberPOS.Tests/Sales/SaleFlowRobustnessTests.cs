@@ -7,6 +7,7 @@ using FrubberPOS.Desktop.ViewModels;
 using FrubberPOS.Domain.Products;
 using FrubberPOS.Tests.Products;
 using FrubberPOS.Tests.TestDoubles;
+using FrubberPOS.Tests.TestInfrastructure;
 
 namespace FrubberPOS.Tests.Sales;
 

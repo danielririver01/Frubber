@@ -135,7 +135,7 @@ public sealed class MigrationRunner
 
         await using (var exists = connection.CreateCommand())
         {
-            exists.CommandText = "SELECT COUNT(*) FROM pg_tables WHERE tablename = 'SchemaMigration';";
+            exists.CommandText = "SELECT COUNT(*) FROM pg_tables WHERE lower(tablename) = 'schemamigration';";
             if ((long)(await exists.ExecuteScalarAsync(cancellationToken))! == 0)
             {
                 return applied;
@@ -189,8 +189,8 @@ public sealed class MigrationRunner
             // Uncommitted transaction rolls back on dispose: the migration is
             // fully reverted and nothing is recorded. User-safe message only.
             return Result<int>.Failure(new Error(
-                ErrorCode.Storage,
-                $"No se pudo aplicar la migración {migration.ScriptName} (versión {migration.Version}). La base quedó sin cambios."));
+                    ErrorCode.Storage,
+                    $"No se pudo aplicar la migración {migration.ScriptName} (versión {migration.Version}). La base quedó sin cambios."));
         }
     }
 

@@ -16,11 +16,14 @@ public sealed class PostgresBackupStatusService : IBackupStatusService
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly DatabaseOptions database;
+    private readonly string logDirectory;
 
-    public PostgresBackupStatusService(DatabaseOptions database)
+    public PostgresBackupStatusService(DatabaseOptions database, string logDirectory)
     {
         ArgumentNullException.ThrowIfNull(database);
+        ArgumentException.ThrowIfNullOrWhiteSpace(logDirectory);
         this.database = database;
+        this.logDirectory = logDirectory;
     }
 
     public BackupOverview GetOverview()
@@ -94,8 +97,10 @@ public sealed class PostgresBackupStatusService : IBackupStatusService
     {
         // Sidecar lives next to the log directory so it survives backup
         // file moves and isn't tied to a single database file path.
-        var logDir = Path.Combine(Path.GetDirectoryName(database.ConnectionString) ?? string.Empty, "logs");
-        return Path.Combine(logDir ?? string.Empty, "last-backup.json");
+        // JHO-113: the directory is injected; deriving it from the connection
+        // string produced a CWD-relative "logs" folder, which is neither the
+        // application data directory nor writable under Program Files.
+        return Path.Combine(logDirectory, "last-backup.json");
     }
 
     private sealed record SidecarPayload(string FileName, string Path, string LastBackupUtc);

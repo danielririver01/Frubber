@@ -1,5 +1,6 @@
 using Dapper;
 using FrubberPOS.Application.Authentication;
+using FrubberPOS.Application.Common;
 using FrubberPOS.Application.Sales;
 using FrubberPOS.Tests.Products;
 using FrubberPOS.Tests.TestDoubles;
@@ -32,7 +33,7 @@ public sealed class SalesHistoryQueryTests
         return new DateTimeOffset(local, TimeZoneInfo.Local.GetUtcOffset(local)).ToUnixTimeMilliseconds();
     }
 
-    private static async Task SeedSaleAsync(ProductTestBed bed, long saleNumber, long soldAtUtcMs, string paymentMethod = "CASH", string cashier = "Admin", bool voided = false)
+    private static async Task SeedSaleAsync(ProductTestBed bed, long saleNumber, long soldAtUtcMs, string paymentMethod = "CASH", string cashier = "Admin", bool voided = false, long totalCop = 8_000)
     {
         await using var connection = PostgresTestDb.NewConnection();
         await connection.OpenAsync();
@@ -48,9 +49,9 @@ public sealed class SalesHistoryQueryTests
                 SaleNumber = saleNumber,
                 Cashier = cashier,
                 SoldAtUtcMs = soldAtUtcMs,
-                TotalCop = 8000,
+                TotalCop = totalCop,
                 PaymentMethod = paymentMethod,
-                ReceivedCop = isCash ? 8000L : (long?)null,
+                ReceivedCop = isCash ? totalCop : (long?)null,
                 ChangeCop = isCash ? 0L : (long?)null
             });
         if (voided)
@@ -155,7 +156,7 @@ public sealed class SalesHistoryQueryTests
         await SeedUserAndCashAsync(bed);
         var moment = LocalMs(2026, 9, 30, 12, 5);
         await SeedSaleAsync(bed, 7, LocalMs(2026, 9, 30), "TRANSFER", "Cajero Uno");
-        await SeedSaleAsync(bed, 8, moment, "CASH", "Admin", voided: true);
+        await SeedSaleAsync(bed, 8, moment, "CASH", "Admin", voided: true, totalCop: 2_000);
 
         var result = await Sut(bed).ExecuteAsync(
             new SearchSalesHistoryRequest(new DateOnly(2026, 9, 30), new DateOnly(2026, 9, 30), 1), CancellationToken.None);

@@ -201,7 +201,10 @@ public sealed class SaleVoidUseCaseTests
         var result = await Sut(bed).ExecuteAsync(new VoidSaleRequest(1), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Error?.Message);
-        Assert.True(result.Value.VoidedAtUtcMs > 0);
+        await using var verify = PostgresTestDb.NewConnection();
+        await verify.OpenAsync();
+        Assert.True(await verify.ExecuteScalarAsync<long>(
+            "SELECT VoidedAtUtcMs FROM SaleVoid WHERE SaleId = 1;") > 0);
     }
 
     private sealed class SaleAfterVoidRow

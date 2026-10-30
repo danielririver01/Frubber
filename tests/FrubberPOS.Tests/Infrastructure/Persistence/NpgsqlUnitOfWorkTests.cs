@@ -14,10 +14,23 @@ public sealed class NpgsqlUnitOfWorkTests
     private const string CreateTable = "CREATE TABLE T_UOW (Id INTEGER PRIMARY KEY, Name TEXT NOT NULL);";
     private const string Insert = "INSERT INTO T_UOW (Id, Name) VALUES (@Id, @Name);";
 
+    /// <summary>
+    /// JHO-113: cada prueba crea T_UOW y antes nadie la borraba, así que la
+    /// segunda fallaba con «la relación «t_uow» ya existe». Deja la tabla
+    /// fuera del esquema de negocio y limpia antes de cada prueba.
+    /// </summary>
+    private static async Task PrepareAsync()
+    {
+        await PrepareAsync();
+        await using var connection = PostgresTestDb.NewConnection();
+        await connection.OpenAsync();
+        await connection.ExecuteAsync("DROP TABLE IF EXISTS T_UOW;");
+    }
+
     [Fact]
     public async Task Write_CommitsAcrossSharedUnit()
     {
-        await PostgresTestDb.MigrateAsync();
+        await PrepareAsync();
         await using var unit = await PostgresTestDb.NewUnitFactory().CreateAsync(UnitOfWorkMode.Write, CancellationToken.None);
         await unit.Connection.ExecuteAsync(CreateTable, transaction: unit.Transaction);
         await unit.CommitAsync(CancellationToken.None);
@@ -37,7 +50,7 @@ public sealed class NpgsqlUnitOfWorkTests
     [Fact]
     public async Task DisposeWithoutCommit_RollsBack()
     {
-        await PostgresTestDb.MigrateAsync();
+        await PrepareAsync();
         await using var unit = await PostgresTestDb.NewUnitFactory().CreateAsync(UnitOfWorkMode.Write, CancellationToken.None);
         await unit.Connection.ExecuteAsync(CreateTable, transaction: unit.Transaction);
         await unit.CommitAsync(CancellationToken.None);
@@ -56,7 +69,7 @@ public sealed class NpgsqlUnitOfWorkTests
     [Fact]
     public async Task WriteImmediate_IsAtomicOnFailure()
     {
-        await PostgresTestDb.MigrateAsync();
+        await PrepareAsync();
         await using var unit = await PostgresTestDb.NewUnitFactory().CreateAsync(UnitOfWorkMode.Write, CancellationToken.None);
         await unit.Connection.ExecuteAsync(CreateTable, transaction: unit.Transaction);
         await unit.CommitAsync(CancellationToken.None);
@@ -83,7 +96,7 @@ public sealed class NpgsqlUnitOfWorkTests
     [Fact]
     public async Task ReadOnly_HasNoTransaction()
     {
-        await PostgresTestDb.MigrateAsync();
+        await PrepareAsync();
         await using var unit = await PostgresTestDb.NewUnitFactory().CreateAsync(UnitOfWorkMode.Write, CancellationToken.None);
         await unit.Connection.ExecuteAsync(CreateTable, transaction: unit.Transaction);
         await unit.CommitAsync(CancellationToken.None);
@@ -98,7 +111,7 @@ public sealed class NpgsqlUnitOfWorkTests
     [Fact]
     public async Task DoubleCommit_ThrowsInvalidOperation()
     {
-        await PostgresTestDb.MigrateAsync();
+        await PrepareAsync();
         await using var unit = await PostgresTestDb.NewUnitFactory().CreateAsync(UnitOfWorkMode.Write, CancellationToken.None);
         await unit.CommitAsync(CancellationToken.None);
 
@@ -119,7 +132,7 @@ public sealed class NpgsqlUnitOfWorkTests
     [Fact]
     public async Task Parameters_SurviveQuotes()
     {
-        await PostgresTestDb.MigrateAsync();
+        await PrepareAsync();
         await using var unit = await PostgresTestDb.NewUnitFactory().CreateAsync(UnitOfWorkMode.Write, CancellationToken.None);
         await unit.Connection.ExecuteAsync(CreateTable, transaction: unit.Transaction);
         await unit.CommitAsync(CancellationToken.None);

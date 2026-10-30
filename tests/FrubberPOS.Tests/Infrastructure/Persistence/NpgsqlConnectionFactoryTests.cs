@@ -1,5 +1,6 @@
 using FrubberPOS.Application.Persistence;
 using FrubberPOS.Infrastructure.Persistence;
+using FrubberPOS.Tests.TestInfrastructure;
 using Npgsql;
 
 namespace FrubberPOS.Tests.Infrastructure.Persistence;

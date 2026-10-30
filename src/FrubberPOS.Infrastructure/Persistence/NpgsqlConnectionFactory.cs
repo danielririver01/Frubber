@@ -26,7 +26,7 @@ public sealed class NpgsqlConnectionFactory : IDatabaseConnectionFactory
     {
         var builder = new NpgsqlConnectionStringBuilder(options.ConnectionString)
         {
-            MaximumPoolSize = 10,
+            MaxPoolSize = 10,
             Timeout = (options.BusyTimeoutMilliseconds + 999) / 1000,
         };
         var connectionString = builder.ConnectionString;
@@ -61,7 +61,7 @@ public sealed class NpgsqlConnectionFactory : IDatabaseConnectionFactory
         // and responsive by running a trivial query.
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT 1";
-        if ((long)command.ExecuteScalar()! != 1)
+        if (Convert.ToInt64(command.ExecuteScalar()) != 1)
         {
             throw new InvalidOperationException("La conexión PostgreSQL no respondió a la prueba de vida.");
         }

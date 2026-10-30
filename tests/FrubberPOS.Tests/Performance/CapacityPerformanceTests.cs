@@ -18,7 +18,7 @@ namespace FrubberPOS.Tests.Performance;
 /// Every query reports its elapsed time so the run log records it against
 /// the current hardware; assertions use the SRS limits.
 /// </summary>
-public sealed class CapacityPerformanceTests : IAsyncDisposable
+public sealed class CapacityPerformanceTests : IAsyncLifetime
 {
     private static readonly TimeSpan SearchLimit = TimeSpan.FromSeconds(1);       // RNF-REN-003/004
     private static readonly TimeSpan SaleLimit = TimeSpan.FromSeconds(2);         // RNF-REN-005
@@ -31,10 +31,16 @@ public sealed class CapacityPerformanceTests : IAsyncDisposable
         this.output = output;
     }
 
-    public ValueTask DisposeAsync()
+    // JHO-113: cada prueba de volumen siembra a mano User/CashSession con id 1
+    // y 5.000 productos; sin limpieza previa la segunda heredaba esas filas y
+    // moría con «llave duplicada». System.IAsyncDisposable no lo resolvía:
+    // xUnit v2 no lo invoca en las clases de prueba.
+    public Task InitializeAsync() => PostgresTestDb.CleanAllAsync();
+
+    public Task DisposeAsync()
     {
         NpgsqlConnection.ClearAllPools();
-        return ValueTask.CompletedTask;
+        return Task.CompletedTask;
     }
 
     private async Task<ProductTestBed> VolumeBedAsync()

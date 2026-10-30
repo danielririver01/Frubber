@@ -3,6 +3,7 @@ using FrubberPOS.Application.Cash;
 using FrubberPOS.Application.Persistence;
 using FrubberPOS.Application.Products;
 using FrubberPOS.Application.Sales;
+using FrubberPOS.Desktop.ViewModels;
 using FrubberPOS.Desktop.Views;
 using FrubberPOS.Tests.Cash;
 using FrubberPOS.Tests.Products;
@@ -43,9 +44,17 @@ public sealed class ViewPreviewTests
 
     private static async Task InsertSaleAsync(CashTestBed bed)
     {
+        // JHO-113: CashTestBed solo siembra usuarios; sin caja abierta esta
+        // consulta no encontraba ninguna fila y la prueba moría con
+        // "Sequence contains no elements".
         await using var unit = await bed.Units.CreateAsync(UnitOfWorkMode.WriteImmediate, CancellationToken.None);
+        await unit.Connection.ExecuteAsync(
+            "INSERT INTO CashSession (OpenedAtUtcMs, OpenedAtOffsetMinutes, OpenedByUserId, OpenedByNameSnapshot, OpeningBalanceCop)"
+            + " VALUES (1790000000000, -300, 1, 'Admin', 0);",
+            transaction: unit.Transaction);
         var sessionId = await unit.Connection.QuerySingleAsync<int>(
-            "SELECT CashSessionId FROM CashSession WHERE ClosedAtUtcMs IS NULL;");
+            "SELECT CashSessionId FROM CashSession WHERE ClosedAtUtcMs IS NULL;",
+            transaction: unit.Transaction);
         await unit.Connection.ExecuteAsync(
             "INSERT INTO Sale (SaleNumber, CashSessionId, CashierUserId, CashierNameSnapshot,"
             + " SoldAtUtcMs, SoldAtOffsetMinutes, SubtotalCop, DiscountCop, TotalCop,"

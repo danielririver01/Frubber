@@ -1,8 +1,10 @@
 using Dapper;
 using FrubberPOS.Application.Cash;
 using FrubberPOS.Application.Common;
+using FrubberPOS.Application.Persistence;
 using FrubberPOS.Tests.TestInfrastructure;
 using Npgsql;
+using FrubberPOS.Infrastructure.Persistence;
 
 namespace FrubberPOS.Tests.Cash;
 

@@ -2,9 +2,11 @@ using Dapper;
 using FrubberPOS.Application.Authentication;
 using FrubberPOS.Application.Cash;
 using FrubberPOS.Application.Common;
+using FrubberPOS.Application.Persistence;
 using FrubberPOS.Tests.TestDoubles;
 using FrubberPOS.Tests.TestInfrastructure;
 using Npgsql;
+using FrubberPOS.Infrastructure.Persistence;
 
 namespace FrubberPOS.Tests.Cash;
 
@@ -71,9 +73,9 @@ public sealed class CashConcurrencyTests
         var open = new OpenCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock, bed.Gate);
         var opened = await open.ExecuteAsync(new OpenCashSessionRequest(100_000), CancellationToken.None);
 
-        await SeedAsync(bed.Units, opened.Value.CashSessionId, "CASH", 20_000, 1_000);
-        await SeedAsync(bed.Units, opened.Value.CashSessionId, "TRANSFER", 30_000, 0);
-        await SeedAsync(bed.Units, opened.Value.CashSessionId, "CASH", 5_000, 0);
+        await SeedAsync(bed.Units, 1, opened.Value.CashSessionId, "CASH", 20_000, 1_000);
+        await SeedAsync(bed.Units, 2, opened.Value.CashSessionId, "TRANSFER", 30_000, 0);
+        await SeedAsync(bed.Units, 3, opened.Value.CashSessionId, "CASH", 5_000, 0);
 
         // Anular la venta 3: el esquema lo permite solo si la caja sigue abierta.
         await using (var unit = await bed.Units.CreateAsync(UnitOfWorkMode.WriteImmediate, CancellationToken.None))

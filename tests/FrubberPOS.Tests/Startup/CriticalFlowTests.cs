@@ -103,7 +103,7 @@ public sealed class CriticalFlowTests
             var options = new DatabaseOptions(PostgresTestDb.ConnectionString);
             var backup = new CreateBackupUseCase(
                 new PostgresBackupService(options),
-                new PostgresBackupStatusService(options),
+                new PostgresBackupStatusService(options, Path.Combine(workDir, "logs")),
                 session, logger);
             var destination = Path.Combine(workDir, "respaldo.db");
             var backed = await backup.ExecuteAsync(new CreateBackupRequest(destination), ct);

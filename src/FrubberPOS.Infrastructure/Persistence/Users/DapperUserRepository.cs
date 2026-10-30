@@ -99,8 +99,8 @@ public sealed class DapperUserRepository : IUserRepository
         ArgumentNullException.ThrowIfNull(unit);
 
         const string sql = "INSERT INTO \"User\" (DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
-            + " VALUES (@Name, @Role, 1, @Salt, @Hash, @Iterations, @Version);"
-            + "SELECT UserId;";
+            + " VALUES (@Name, @Role, 1, @Salt, @Hash, @Iterations, @Version)"
+            + " RETURNING UserId;";
         return await unit.Connection.QuerySingleAsync<int>(
             sql,
             new

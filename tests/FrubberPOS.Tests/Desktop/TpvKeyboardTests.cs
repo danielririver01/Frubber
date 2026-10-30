@@ -13,6 +13,7 @@ using FrubberPOS.Desktop.ViewModels;
 using FrubberPOS.Desktop.Views;
 using FrubberPOS.Tests.Products;
 using FrubberPOS.Tests.TestDoubles;
+using FrubberPOS.Tests.TestInfrastructure;
 
 namespace FrubberPOS.Tests.Desktop;
 
@@ -482,7 +483,7 @@ public sealed class TpvKeyboardTests
                 var view = ShowView(window, vm);
                 PumpUntil(() => vm.Results.Count == 1, "OnLoaded carga el catálogo inicial");
 
-                CreateUnitProductAsync(bed, "P1", "Pan").GetAwaiter().GetResult();
+                StaViewHarness.Await(CreateUnitProductAsync(bed, "P1", "Pan"));
 
                 view.RaiseEvent(new RoutedEventArgs(FrameworkElement.LoadedEvent));
                 PumpUntil(() => vm.Results.Count == 2, "volver a Venta refresca los resultados");

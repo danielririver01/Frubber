@@ -4,6 +4,7 @@ using FrubberPOS.Application.Logging;
 using FrubberPOS.Desktop.ViewModels;
 using FrubberPOS.Infrastructure.Backup;
 using FrubberPOS.Infrastructure.Logging;
+using Dapper;
 using FrubberPOS.Tests.Products;
 using FrubberPOS.Tests.TestDoubles;
 using FrubberPOS.Tests.TestInfrastructure;
@@ -22,19 +23,25 @@ public sealed class BackupTests : IDisposable
 {
     private readonly string workDir = Path.Combine(Path.GetTempPath(), "FrubberPOS", Guid.NewGuid().ToString("N"));
 
+    // JHO-113: se cierra aquí y no solo al final de cada prueba: si una
+    // aserción falla antes, el logger seguía con el archivo abierto y
+    // Directory.Delete lanzaba "archivo en uso", tapando el fallo real.
+    private IAppLogger? logger;
+
     private (CreateBackupUseCase useCase, GetBackupOverviewUseCase overview, IAppLogger logger) BuildBed(
         ProductTestBed bed, FakeCurrentSession? session = null)
     {
         Directory.CreateDirectory(workDir);
-        var logger = SerilogLoggerFactory.Create(new LoggingOptions(Path.Combine(workDir, "logs")));
+        var created = SerilogLoggerFactory.Create(new LoggingOptions(Path.Combine(workDir, "logs")));
+        logger = created;
         var options = new FrubberPOS.Application.Persistence.DatabaseOptions(PostgresTestDb.ConnectionString);
         var service = new PostgresBackupService(options);
-        var status = new PostgresBackupStatusService(options);
+        var status = new PostgresBackupStatusService(options, Path.Combine(workDir, "logs"));
         var current = session ?? ProductTestBed.AdminSession();
         return (
-            new CreateBackupUseCase(service, status, current, logger),
+            new CreateBackupUseCase(service, status, current, created),
             new GetBackupOverviewUseCase(status, current),
-            logger);
+            created);
     }
 
     private string Destination(string name = "respaldo.db") => Path.Combine(workDir, name);
@@ -212,6 +219,9 @@ public sealed class BackupTests : IDisposable
 
     public void Dispose()
     {
+        logger?.Dispose();
+        logger = null;
+
         if (Directory.Exists(workDir))
         {
             Directory.Delete(workDir, recursive: true);

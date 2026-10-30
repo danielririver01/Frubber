@@ -7,6 +7,7 @@ using FrubberPOS.Tests.Products;
 using FrubberPOS.Tests.TestDoubles;
 using FrubberPOS.Tests.TestInfrastructure;
 using Npgsql;
+using FrubberPOS.Infrastructure.Persistence;
 
 namespace FrubberPOS.Tests.Sales;
 

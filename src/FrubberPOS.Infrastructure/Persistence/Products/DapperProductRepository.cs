@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using Dapper;
 using FrubberPOS.Application.Persistence;
 using FrubberPOS.Application.Products;
@@ -53,9 +53,11 @@ public sealed class DapperProductRepository : IProductRepository
     {
         ArgumentNullException.ThrowIfNull(unit);
 
-        // JHO-87: numeric PLUs only — CAST turns 'ABC'/'M1' into 0, so an
-        // alphanumeric PLU never raises the suggestion past the true max.
-        const string sql = "SELECT COALESCE(MAX(CAST(Plu AS INTEGER)), 0) + 1 FROM Product;";
+        // JHO-87: numeric PLUs only — a non-numeric PLU ("ABC", "M1") must not
+        // raise the suggestion past the true max. JHO-113: PostgreSQL has no
+        // forgiving CAST, so the filter is explicit (in SQLite CAST('ABC' AS
+        // INTEGER) silently returned 0; in PostgreSQL it raised 22P02).
+        const string sql = "SELECT COALESCE(MAX(CASE WHEN Plu ~ '^[0-9]+$' THEN CAST(Plu AS BIGINT) END), 0) + 1 FROM Product;";
         var next = await unit.Connection.QuerySingleAsync<long>(sql, transaction: unit.Transaction);
         return next.ToString(CultureInfo.InvariantCulture);
     }
@@ -101,8 +103,8 @@ public sealed class DapperProductRepository : IProductRepository
         ArgumentNullException.ThrowIfNull(unit);
 
         const string sql = "INSERT INTO Product (Plu, Name, Unit, PriceCop, StockMilli, IsActive, UnitLocked)"
-            + " VALUES (@Plu, @Name, @Unit, @PriceCop, @StockMilli, 1, @UnitLocked);"
-            + "SELECT ProductId;";
+            + " VALUES (@Plu, @Name, @Unit, @PriceCop, @StockMilli, 1, @UnitLocked)"
+            + " RETURNING ProductId;";
         return await unit.Connection.QuerySingleAsync<int>(
             sql,
             new
@@ -202,3 +204,4 @@ public sealed class DapperProductRepository : IProductRepository
         public int HasSalesHistory { get; set; }
     }
 }
+

@@ -1,6 +1,7 @@
 using Dapper;
 using FrubberPOS.Application.Cash;
 using FrubberPOS.Application.Common;
+using FrubberPOS.Application.Persistence;
 using FrubberPOS.Application.Products;
 using FrubberPOS.Application.Sales;
 using FrubberPOS.Domain.Products;

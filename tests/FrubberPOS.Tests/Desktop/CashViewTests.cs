@@ -53,7 +53,7 @@ public sealed class CashViewTests
                 var view = ShowView(window, vm);
                 PumpUntil(() => vm.SaleCountText == "0 ventas", "OnLoaded carga el estado inicial de la caja");
 
-                InsertCashSaleAsync(bed.Units, amountCop: 8_400).GetAwaiter().GetResult();
+                StaViewHarness.Await(InsertCashSaleAsync(bed.Units, amountCop: 8_400));
 
                 view.RaiseEvent(new RoutedEventArgs(FrameworkElement.LoadedEvent));
                 PumpUntil(() => vm.SaleCountText == "1 ventas", "volver a Caja refresca la venta registrada (JHO-84)");

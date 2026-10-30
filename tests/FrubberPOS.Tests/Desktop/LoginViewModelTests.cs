@@ -5,6 +5,7 @@ using FrubberPOS.Application.Trial;
 using FrubberPOS.Desktop.ViewModels;
 using FrubberPOS.Tests.Authentication;
 using FrubberPOS.Tests.TestDoubles;
+using FrubberPOS.Tests.TestInfrastructure;
 
 namespace FrubberPOS.Tests.Desktop;
 

@@ -13,13 +13,17 @@ namespace FrubberPOS.Tests.Infrastructure.Schema;
 /// immutability triggers must reject bad writes even when no use case
 /// stands in front. Each test cleans the database afterwards.
 /// </summary>
-public sealed class NpgsqlSchemaEnforcementTests : IAsyncDisposable
+/// <remarks>
+/// JHO-113: limpieza vía <see cref="IAsyncLifetime"/>. La clase implementaba
+/// <c>System.IAsyncDisposable</c>, que xUnit v2 no invoca en las clases de
+/// prueba: cada test heredaba las filas del anterior y moría con
+/// «llave duplicada».
+/// </remarks>
+public sealed class NpgsqlSchemaEnforcementTests : IAsyncLifetime
 {
-    public async ValueTask DisposeAsync()
-    {
-        await PostgresTestDb.CleanAllAsync();
-        await Task.CompletedTask;
-    }
+    public Task InitializeAsync() => PostgresTestDb.CleanAllAsync();
+
+    public Task DisposeAsync() => PostgresTestDb.CleanAllAsync();
 
     private static async Task<NpgsqlConnection> FreshDbAsync()
     {
@@ -85,10 +89,13 @@ public sealed class NpgsqlSchemaEnforcementTests : IAsyncDisposable
         await SeedProductAsync(db, 1, "M1");
 
         // UX_Product_Plu_NoCase respalda la unicidad (RN-PRO-003).
-        var ex = await Assert.ThrowsAnyAsync<Exception>(() => db.ExecuteAsync(
+        // JHO-113: se comprueba el SQLSTATE y no el texto: el servidor puede
+        // responder en español ("llave duplicada viola restricción de unicidad")
+        // y la traducción depende del locale de la máquina.
+        var ex = await Assert.ThrowsAnyAsync<PostgresException>(() => db.ExecuteAsync(
             "INSERT INTO Product (Plu, Name, Unit, PriceCop, StockMilli, IsActive, UnitLocked)"
             + " VALUES ('M1', 'Otro', 'KG', 1000, 0, 1, 0);"));
-        Assert.Contains("unique", ex.Message.ToLowerInvariant());
+        Assert.Equal(PostgresErrorCodes.UniqueViolation, ex.SqlState);
 
         // Y un PLU en minúsculas ni siquiera pasa el CHECK de normalización (RN-PRO-002).
         await Assert.ThrowsAnyAsync<Exception>(() => db.ExecuteAsync(
@@ -104,8 +111,8 @@ public sealed class NpgsqlSchemaEnforcementTests : IAsyncDisposable
         await SeedOpenCashAsync(db, 1);
 
         // UX_CashSession_OnlyOneOpen: la segunda caja abierta no cabe (RN-CAJ-001).
-        var ex = await Assert.ThrowsAnyAsync<Exception>(() => SeedOpenCashAsync(db, 2));
-        Assert.Contains("unique", ex.Message.ToLowerInvariant());
+        var ex = await Assert.ThrowsAnyAsync<PostgresException>(() => SeedOpenCashAsync(db, 2));
+        Assert.Equal(PostgresErrorCodes.UniqueViolation, ex.SqlState);
     }
 
     [Fact]
@@ -167,10 +174,19 @@ public sealed class NpgsqlSchemaEnforcementTests : IAsyncDisposable
             + " VALUES (1, 5, 0, 1, 'Usuario 1');"));
         Assert.Contains("caja abierta", closed.Message);
 
-        // Reabrimos para probar inmutabilidad del void.
+        // Reabrimos con una caja nueva y una venta nueva: una caja cerrada es
+        // inmutable (no se puede reabrir) y la venta 1 sigue atada a esa caja
+        // cerrada, así que hay que crear la pareja venta+caja abierta para tener
+        // algo anulable con lo que probar la inmutabilidad del void.
+        // (JHO-113: el porteo creaba la caja 2 pero anulaba la venta 2, que nunca
+        // se insertó; el disparador rechazaba la anulación por "caja abierta".)
         await db.ExecuteAsync(
             "INSERT INTO CashSession (CashSessionId, OpenedAtUtcMs, OpenedAtOffsetMinutes, OpenedByUserId, OpenedByNameSnapshot, OpeningBalanceCop)"
             + " VALUES (2, 1, 0, 1, 'Admin', 0);");
+        await db.ExecuteAsync(
+            "INSERT INTO Sale (SaleId, SaleNumber, CashSessionId, CashierUserId, CashierNameSnapshot,"
+            + " SoldAtUtcMs, SoldAtOffsetMinutes, SubtotalCop, DiscountCop, TotalCop, PaymentMethod, ReceivedCop, ChangeCop)"
+            + " VALUES (2, 2, 2, 1, 'Admin', 8, 0, 1000, 0, 1000, 'CASH', 1000, 0);");
         await db.ExecuteAsync(
             "INSERT INTO SaleVoid (SaleId, VoidedAtUtcMs, VoidedAtOffsetMinutes, AdminUserId, AdminNameSnapshot)"
             + " VALUES (2, 6, 0, 1, 'Admin');");

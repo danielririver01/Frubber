@@ -7,6 +7,9 @@ using FrubberPOS.Infrastructure.Persistence.Business;
 using FrubberPOS.Infrastructure.Persistence.Cash;
 using FrubberPOS.Infrastructure.Persistence.Products;
 using FrubberPOS.Infrastructure.Persistence.Sales;
+using FrubberPOS.Infrastructure.Persistence.Trial;
+using FrubberPOS.Infrastructure.Persistence.Users;
+using FrubberPOS.Infrastructure.Security;
 using FrubberPOS.Tests.TestDoubles;
 using FrubberPOS.Tests.TestInfrastructure;
 using Npgsql;
@@ -52,6 +55,18 @@ internal sealed class ProductTestBed : IAsyncDisposable
     public DapperBusinessSettingRepository Settings { get; }
 
     public FrubberPOS.Infrastructure.Persistence.Scale.DapperScaleSettingRepository ScaleSettings { get; } = new();
+
+    /// <summary>Usuarios (repositorio real) para pruebas de autenticación/primer inicio.</summary>
+    public DapperUserRepository Users { get; } = new();
+
+    /// <summary>Hasher de PIN real (PBKDF2) para pruebas de primer inicio/login.</summary>
+    public Pbkdf2PinHasher Hasher { get; } = new();
+
+    /// <summary>Estado de la prueba de 30 días (repositorio real).</summary>
+    public DapperTrialRepository Trial { get; } = new();
+
+    /// <summary>Sesión vacía actual (no autenticado) para pruebas de login.</summary>
+    public FakeCurrentSession Session { get; } = new();
 
     public FakeClock Clock { get; }
 

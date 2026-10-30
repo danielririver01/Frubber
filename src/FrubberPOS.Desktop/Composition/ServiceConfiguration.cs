@@ -78,7 +78,9 @@ public static class ServiceConfiguration
         services.AddSingleton<ITicketPrinter, WindowsTicketPrinter>();
         services.AddSingleton<ICurrentSession, CurrentSession>();
         services.AddSingleton<IBackupService, PostgresBackupService>();
-        services.AddSingleton<IBackupStatusService, PostgresBackupStatusService>();
+        services.AddSingleton<IBackupStatusService>(sp =>
+            new PostgresBackupStatusService(
+                sp.GetRequiredService<DatabaseOptions>(), paths.LogDirectory));
         services.AddTransient<AuthenticateUserUseCase>();
         services.AddTransient<ListActiveUsersUseCase>();
         services.AddTransient<SignOutUseCase>();
