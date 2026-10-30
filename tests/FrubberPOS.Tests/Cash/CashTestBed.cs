@@ -53,6 +53,11 @@ internal sealed class CashTestBed : IAsyncDisposable
     {
         await PostgresTestDb.MigrateAsync();
 
+        // JHO-113: limpieza defensiva al crear. Si la corrida anterior murió
+        // a mitad, DisposeAsync nunca se ejecutó y la base queda sucia; sin
+        // esto los fallos se propagan en cascada a las clases siguientes.
+        await PostgresTestDb.CleanAllAsync();
+
         var units = PostgresTestDb.NewUnitFactory();
         var bed = new CashTestBed(new DapperCashSessionRepository(), new FakeCurrentSession(), units);
 

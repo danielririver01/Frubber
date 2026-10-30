@@ -35,7 +35,13 @@ public sealed class CapacityPerformanceTests : IAsyncLifetime
     // y 5.000 productos; sin limpieza previa la segunda heredaba esas filas y
     // moría con «llave duplicada». System.IAsyncDisposable no lo resolvía:
     // xUnit v2 no lo invoca en las clases de prueba.
-    public Task InitializeAsync() => PostgresTestDb.CleanAllAsync();
+    // JHO-113: migrar antes de limpiar (ver NpgsqlSchemaEnforcementTests):
+    // la limpieza trunca tablas que deben existir.
+    public async Task InitializeAsync()
+    {
+        await PostgresTestDb.MigrateAsync();
+        await PostgresTestDb.CleanAllAsync();
+    }
 
     public Task DisposeAsync()
     {

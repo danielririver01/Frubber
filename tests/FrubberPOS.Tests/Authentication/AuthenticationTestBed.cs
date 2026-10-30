@@ -57,6 +57,9 @@ internal sealed class AuthenticationTestBed : IAsyncDisposable
     {
         await PostgresTestDb.MigrateAsync();
 
+        // JHO-113: limpieza defensiva al crear (ver ProductTestBed.CreateAsync).
+        await PostgresTestDb.CleanAllAsync();
+
         var hasher = new Pbkdf2PinHasher();
         var units = PostgresTestDb.NewUnitFactory();
         var bed = new AuthenticationTestBed(hasher, new DapperUserRepository(), new FakeCurrentSession(), units);

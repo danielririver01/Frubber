@@ -21,7 +21,6 @@ public sealed class NpgsqlUnitOfWorkTests
     /// </summary>
     private static async Task PrepareAsync()
     {
-        await PrepareAsync();
         await using var connection = PostgresTestDb.NewConnection();
         await connection.OpenAsync();
         await connection.ExecuteAsync("DROP TABLE IF EXISTS T_UOW;");

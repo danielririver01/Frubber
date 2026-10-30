@@ -24,10 +24,10 @@ public sealed record BackupOverview(
 public sealed record GetBackupOverviewRequest;
 
 /// <summary>
-/// SQLite online-backup port (JHO-53, ADR-013): copies the live database
-/// with the SQLite Backup API into a temporary file next to the target
-/// and publishes it with an atomic rename. The source database is never
-/// written to; a failed run leaves no partial destination.
+/// PostgreSQL backup port (JHO-53, ADR-013): dumps the live database with
+/// <c>pg_dump</c> into a temporary file next to the target and publishes it
+/// with an atomic rename. The source database is never written to; a failed
+/// run leaves no partial destination.
 /// </summary>
 public interface IBackupService
 {
@@ -48,7 +48,7 @@ public interface IBackupStatusService
 /// <summary>
 /// Manual backup (JHO-53, P-UX §16): administrator-only; the destination
 /// comes from the standard Windows dialog, the media write happens with
-/// the SQLite Backup API and the final publish is an atomic rename.
+/// <c>pg_dump</c> and the final publish is an atomic rename.
 /// Success names the file and location; failure states that the original
 /// database was not altered plus a diagnostic reference (log id).
 /// No restore exists in the product.

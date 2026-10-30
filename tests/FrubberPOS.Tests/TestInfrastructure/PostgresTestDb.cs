@@ -95,17 +95,11 @@ public static class PostgresTestDb
             await create.ExecuteNonQueryAsync(cancellationToken);
         }
 
-        await using (var check = connection.CreateCommand())
-        {
-            check.CommandText =
-                "SELECT COUNT(*) FROM pg_trigger WHERE tgname = 'frubber_sync_identity' AND NOT tgisinternal;";
-            var installed = Convert.ToInt32(await check.ExecuteScalarAsync(cancellationToken));
-            if (installed >= 5)
-            {
-                return;
-            }
-        }
-
+        // JHO-113: el bloque descubre las columnas identity en el catálogo y
+        // hace DROP IF EXISTS + CREATE por tabla, así que es idempotente y se
+        // reejecuta en cada migración. Antes se saltaba con un umbral fijo
+        // (>= 5 disparadores): al añadir una tabla con identidad el umbral
+        // daba por buena la instalación y la nueva tabla quedaba sin cubrir.
         await using (var triggers = connection.CreateCommand())
         {
             triggers.CommandText = IdentitySyncTriggerSql;

@@ -93,6 +93,12 @@ internal sealed class ProductTestBed : IAsyncDisposable
     {
         await PostgresTestDb.MigrateAsync();
 
+        // JHO-113: la suite comparte una única base y la limpieza de
+        // DisposeAsync no se ejecuta si la corrida anterior murió a mitad
+        // (crash del host de pruebas), así que se limpia también al crear.
+        // Es idempotente: la base queda con las filas iniciales sembradas.
+        await PostgresTestDb.CleanAllAsync();
+
         var units = PostgresTestDb.NewUnitFactory();
         return new ProductTestBed(
             new DapperProductRepository(), new DapperCashSessionRepository(), new DapperSaleRepository(),
