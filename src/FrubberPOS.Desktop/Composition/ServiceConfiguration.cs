@@ -56,10 +56,10 @@ public static class ServiceConfiguration
         services.AddSingleton<IFileSystem, LocalFileSystem>();
         services.AddSingleton<IAppLogger>(_ => SerilogLoggerFactory.Create(new LoggingOptions(paths.LogDirectory)));
         services.AddSingleton<IDatabaseConnectionFactory>(provider =>
-            new SqliteConnectionFactory(new DatabaseOptions(provider.GetRequiredService<IAppPaths>().DatabaseFilePath)));
-        services.AddSingleton(sp => new DatabaseOptions(sp.GetRequiredService<IAppPaths>().DatabaseFilePath));
+            new NpgsqlConnectionFactory(new DatabaseOptions(provider.GetRequiredService<IAppPaths>().DatabaseConnectionString)));
+        services.AddSingleton(sp => new DatabaseOptions(sp.GetRequiredService<IAppPaths>().DatabaseConnectionString));
         services.AddSingleton<MigrationRunner>();
-        services.AddSingleton<IUnitOfWorkFactory, SqliteUnitOfWorkFactory>();
+        services.AddSingleton<IUnitOfWorkFactory, NpgsqlUnitOfWorkFactory>();
         services.AddSingleton<IPinHasher, Pbkdf2PinHasher>();
         services.AddSingleton<IUserRepository, DapperUserRepository>();
         services.AddSingleton<IMachineCodeProvider, WindowsMachineCodeProvider>();
@@ -77,8 +77,8 @@ public static class ServiceConfiguration
         services.AddSingleton<IScaleReader, SerialPortScaleReader>();
         services.AddSingleton<ITicketPrinter, WindowsTicketPrinter>();
         services.AddSingleton<ICurrentSession, CurrentSession>();
-        services.AddSingleton<IBackupService, SqliteBackupService>();
-        services.AddSingleton<IBackupStatusService, SqliteBackupStatusService>();
+        services.AddSingleton<IBackupService, PostgresBackupService>();
+        services.AddSingleton<IBackupStatusService, PostgresBackupStatusService>();
         services.AddTransient<AuthenticateUserUseCase>();
         services.AddTransient<ListActiveUsersUseCase>();
         services.AddTransient<SignOutUseCase>();

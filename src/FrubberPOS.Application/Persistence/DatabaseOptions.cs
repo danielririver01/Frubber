@@ -1,18 +1,18 @@
 namespace FrubberPOS.Application.Persistence;
 
 /// <summary>
-/// File database configuration. The file path is supplied by the caller
-/// (a stable Windows path); in production it is
-/// <c>%ProgramData%\FrubberPOS\frubberpos.db</c> and resolving that
-/// well-known path belongs to JHO-22.
+/// Database configuration for PostgreSQL. The connection string is supplied
+/// by the caller (production reads <c>FRUBBERPOS_CONNECTION_STRING</c>);
+/// <see cref="busyTimeoutMilliseconds"/> maps to <c>lock_timeout</c> on the
+/// server side so a contended sale fails fast instead of waiting forever.
 /// </summary>
 public sealed record DatabaseOptions
 {
-    public DatabaseOptions(string databaseFilePath, int busyTimeoutMilliseconds = 5000)
+    public DatabaseOptions(string connectionString, int busyTimeoutMilliseconds = 5000)
     {
-        if (string.IsNullOrWhiteSpace(databaseFilePath))
+        if (string.IsNullOrWhiteSpace(connectionString))
         {
-            throw new ArgumentException("La ruta del archivo de base de datos no puede estar vacía.", nameof(databaseFilePath));
+            throw new ArgumentException("La cadena de conexión no puede estar vacía.", nameof(connectionString));
         }
 
         if (busyTimeoutMilliseconds < 0)
@@ -20,11 +20,11 @@ public sealed record DatabaseOptions
             throw new ArgumentOutOfRangeException(nameof(busyTimeoutMilliseconds), "El timeout no puede ser negativo.");
         }
 
-        DatabaseFilePath = databaseFilePath;
+        ConnectionString = connectionString;
         BusyTimeoutMilliseconds = busyTimeoutMilliseconds;
     }
 
-    public string DatabaseFilePath { get; }
+    public string ConnectionString { get; }
 
     public int BusyTimeoutMilliseconds { get; }
 }

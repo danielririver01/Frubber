@@ -1,11 +1,12 @@
 using FrubberPOS.Application.Persistence;
 using FrubberPOS.Application.Startup;
-using FrubberPOS.Desktop.ViewModels;using FrubberPOS.Infrastructure.Migrations;
+using FrubberPOS.Desktop.ViewModels;
+using FrubberPOS.Infrastructure.Migrations;
 using FrubberPOS.Infrastructure.Persistence;
 using FrubberPOS.Infrastructure.Persistence.Users;
 using FrubberPOS.Infrastructure.Security;
 using FrubberPOS.Tests.TestDoubles;
-using Microsoft.Data.Sqlite;
+using FrubberPOS.Tests.TestInfrastructure;
 
 namespace FrubberPOS.Tests.Desktop;
 
@@ -67,42 +68,20 @@ public sealed class FirstStartViewModelTests
         new(
             new DapperUserRepository(),
             new Pbkdf2PinHasher(),
-            new SqliteUnitOfWorkFactory(
-                new SqliteConnectionFactory(
-                    new DatabaseOptions(Path.Combine(Path.GetTempPath(), "FrubberPOS", Guid.NewGuid().ToString("N") + ".db")))));
+            PostgresTestDb.NewUnitFactory());
 
-    private sealed record Db(DapperUserRepository Users, Pbkdf2PinHasher Hasher, SqliteUnitOfWorkFactory Units, string Path)
+    private sealed record Db(DapperUserRepository Users, Pbkdf2PinHasher Hasher, NpgsqlUnitOfWorkFactory Units)
     {
         public async ValueTask DisposeAsync()
         {
-            SqliteConnection.ClearPool(new SqliteConnection($"Data Source={Path}"));
-            if (File.Exists(Path))
-            {
-                File.Delete(Path);
-            }
-
-            foreach (var journal in new[] { Path + "-wal", Path + "-shm", Path + "-journal" })
-            {
-                if (File.Exists(journal))
-                {
-                    File.Delete(journal);
-                }
-            }
-
+            await PostgresTestDb.CleanAllAsync();
             await Task.CompletedTask;
         }
     }
 
     private static async Task<Db> CreateDbAsync()
     {
-        var path = Path.Combine(Path.GetTempPath(), "FrubberPOS", Guid.NewGuid().ToString("N") + ".db");
-        var migrated = await new MigrationRunner().MigrateAsync($"Data Source={path}", CancellationToken.None);
-        if (!migrated.IsSuccess)
-        {
-            throw new InvalidOperationException("No se pudo migrar la base de prueba.");
-        }
-
-        var units = new SqliteUnitOfWorkFactory(new SqliteConnectionFactory(new DatabaseOptions(path)));
-        return new Db(new DapperUserRepository(), new Pbkdf2PinHasher(), units, path);
+        await PostgresTestDb.MigrateAsync();
+        return new Db(new DapperUserRepository(), new Pbkdf2PinHasher(), PostgresTestDb.NewUnitFactory());
     }
 }

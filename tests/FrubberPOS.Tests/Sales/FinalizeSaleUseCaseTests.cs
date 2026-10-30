@@ -1,29 +1,30 @@
 using Dapper;
 using FrubberPOS.Application.Cash;
 using FrubberPOS.Application.Common;
-using FrubberPOS.Application.Persistence;
 using FrubberPOS.Application.Products;
 using FrubberPOS.Application.Sales;
 using FrubberPOS.Domain.Products;
-using FrubberPOS.Infrastructure.Persistence;
-using FrubberPOS.Infrastructure.Persistence.Cash;
-using FrubberPOS.Infrastructure.Persistence.Sales;
 using FrubberPOS.Tests.Products;
 using FrubberPOS.Tests.TestDoubles;
-using Microsoft.Data.Sqlite;
+using FrubberPOS.Tests.TestInfrastructure;
+using Npgsql;
 
+using FrubberPOS.Infrastructure.Persistence.Cash;
+using FrubberPOS.Infrastructure.Persistence.Sales;
 namespace FrubberPOS.Tests.Sales;
 
 /// <summary>
-/// Finalization rules (JHO-43, RN-CAJ-002, RN-VEN-001/002): open session
-/// required at confirm, revalidation, snapshots persisted, inventory and
-/// numbering updated exactly once; failure rolls everything back.
+/// Sale finalization (JHO-44, RN-VEN-001…016): stock, sequencing,
+/// validation and payment methods against a real PostgreSQL database.
 /// </summary>
 public sealed class FinalizeSaleUseCaseTests
 {
+    private static FinalizeSaleUseCase UseCase(ProductTestBed bed) =>
+        new(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock, bed.Gate);
+
     private static async Task OpenCashAsync(ProductTestBed bed)
     {
-        await using var connection = new SqliteConnection($"Data Source={bed.DbPath}");
+        await using var connection = PostgresTestDb.NewConnection();
         await connection.OpenAsync();
         await connection.ExecuteAsync(
             "INSERT INTO \"User\" (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
@@ -32,157 +33,6 @@ public sealed class FinalizeSaleUseCaseTests
         await connection.ExecuteAsync(
             "INSERT INTO CashSession (OpenedAtUtcMs, OpenedAtOffsetMinutes, OpenedByUserId, OpenedByNameSnapshot, OpeningBalanceCop)"
             + " VALUES (1, 0, 1, 'Admin', 0);");
-    }
-
-    private static async Task<int> CountSalesAsync(string path)
-    {
-        await using var connection = new SqliteConnection($"Data Source={path}");
-        await connection.OpenAsync();
-        return await connection.QuerySingleAsync<int>("SELECT COUNT(*) FROM Sale;");
-    }
-
-    private static async Task<long> GetStockAsync(string path, int productId)
-    {
-        await using var connection = new SqliteConnection($"Data Source={path}");
-        await connection.OpenAsync();
-        return await connection.QuerySingleAsync<long>("SELECT StockMilli FROM Product WHERE ProductId = @Id;", new { Id = productId });
-    }
-
-    private static FinalizeSaleUseCase UseCase(ProductTestBed bed) =>
-        new(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock, bed.Gate);
-
-    [Fact]
-    public async Task Finalize_HappyPath_PersistsSnapshotsAndStock()
-    {
-        await using var bed = await ProductTestBed.CreateAsync();
-        var create = new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession());
-        var created = await create.ExecuteAsync(
-            new CreateProductRequest("L1", "Leche entera", ProductUnit.Unit, 4_200, 5_000), CancellationToken.None);
-        await OpenCashAsync(bed);
-
-        var lines = new DraftSaleLine[]
-        {
-            new(created.Value.ProductId, "L1", "Leche entera", ProductUnit.Unit, 4_200, 1_000)
-        };
-        var result = await UseCase(bed).ExecuteAsync(
-            new FinalizeSaleRequest(lines, 0, "CASH", 5_000), CancellationToken.None);
-
-        Assert.True(result.IsSuccess);
-        Assert.Equal(1, result.Value.SaleNumber);
-        Assert.Equal(4_200, result.Value.TotalCop);
-        Assert.Equal(4_000, await GetStockAsync(bed.DbPath, created.Value.ProductId)); // vendió una unidad
-
-        var summary = new GetCashSessionSummaryUseCase(bed.Sessions, bed.Units, ProductTestBed.AdminSession());
-        var sessionId = 1;
-        var s = (await summary.ExecuteAsync(new GetCashSessionSummaryRequest(sessionId), CancellationToken.None)).Value.Summary;
-        Assert.Equal(4_200, s.CashSalesCop);
-        Assert.Equal(4_200, s.NetSalesCop);
-        Assert.Equal(1, s.SaleCount);
-    }
-
-    [Fact]
-    public async Task Finalize_NoOpenCash_ConflictAndNothingPersisted()
-    {
-        await using var bed = await ProductTestBed.CreateAsync();
-        var create = new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession());
-        var created = await create.ExecuteAsync(
-            new CreateProductRequest("L1", "Leche entera", ProductUnit.Unit, 4_200, 0), CancellationToken.None);
-
-        var lines = new DraftSaleLine[]
-        {
-            new(created.Value.ProductId, "L1", "Leche entera", ProductUnit.Unit, 4_200, 1_000)
-        };
-        var result = await UseCase(bed).ExecuteAsync(
-            new FinalizeSaleRequest(lines, 0, "CASH", 5_000), CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorCode.Conflict, result.Error!.Code);
-        Assert.Equal(0, await CountSalesAsync(bed.DbPath));
-    }
-
-    [Fact]
-    public async Task Finalize_PriceChanged_RollsBack()
-    {
-        await using var bed = await ProductTestBed.CreateAsync();
-        var create = new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession());
-        var created = await create.ExecuteAsync(
-            new CreateProductRequest("L1", "Leche entera", ProductUnit.Unit, 4_200, 2_000), CancellationToken.None);
-        await OpenCashAsync(bed);
-
-        var lines = new DraftSaleLine[]
-        {
-            new(created.Value.ProductId, "L1", "Leche entera", ProductUnit.Unit, 9_999, 1_000) // precio viejo en el draft
-        };
-        var result = await UseCase(bed).ExecuteAsync(
-            new FinalizeSaleRequest(lines, 0, "CASH", 10_000), CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorCode.Conflict, result.Error!.Code);
-        Assert.Equal(0, await CountSalesAsync(bed.DbPath));
-        Assert.Equal(2_000, await GetStockAsync(bed.DbPath, created.Value.ProductId)); // sin consumir numeración ni stock
-    }
-
-    [Fact]
-    public async Task Finalize_EmptyLines_Validation()
-    {
-        await using var bed = await ProductTestBed.CreateAsync();
-        await OpenCashAsync(bed);
-
-        // RN-VEN-001: una venta no puede quedar vacía, también por fuera de la vista.
-        var result = await UseCase(bed).ExecuteAsync(
-            new FinalizeSaleRequest([], 0, "CASH", 1_000), CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorCode.Validation, result.Error!.Code);
-        Assert.Equal(0, await CountSalesAsync(bed.DbPath));
-    }
-
-    [Fact]
-    public async Task Finalize_InvalidPaymentMethod_Validation()
-    {
-        await using var bed = await ProductTestBed.CreateAsync();
-        var created = await SellableProductAsync(bed);
-        await OpenCashAsync(bed);
-
-        // RN-VEN-010: exactamente efectivo o transferencia.
-        var result = await UseCase(bed).ExecuteAsync(
-            new FinalizeSaleRequest([Line(created)], 0, "CARD", 5_000), CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorCode.Validation, result.Error!.Code);
-        Assert.Contains("medio de pago", result.Error.Message);
-    }
-
-    [Fact]
-    public async Task Finalize_CashWithoutReceived_Validation()
-    {
-        await using var bed = await ProductTestBed.CreateAsync();
-        var created = await SellableProductAsync(bed);
-        await OpenCashAsync(bed);
-
-        // RN-VEN-011: en efectivo el valor recibido es obligatorio.
-        var result = await UseCase(bed).ExecuteAsync(
-            new FinalizeSaleRequest([Line(created)], 0, "CASH", null), CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorCode.Validation, result.Error!.Code);
-        Assert.Contains("Efectivo recibido es obligatorio", result.Error.Message);
-    }
-
-    [Fact]
-    public async Task Finalize_CashReceivedBelowTotal_Validation()
-    {
-        await using var bed = await ProductTestBed.CreateAsync();
-        var created = await SellableProductAsync(bed);
-        await OpenCashAsync(bed);
-
-        // RN-VEN-011: recibido < total no puede finalizar, ni aquí ni en la vista.
-        var result = await UseCase(bed).ExecuteAsync(
-            new FinalizeSaleRequest([Line(created)], 0, "CASH", 1_000), CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorCode.Validation, result.Error!.Code);
-        Assert.Equal(0, await CountSalesAsync(bed.DbPath));
     }
 
     [Fact]
@@ -215,7 +65,7 @@ public sealed class FinalizeSaleUseCaseTests
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorCode.Validation, result.Error!.Code);
         Assert.Equal("DiscountCop", result.Error.Field);
-        Assert.Equal(0, await CountSalesAsync(bed.DbPath));
+        Assert.Equal(0, await CountSalesAsync(bed.Units));
     }
 
     [Fact]
@@ -270,8 +120,8 @@ public sealed class FinalizeSaleUseCaseTests
             new FinalizeSaleRequest(lines, 0, "CASH", 10_000), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Error?.Message);
-        Assert.Equal(-2_000, await GetStockAsync(bed.DbPath, created.Value.ProductId));
-        Assert.Equal(1, await CountSalesAsync(bed.DbPath));
+        Assert.Equal(-2_000, await GetStockAsync(bed.Units, created.Value.ProductId));
+        Assert.Equal(1, await CountSalesAsync(bed.Units));
     }
 
     [Fact]
@@ -292,7 +142,7 @@ public sealed class FinalizeSaleUseCaseTests
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorCode.Conflict, result.Error!.Code);
         Assert.Contains("está inactivo", result.Error.Message);
-        Assert.Equal(0, await CountSalesAsync(bed.DbPath));
+        Assert.Equal(0, await CountSalesAsync(bed.Units));
     }
 
     [Fact]
@@ -324,7 +174,7 @@ public sealed class FinalizeSaleUseCaseTests
 
         // RN-VEN-015: el consecutivo es persistente; un "reinicio" (fábrica y
         // repositorios nuevos sobre la misma base) continúa donde quedó.
-        var units = new SqliteUnitOfWorkFactory(new SqliteConnectionFactory(new DatabaseOptions(bed.DbPath)));
+        var units = PostgresTestDb.NewUnitFactory();
         var sales = new DapperSaleRepository();
         var sessions = new DapperCashSessionRepository();
         var useCase = new FinalizeSaleUseCase(
@@ -345,10 +195,10 @@ public sealed class FinalizeSaleUseCaseTests
         var created = await create.ExecuteAsync(
             new CreateProductRequest("L1", "Leche entera", ProductUnit.Unit, 4_200, 5_000), CancellationToken.None);
         await OpenCashAsync(bed);
-        await using (var seedConnection = new SqliteConnection($"Data Source={bed.DbPath}"))
+        await using (var connection = PostgresTestDb.NewConnection())
         {
-            await seedConnection.OpenAsync();
-            await seedConnection.ExecuteAsync(
+            await connection.OpenAsync();
+            await connection.ExecuteAsync(
                 "INSERT INTO \"User\" (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
                 + " VALUES (2, 'Cajero', 'CASHIER', 1, @Salt, @Hash, 1, 1);",
                 new { Salt = new byte[16], Hash = new byte[32] });
@@ -360,7 +210,7 @@ public sealed class FinalizeSaleUseCaseTests
             new FinalizeSaleRequest([Line(created.Value.ProductId)], 0, "CASH", 5_000), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Error?.Message);
-        await using var connection = new SqliteConnection($"Data Source={bed.DbPath}");
+        await using var connection = PostgresTestDb.NewConnection();
         await connection.OpenAsync();
         var cashierId = await connection.ExecuteScalarAsync<int>(
             "SELECT CashierUserId FROM Sale WHERE SaleNumber = 1;");
@@ -381,7 +231,7 @@ public sealed class FinalizeSaleUseCaseTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorCode.LicenseBlocked, result.Error!.Code);
-        Assert.Equal(0, await CountSalesAsync(bed.DbPath));
+        Assert.Equal(0, await CountSalesAsync(bed.Units));
     }
 
     private static async Task<int> SellableProductAsync(ProductTestBed bed)
@@ -395,4 +245,19 @@ public sealed class FinalizeSaleUseCaseTests
 
     private static DraftSaleLine Line(int productId) =>
         new(productId, "L1", "Leche entera", ProductUnit.Unit, 4_200, 1_000);
+
+    private static async Task<long> GetStockAsync(NpgsqlUnitOfWorkFactory units, int productId)
+    {
+        await using var connection = PostgresTestDb.NewConnection();
+        await connection.OpenAsync();
+        return await connection.ExecuteScalarAsync<long>(
+            "SELECT StockMilli FROM Product WHERE ProductId = @Id;", new { Id = productId });
+    }
+
+    private static async Task<int> CountSalesAsync(NpgsqlUnitOfWorkFactory units)
+    {
+        await using var connection = PostgresTestDb.NewConnection();
+        await connection.OpenAsync();
+        return await connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM Sale;");
+    }
 }

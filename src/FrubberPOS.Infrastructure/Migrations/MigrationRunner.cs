@@ -4,7 +4,7 @@ using FrubberPOS.Application.Persistence;
 using FrubberPOS.Application.System;
 using FrubberPOS.Infrastructure.Persistence;
 using FrubberPOS.Infrastructure.System;
-using Microsoft.Data.Sqlite;
+using Npgsql;
 
 namespace FrubberPOS.Infrastructure.Migrations;
 
@@ -15,14 +15,12 @@ namespace FrubberPOS.Infrastructure.Migrations;
 /// re-run over an updated database changes nothing.
 /// </summary>
 /// <remarks>
-/// Connection setup here is minimal (<c>foreign_keys = ON</c>, required by
-/// the scripts); JHO-21 centralizes connection creation and PRAGMAs and
+/// Connection setup is minimal; JHO-21 centralizes connection creation and
 /// this runner adopts it via <see cref="IDatabaseConnectionFactory"/>.
-/// The pre-migration consistent backup (ADR-008)
-/// is wired in JHO-53; until then the caller owns it. Timestamps come from
-/// <c>IClock</c> (JHO-22). Scripts
-/// must leave <c>SchemaMigration</c> existing: 001 creates it and it is
-/// never dropped, so the runner never creates it itself.
+/// The pre-migration consistent backup (ADR-008) is wired in JHO-53; until
+/// then the caller owns it. Timestamps come from <c>IClock</c> (JHO-22).
+/// Scripts must leave <c>SchemaMigration</c> existing: 001 creates it and
+/// it is never dropped, so the runner never creates it itself.
 /// </remarks>
 public sealed class MigrationRunner
 {
@@ -59,7 +57,7 @@ public sealed class MigrationRunner
         IDatabaseConnectionFactory factory;
         try
         {
-            factory = new SqliteConnectionFactory(new DatabaseOptions(new SqliteConnectionStringBuilder(connectionString).DataSource));
+            factory = new NpgsqlConnectionFactory(new DatabaseOptions(connectionString));
         }
         catch (Exception ex) when (ex is ArgumentException || ex is FormatException)
         {
@@ -70,13 +68,12 @@ public sealed class MigrationRunner
     }
 
     /// <summary>
-    /// Migrates the configured file database. Used at startup (JHO-29).
+    /// Migrates the configured database. Used at startup (JHO-29).
     /// </summary>
     public Task<Result<int>> MigrateAsync(DatabaseOptions options, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(options);
-        var connectionString = new SqliteConnectionStringBuilder { DataSource = options.DatabaseFilePath }.ConnectionString;
-        return MigrateAsync(connectionString, cancellationToken);
+        return MigrateAsync(options.ConnectionString, cancellationToken);
     }
 
     /// <returns>Number of migrations applied by this run (0 when updated).</returns>
@@ -138,7 +135,7 @@ public sealed class MigrationRunner
 
         await using (var exists = connection.CreateCommand())
         {
-            exists.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'SchemaMigration';";
+            exists.CommandText = "SELECT COUNT(*) FROM pg_tables WHERE tablename = 'SchemaMigration';";
             if ((long)(await exists.ExecuteScalarAsync(cancellationToken))! == 0)
             {
                 return applied;
@@ -176,18 +173,18 @@ public sealed class MigrationRunner
             await using (var record = connection.CreateCommand())
             {
                 record.Transaction = transaction;
-                record.CommandText = "INSERT INTO SchemaMigration (Version, ScriptName, Checksum, AppliedAtUtcMs) VALUES ($version, $name, $checksum, $appliedAt);";
-                AddParameter(record, "$version", migration.Version);
-                AddParameter(record, "$name", migration.ScriptName);
-                AddParameter(record, "$checksum", MigrationChecksum.Sha256Hex(migration.Sql));
-                AddParameter(record, "$appliedAt", clock.UtcNow.ToUnixTimeMilliseconds());
+                record.CommandText = "INSERT INTO SchemaMigration (Version, ScriptName, Checksum, AppliedAtUtcMs) VALUES (@version, @name, @checksum, @appliedAt);";
+                AddParameter(record, "@version", migration.Version);
+                AddParameter(record, "@name", migration.ScriptName);
+                AddParameter(record, "@checksum", MigrationChecksum.Sha256Hex(migration.Sql));
+                AddParameter(record, "@appliedAt", clock.UtcNow.ToUnixTimeMilliseconds());
                 await record.ExecuteNonQueryAsync(cancellationToken);
             }
 
             transaction.Commit();
             return Result<int>.Success(1);
         }
-        catch (Exception ex) when (ex is SqliteException || ex is InvalidOperationException)
+        catch (Exception ex) when (ex is NpgsqlException || ex is InvalidOperationException)
         {
             // Uncommitted transaction rolls back on dispose: the migration is
             // fully reverted and nothing is recorded. User-safe message only.
@@ -201,7 +198,7 @@ public sealed class MigrationRunner
     {
         var parameter = command.CreateParameter();
         parameter.ParameterName = name;
-        parameter.Value = value;
+        parameter.Value = value ?? DBNull.Value;
         command.Parameters.Add(parameter);
     }
 }

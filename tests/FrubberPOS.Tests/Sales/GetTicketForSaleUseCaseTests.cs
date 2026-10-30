@@ -5,7 +5,8 @@ using FrubberPOS.Application.Sales;
 using FrubberPOS.Domain.Products;
 using FrubberPOS.Tests.Products;
 using FrubberPOS.Tests.TestDoubles;
-using Microsoft.Data.Sqlite;
+using FrubberPOS.Tests.TestInfrastructure;
+using Npgsql;
 
 namespace FrubberPOS.Tests.Sales;
 
@@ -18,7 +19,7 @@ public sealed class GetTicketForSaleUseCaseTests
 {
     private static async Task SeedUserAndOpenCashAsync(ProductTestBed bed)
     {
-        await using var connection = new SqliteConnection($"Data Source={bed.DbPath}");
+        await using var connection = PostgresTestDb.NewConnection();
         await connection.OpenAsync();
         await connection.ExecuteAsync(
             "INSERT INTO \"User\" (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
@@ -99,13 +100,11 @@ public sealed class GetTicketForSaleUseCaseTests
         await SeedUserAndOpenCashAsync(bed);
         var productId = await SellMangoAsync(bed);
 
-        await using (var connection = new SqliteConnection($"Data Source={bed.DbPath}"))
-        {
-            await connection.OpenAsync();
-            await connection.ExecuteAsync(
-                "UPDATE Product SET Name = 'Mango Tommy', UnitLocked = UnitLocked WHERE ProductId = @ProductId;",
-                new { ProductId = productId });
-        }
+        await using var connection = PostgresTestDb.NewConnection();
+        await connection.OpenAsync();
+        await connection.ExecuteAsync(
+            "UPDATE Product SET Name = 'Mango Tommy', UnitLocked = UnitLocked WHERE ProductId = @ProductId;",
+            new { ProductId = productId });
 
         var useCase = new GetTicketForSaleUseCase(bed.Sales, bed.Settings, bed.Units);
         var result = await useCase.ExecuteAsync(new GetTicketForSaleRequest(1), CancellationToken.None);
@@ -122,13 +121,11 @@ public sealed class GetTicketForSaleUseCaseTests
         await SeedUserAndOpenCashAsync(bed);
         await SellMangoAsync(bed);
 
-        await using (var connection = new SqliteConnection($"Data Source={bed.DbPath}"))
-        {
-            await connection.OpenAsync();
-            await connection.ExecuteAsync(
-                "UPDATE BusinessSetting SET BusinessName = 'Frutas Dan', PrinterName = 'POS-58',"
-                + " TicketFooterMessage = 'Gracias por su compra' WHERE BusinessSettingId = 1;");
-        }
+        await using var connection = PostgresTestDb.NewConnection();
+        await connection.OpenAsync();
+        await connection.ExecuteAsync(
+            "UPDATE BusinessSetting SET BusinessName = 'Frutas Dan', PrinterName = 'POS-58',"
+            + " TicketFooterMessage = 'Gracias por su compra' WHERE BusinessSettingId = 1;");
 
         var useCase = new GetTicketForSaleUseCase(bed.Sales, bed.Settings, bed.Units);
         var result = await useCase.ExecuteAsync(new GetTicketForSaleRequest(1), CancellationToken.None);

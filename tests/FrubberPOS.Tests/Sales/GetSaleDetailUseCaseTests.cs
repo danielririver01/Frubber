@@ -5,7 +5,8 @@ using FrubberPOS.Application.Sales;
 using FrubberPOS.Domain.Products;
 using FrubberPOS.Tests.Products;
 using FrubberPOS.Tests.TestDoubles;
-using Microsoft.Data.Sqlite;
+using FrubberPOS.Tests.TestInfrastructure;
+using Npgsql;
 
 namespace FrubberPOS.Tests.Sales;
 
@@ -22,17 +23,15 @@ public sealed class GetSaleDetailUseCaseTests
     /// <summary>Sells 1.250 KG of Mango at $ 6.000 = $ 7.500 in cash and returns the product id.</summary>
     private static async Task<int> SellMangoAsync(ProductTestBed bed)
     {
-        await using (var connection = new SqliteConnection($"Data Source={bed.DbPath}"))
-        {
-            await connection.OpenAsync();
-            await connection.ExecuteAsync(
-                "INSERT INTO \"User\" (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
-                + " VALUES (@UserId, 'Admin', 'ADMIN', 1, @Salt, @Hash, 1, 1);",
-                new { UserId = 1, Salt = new byte[16], Hash = new byte[32] });
-            await connection.ExecuteAsync(
-                "INSERT INTO CashSession (OpenedAtUtcMs, OpenedAtOffsetMinutes, OpenedByUserId, OpenedByNameSnapshot, OpeningBalanceCop)"
-                + " VALUES (1, 0, 1, 'Admin', 0);");
-        }
+        await using var connection = PostgresTestDb.NewConnection();
+        await connection.OpenAsync();
+        await connection.ExecuteAsync(
+            "INSERT INTO \"User\" (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
+            + " VALUES (@UserId, 'Admin', 'ADMIN', 1, @Salt, @Hash, 1, 1);",
+            new { UserId = 1, Salt = new byte[16], Hash = new byte[32] });
+        await connection.ExecuteAsync(
+            "INSERT INTO CashSession (OpenedAtUtcMs, OpenedAtOffsetMinutes, OpenedByUserId, OpenedByNameSnapshot, OpeningBalanceCop)"
+            + " VALUES (1, 0, 1, 'Admin', 0);");
 
         var created = await new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession())
             .ExecuteAsync(new CreateProductRequest("M1", "Mango", ProductUnit.Kg, 6_000, 5_000), CancellationToken.None);
@@ -87,14 +86,12 @@ public sealed class GetSaleDetailUseCaseTests
         await SellMangoAsync(bed);
 
         const long voidedAt = 1_800_000_000_000;
-        await using (var connection = new SqliteConnection($"Data Source={bed.DbPath}"))
-        {
-            await connection.OpenAsync();
-            await connection.ExecuteAsync(
-                "INSERT INTO SaleVoid (SaleId, VoidedAtUtcMs, VoidedAtOffsetMinutes, AdminUserId, AdminNameSnapshot)"
-                + " VALUES (1, @VoidedAt, -300, 1, 'Admin');",
-                new { VoidedAt = voidedAt });
-        }
+        await using var connection = PostgresTestDb.NewConnection();
+        await connection.OpenAsync();
+        await connection.ExecuteAsync(
+            "INSERT INTO SaleVoid (SaleId, VoidedAtUtcMs, VoidedAtOffsetMinutes, AdminUserId, AdminNameSnapshot)"
+            + " VALUES (1, @VoidedAt, -300, 1, 'Admin');",
+            new { VoidedAt = voidedAt });
 
         var result = await Sut(bed).ExecuteAsync(new GetSaleDetailRequest(1), CancellationToken.None);
 
@@ -172,17 +169,15 @@ public sealed class GetSaleDetailUseCaseTests
     public async Task SaleFromCashier_ShowsTheCashierName()
     {
         await using var bed = await ProductTestBed.CreateAsync();
-        await using (var connection = new SqliteConnection($"Data Source={bed.DbPath}"))
-        {
-            await connection.OpenAsync();
-            await connection.ExecuteAsync(
-                "INSERT INTO \"User\" (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
-                + " VALUES (1, 'Admin', 'ADMIN', 1, @Salt, @Hash, 1, 1), (2, 'Cajero', 'CASHIER', 1, @Salt, @Hash, 1, 1);",
-                new { Salt = new byte[16], Hash = new byte[32] });
-            await connection.ExecuteAsync(
-                "INSERT INTO CashSession (OpenedAtUtcMs, OpenedAtOffsetMinutes, OpenedByUserId, OpenedByNameSnapshot, OpeningBalanceCop)"
-                + " VALUES (1, 0, 2, 'Cajero', 0);");
-        }
+        await using var connection = PostgresTestDb.NewConnection();
+        await connection.OpenAsync();
+        await connection.ExecuteAsync(
+            "INSERT INTO \"User\" (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
+            + " VALUES (1, 'Admin', 'ADMIN', 1, @Salt, @Hash, 1, 1), (2, 'Cajero', 'CASHIER', 1, @Salt, @Hash, 1, 1);",
+            new { Salt = new byte[16], Hash = new byte[32] });
+        await connection.ExecuteAsync(
+            "INSERT INTO CashSession (OpenedAtUtcMs, OpenedAtOffsetMinutes, OpenedByUserId, OpenedByNameSnapshot, OpeningBalanceCop)"
+            + " VALUES (1, 0, 2, 'Cajero', 0);");
 
         var created = await new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession())
             .ExecuteAsync(new CreateProductRequest("M1", "Mango", ProductUnit.Kg, 6_000, 5_000), CancellationToken.None);

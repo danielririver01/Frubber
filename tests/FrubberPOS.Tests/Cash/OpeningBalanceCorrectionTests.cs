@@ -5,7 +5,9 @@ using FrubberPOS.Application.Products;
 using FrubberPOS.Application.Sales;
 using FrubberPOS.Domain.Products;
 using FrubberPOS.Tests.Products;
-using Microsoft.Data.Sqlite;
+using FrubberPOS.Tests.TestDoubles;
+using FrubberPOS.Tests.TestInfrastructure;
+using Npgsql;
 
 namespace FrubberPOS.Tests.Cash;
 
@@ -15,17 +17,18 @@ namespace FrubberPOS.Tests.Cash;
 /// </summary>
 public sealed class OpeningBalanceCorrectionTests
 {
-    private static CorrectOpeningBalanceUseCase Sut(ProductTestBed bed, FrubberPOS.Tests.TestDoubles.FakeCurrentSession? session = null) =>
+    private static CorrectOpeningBalanceUseCase Sut(ProductTestBed bed, FakeCurrentSession? session = null) =>
         new(bed.Sessions, bed.Units, session ?? ProductTestBed.AdminSession());
 
     private static async Task OpenCashAsync(ProductTestBed bed, long balanceCop = 10_000)
     {
-        await using var connection = new SqliteConnection($"Data Source={bed.DbPath}");
-        await connection.OpenAsync();
-        await connection.ExecuteAsync(
+        await using var unit = await bed.Units.CreateAsync(UnitOfWorkMode.WriteImmediate, CancellationToken.None);
+        await unit.Connection.ExecuteAsync(
             "INSERT INTO \"User\" (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
             + " VALUES (@UserId, 'Admin', 'ADMIN', 1, @Salt, @Hash, 1, 1);",
-            new { UserId = 1, Salt = new byte[16], Hash = new byte[32] });
+            new { UserId = 1, Salt = new byte[16], Hash = new byte[32] },
+            unit.Transaction);
+        await unit.CommitAsync(CancellationToken.None);
 
         var opened = await new OpenCashSessionUseCase(bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock, bed.Gate)
             .ExecuteAsync(new OpenCashSessionRequest(balanceCop), CancellationToken.None);
@@ -76,14 +79,13 @@ public sealed class OpeningBalanceCorrectionTests
     public async Task NoOpenSession_IsRefused()
     {
         await using var bed = await ProductTestBed.CreateAsync();
-        await using (var connection = new SqliteConnection($"Data Source={bed.DbPath}"))
-        {
-            await connection.OpenAsync();
-            await connection.ExecuteAsync(
-                "INSERT INTO \"User\" (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
-                + " VALUES (1, 'Admin', 'ADMIN', 1, @Salt, @Hash, 1, 1);",
-                new { Salt = new byte[16], Hash = new byte[32] });
-        }
+        await using var unit = await bed.Units.CreateAsync(UnitOfWorkMode.WriteImmediate, CancellationToken.None);
+        await unit.Connection.ExecuteAsync(
+            "INSERT INTO \"User\" (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
+            + " VALUES (1, 'Admin', 'ADMIN', 1, @Salt, @Hash, 1, 1);",
+            new { Salt = new byte[16], Hash = new byte[32] },
+            unit.Transaction);
+        await unit.CommitAsync(CancellationToken.None);
 
         var result = await Sut(bed).ExecuteAsync(new CorrectOpeningBalanceRequest(1_000), CancellationToken.None);
 

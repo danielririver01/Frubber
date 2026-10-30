@@ -2,14 +2,14 @@ using Dapper;
 using FrubberPOS.Application.Authentication;
 using FrubberPOS.Application.Persistence;
 using FrubberPOS.Domain.Users;
-using FrubberPOS.Infrastructure.Migrations;
 using FrubberPOS.Infrastructure.Persistence;
 using FrubberPOS.Infrastructure.Persistence.Business;
 using FrubberPOS.Infrastructure.Persistence.Cash;
 using FrubberPOS.Infrastructure.Persistence.Products;
 using FrubberPOS.Infrastructure.Persistence.Sales;
 using FrubberPOS.Tests.TestDoubles;
-using Microsoft.Data.Sqlite;
+using FrubberPOS.Tests.TestInfrastructure;
+using Npgsql;
 
 namespace FrubberPOS.Tests.Products;
 
@@ -19,10 +19,7 @@ namespace FrubberPOS.Tests.Products;
 /// </summary>
 internal sealed class ProductTestBed : IAsyncDisposable
 {
-    private readonly string path;
-
     private ProductTestBed(
-        string path,
         DapperProductRepository products,
         DapperCashSessionRepository sessions,
         DapperSaleRepository sales,
@@ -30,9 +27,8 @@ internal sealed class ProductTestBed : IAsyncDisposable
         DapperSaleVoidRepository voids,
         DapperBusinessSettingRepository settings,
         FakeClock clock,
-        SqliteUnitOfWorkFactory units)
+        NpgsqlUnitOfWorkFactory units)
     {
-        this.path = path;
         Products = products;
         Sessions = sessions;
         Sales = sales;
@@ -44,8 +40,6 @@ internal sealed class ProductTestBed : IAsyncDisposable
     }
 
     public DapperProductRepository Products { get; }
-
-    public string DbPath => path;
 
     public DapperCashSessionRepository Sessions { get; }
 
@@ -61,7 +55,7 @@ internal sealed class ProductTestBed : IAsyncDisposable
 
     public FakeClock Clock { get; }
 
-    public SqliteUnitOfWorkFactory Units { get; }
+    public NpgsqlUnitOfWorkFactory Units { get; }
 
     /// <summary>Licensing gate that allows every operation until a test blocks it (JHO-57).</summary>
     public FakeOperationalGate Gate { get; } = new();
@@ -82,18 +76,11 @@ internal sealed class ProductTestBed : IAsyncDisposable
 
     public static async Task<ProductTestBed> CreateAsync()
     {
-        var path = Path.Combine(Path.GetTempPath(), "FrubberPOS", Guid.NewGuid().ToString("N") + ".db");
-        var connectionString = $"Data Source={path}";
+        await PostgresTestDb.MigrateAsync();
 
-        var migrations = await new MigrationRunner().MigrateAsync(connectionString, CancellationToken.None);
-        if (!migrations.IsSuccess)
-        {
-            throw new InvalidOperationException("No se pudo migrar la base de prueba.");
-        }
-
-        var units = new SqliteUnitOfWorkFactory(new SqliteConnectionFactory(new DatabaseOptions(path)));
+        var units = PostgresTestDb.NewUnitFactory();
         return new ProductTestBed(
-            path, new DapperProductRepository(), new DapperCashSessionRepository(), new DapperSaleRepository(),
+            new DapperProductRepository(), new DapperCashSessionRepository(), new DapperSaleRepository(),
             new DapperSaleHistoryRepository(), new DapperSaleVoidRepository(), new DapperBusinessSettingRepository(),
             new FakeClock(new DateTimeOffset(2026, 9, 30, 12, 0, 0, TimeSpan.FromHours(-5))), units);
     }
@@ -104,7 +91,7 @@ internal sealed class ProductTestBed : IAsyncDisposable
     /// </summary>
     public async Task SeedSaleLineAsync(int productId, string plu, string name)
     {
-        await using var connection = new SqliteConnection($"Data Source={path}");
+        await using var connection = PostgresTestDb.NewConnection();
         await connection.OpenAsync();
         await connection.ExecuteAsync(
             "INSERT INTO \"User\" (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
@@ -126,20 +113,7 @@ internal sealed class ProductTestBed : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        SqliteConnection.ClearPool(new SqliteConnection($"Data Source={path}"));
-        if (File.Exists(path))
-        {
-            File.Delete(path);
-        }
-
-        foreach (var journal in new[] { path + "-wal", path + "-shm", path + "-journal" })
-        {
-            if (File.Exists(journal))
-            {
-                File.Delete(journal);
-            }
-        }
-
+        await PostgresTestDb.CleanAllAsync();
         await Task.CompletedTask;
     }
 }

@@ -6,15 +6,16 @@ using FrubberPOS.Infrastructure.Backup;
 using FrubberPOS.Infrastructure.Logging;
 using FrubberPOS.Tests.Products;
 using FrubberPOS.Tests.TestDoubles;
-using Microsoft.Data.Sqlite;
+using FrubberPOS.Tests.TestInfrastructure;
+using Npgsql;
 
 namespace FrubberPOS.Tests.Backup;
 
 /// <summary>
-/// Manual backup (JHO-53, P-UX §16): SQLite Backup API into a temp file,
-/// atomic publish, success names file+location, failure states the
-/// original database was untouched and leaves no partial file. Admin-only;
-/// no restore exists anywhere in the product. JHO-81: overview KPIs and
+/// Manual backup (JHO-53, P-UX §16): pg_dump into a temp file, atomic
+/// publish, success names file+location, failure states the original
+/// database was untouched and leaves no partial file. Admin-only; no
+/// restore exists anywhere in the product. JHO-81: overview KPIs and
 /// last-backup sidecar.
 /// </summary>
 public sealed class BackupTests : IDisposable
@@ -26,9 +27,9 @@ public sealed class BackupTests : IDisposable
     {
         Directory.CreateDirectory(workDir);
         var logger = SerilogLoggerFactory.Create(new LoggingOptions(Path.Combine(workDir, "logs")));
-        var options = new FrubberPOS.Application.Persistence.DatabaseOptions(bed.DbPath);
-        var service = new SqliteBackupService(options);
-        var status = new SqliteBackupStatusService(options);
+        var options = new FrubberPOS.Application.Persistence.DatabaseOptions(PostgresTestDb.ConnectionString);
+        var service = new PostgresBackupService(options);
+        var status = new PostgresBackupStatusService(options);
         var current = session ?? ProductTestBed.AdminSession();
         return (
             new CreateBackupUseCase(service, status, current, logger),
@@ -53,25 +54,16 @@ public sealed class BackupTests : IDisposable
         Assert.True(File.Exists(destination));
         Assert.False(File.Exists(destination + ".tmp")); // publicación atómica completada
 
-        // La copia abre y contiene los mismos datos.
-        long copiedTables;
-        await using (var copy = new SqliteConnection($"Data Source={destination};Mode=ReadOnly;Pooling=false"))
-        {
-            await copy.OpenAsync();
-            copiedTables = await Dapper.SqlMapper.ExecuteScalarAsync<long>(
-                copy, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table';");
-            var migratedUsers = await Dapper.SqlMapper.ExecuteScalarAsync<long>(
-                copy, "SELECT COUNT(*) FROM SystemSequence;");
-            Assert.True(migratedUsers > 0);
-        }
-
-        Assert.True(copiedTables > 0);
+        // La copia es un volcado SQL de pg_dump: contiene definición de tablas y datos.
+        var copyText = File.ReadAllText(destination);
+        Assert.Contains("COPY", copyText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("CREATE TABLE", copyText, StringComparison.OrdinalIgnoreCase);
 
         // La original sigue operativa.
-        await using var original = new SqliteConnection($"Data Source={bed.DbPath};Mode=ReadOnly;Pooling=false");
+        await using var original = PostgresTestDb.NewConnection();
         await original.OpenAsync();
-        Assert.True(await Dapper.SqlMapper.ExecuteScalarAsync<long>(
-            original, "SELECT COUNT(*) FROM SystemSequence;") > 0);
+        Assert.True(await original.ExecuteScalarAsync<long>(
+            "SELECT COUNT(*) FROM SystemSequence;") > 0);
         logger.Dispose();
     }
 

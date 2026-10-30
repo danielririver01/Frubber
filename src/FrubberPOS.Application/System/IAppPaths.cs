@@ -8,7 +8,12 @@ public interface IAppPaths
 {
     string RootDirectory { get; }
 
-    string DatabaseFilePath { get; }
+    /// <summary>
+    /// PostgreSQL connection string. Production reads
+    /// <c>FRUBBERPOS_CONNECTION_STRING</c>; tests supply a temporary
+    /// connection string pointing at a test database.
+    /// </summary>
+    string DatabaseConnectionString { get; }
 
     string LogDirectory { get; }
 

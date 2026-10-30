@@ -71,8 +71,8 @@ public sealed class DapperProductRepository : IProductRepository
 
         var sql = $"SELECT {Columns} FROM Product"
             + " WHERE (@Filter = 0 OR (@Filter = 1 AND IsActive = 1) OR (@Filter = 2 AND IsActive = 0))"
-            + " AND (@Term = '' OR Plu LIKE @Prefix ESCAPE '\\' OR Name LIKE @Contains ESCAPE '\\')"
-            + " ORDER BY IsActive DESC, Name COLLATE NOCASE"
+            + " AND (@Term = '' OR Plu LIKE @Prefix ESCAPE '\\' OR Name ILIKE @Contains ESCAPE '\\')"
+            + " ORDER BY IsActive DESC, Name COLLATE \"default\""
             + " LIMIT 500;";
         var rows = await unit.Connection.QueryAsync<ProductRow>(
             sql,
@@ -102,7 +102,7 @@ public sealed class DapperProductRepository : IProductRepository
 
         const string sql = "INSERT INTO Product (Plu, Name, Unit, PriceCop, StockMilli, IsActive, UnitLocked)"
             + " VALUES (@Plu, @Name, @Unit, @PriceCop, @StockMilli, 1, @UnitLocked);"
-            + "SELECT last_insert_rowid();";
+            + "SELECT ProductId;";
         return await unit.Connection.QuerySingleAsync<int>(
             sql,
             new
@@ -148,8 +148,8 @@ public sealed class DapperProductRepository : IProductRepository
     {
         ArgumentNullException.ThrowIfNull(unit);
 
-        const string sql = "UPDATE Product SET StockMilli = @Stock,"
-            + " UnitLocked = CASE WHEN @Stock <> 0 THEN 1 ELSE UnitLocked END"
+        const string sql = "UPDATE Product"
+            + " SET StockMilli = @Stock, UnitLocked = CASE WHEN @Stock <> 0 THEN 1 ELSE UnitLocked END"
             + " WHERE ProductId = @ProductId;";
         await unit.Connection.ExecuteAsync(sql, new { Stock = newStockMilli, ProductId = productId }, unit.Transaction);
     }

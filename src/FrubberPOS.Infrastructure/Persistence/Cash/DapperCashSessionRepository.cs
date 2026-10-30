@@ -27,7 +27,7 @@ public sealed class DapperCashSessionRepository : ICashSessionRepository
             + " LEFT JOIN Sale s ON s.CashSessionId = cs.CashSessionId"
             + " LEFT JOIN SaleVoid v ON v.SaleId = s.SaleId"
             + " WHERE cs.ClosedAtUtcMs IS NULL"
-            + " GROUP BY cs.CashSessionId;";
+            + " GROUP BY cs.CashSessionId, cs.OpenedAtUtcMs, cs.OpenedAtOffsetMinutes, cs.OpenedByNameSnapshot, cs.OpeningBalanceCop;";
         var row = await unit.Connection.QuerySingleOrDefaultAsync<OpenRow>(sql, transaction: unit.Transaction);
 
         return row is null
@@ -58,7 +58,7 @@ public sealed class DapperCashSessionRepository : ICashSessionRepository
         const string sql = "INSERT INTO CashSession"
             + " (OpenedAtUtcMs, OpenedAtOffsetMinutes, OpenedByUserId, OpenedByNameSnapshot, OpeningBalanceCop)"
             + " VALUES (@OpenedAt, @OffsetMin, @UserId, @UserName, @Balance);"
-            + "SELECT last_insert_rowid();";
+            + "SELECT CashSessionId;";
         return await unit.Connection.QuerySingleAsync<int>(
             sql,
             new
@@ -139,7 +139,9 @@ public sealed class DapperCashSessionRepository : ICashSessionRepository
             + " LEFT JOIN Sale s ON s.CashSessionId = cs.CashSessionId"
             + " LEFT JOIN SaleVoid v ON v.SaleId = s.SaleId"
             + " WHERE cs.CashSessionId = @Id"
-            + " GROUP BY cs.CashSessionId;";
+            + " GROUP BY cs.CashSessionId, cs.OpenedAtUtcMs, cs.OpenedAtOffsetMinutes, cs.OpenedByNameSnapshot,"
+            + " cs.OpeningBalanceCop, cs.ClosedAtUtcMs, cs.ClosedAtOffsetMinutes, cs.ClosedByNameSnapshot,"
+            + " cs.ClosedCashSalesCop, cs.ClosedTransferSalesCop, cs.ClosedDiscountCop, cs.ClosedSaleCount;";
         var row = await unit.Connection.QuerySingleOrDefaultAsync<SummaryRow>(sql, new { Id = cashSessionId }, unit.Transaction);
 
         if (row is null)

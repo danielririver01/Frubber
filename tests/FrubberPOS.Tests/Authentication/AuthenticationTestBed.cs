@@ -2,12 +2,12 @@ using Dapper;
 using FrubberPOS.Application.Authentication;
 using FrubberPOS.Application.Persistence;
 using FrubberPOS.Domain.Users;
-using FrubberPOS.Infrastructure.Migrations;
 using FrubberPOS.Infrastructure.Persistence;
 using FrubberPOS.Infrastructure.Persistence.Users;
 using FrubberPOS.Infrastructure.Security;
 using FrubberPOS.Tests.TestDoubles;
-using Microsoft.Data.Sqlite;
+using FrubberPOS.Tests.TestInfrastructure;
+using Npgsql;
 
 namespace FrubberPOS.Tests.Authentication;
 
@@ -22,16 +22,12 @@ internal sealed class AuthenticationTestBed : IAsyncDisposable
         + " (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
         + " VALUES (@UserId, @DisplayName, @Role, @IsActive, @PinSalt, @PinHash, @PinIterations, @PinAlgorithmVersion);";
 
-    private readonly string path;
-
     private AuthenticationTestBed(
-        string path,
         Pbkdf2PinHasher hasher,
         DapperUserRepository users,
         FakeCurrentSession session,
-        SqliteUnitOfWorkFactory units)
+        NpgsqlUnitOfWorkFactory units)
     {
-        this.path = path;
         Hasher = hasher;
         Users = users;
         Session = session;
@@ -44,9 +40,7 @@ internal sealed class AuthenticationTestBed : IAsyncDisposable
 
     public FakeCurrentSession Session { get; }
 
-    public SqliteUnitOfWorkFactory Units { get; }
-
-    public string DbPath => path;
+    public NpgsqlUnitOfWorkFactory Units { get; }
 
     /// <summary>
     /// Fresh admin-signed session for admin-only use cases. Never touches
@@ -61,18 +55,11 @@ internal sealed class AuthenticationTestBed : IAsyncDisposable
 
     public static async Task<AuthenticationTestBed> CreateAsync()
     {
-        var path = Path.Combine(Path.GetTempPath(), "FrubberPOS", Guid.NewGuid().ToString("N") + ".db");
-        var connectionString = $"Data Source={path}";
-
-        var migrations = await new MigrationRunner().MigrateAsync(connectionString, CancellationToken.None);
-        if (!migrations.IsSuccess)
-        {
-            throw new InvalidOperationException("No se pudo migrar la base de prueba.");
-        }
+        await PostgresTestDb.MigrateAsync();
 
         var hasher = new Pbkdf2PinHasher();
-        var units = new SqliteUnitOfWorkFactory(new SqliteConnectionFactory(new DatabaseOptions(path)));
-        var bed = new AuthenticationTestBed(path, hasher, new DapperUserRepository(), new FakeCurrentSession(), units);
+        var units = PostgresTestDb.NewUnitFactory();
+        var bed = new AuthenticationTestBed(hasher, new DapperUserRepository(), new FakeCurrentSession(), units);
 
         await bed.SeedUserAsync(1, "Admin", "ADMIN", "1111", isActive: true);
         await bed.SeedUserAsync(2, "Zed Cajero", "CASHIER", "2222", isActive: true);
@@ -85,7 +72,7 @@ internal sealed class AuthenticationTestBed : IAsyncDisposable
     public async Task SeedUserAsync(int id, string name, string role, string pin, bool isActive)
     {
         var derived = Hasher.HashPin(pin);
-        await using var connection = new SqliteConnection($"Data Source={path}");
+        await using var connection = PostgresTestDb.NewConnection();
         await connection.OpenAsync();
         await connection.ExecuteAsync(InsertUser, new
         {
@@ -102,7 +89,7 @@ internal sealed class AuthenticationTestBed : IAsyncDisposable
 
     public async Task SeedCashSessionAsync(int userId, string openedByName)
     {
-        await using var connection = new SqliteConnection($"Data Source={path}");
+        await using var connection = PostgresTestDb.NewConnection();
         await connection.OpenAsync();
         await connection.ExecuteAsync(
             "INSERT INTO CashSession (OpenedAtUtcMs, OpenedAtOffsetMinutes, OpenedByUserId, OpenedByNameSnapshot, OpeningBalanceCop)"
@@ -112,20 +99,7 @@ internal sealed class AuthenticationTestBed : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        SqliteConnection.ClearPool(new SqliteConnection($"Data Source={path}"));
-        if (File.Exists(path))
-        {
-            File.Delete(path);
-        }
-
-        foreach (var journal in new[] { path + "-wal", path + "-shm", path + "-journal" })
-        {
-            if (File.Exists(journal))
-            {
-                File.Delete(journal);
-            }
-        }
-
+        await PostgresTestDb.CleanAllAsync();
         await Task.CompletedTask;
     }
 }

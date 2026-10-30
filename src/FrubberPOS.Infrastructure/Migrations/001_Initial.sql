@@ -1,8 +1,8 @@
 -- Frubber POS
 -- Migración: 001_Initial.sql
 -- Diseño de base de datos: versión aprobada 1.0
+-- Portado a PostgreSQL (JHO-113): dialecto PostgreSQL en lugar de SQLite.
 -- El ejecutor de migraciones abre la transacción. Este script no ejecuta BEGIN/COMMIT.
--- La conexión debe habilitar foreign_keys, WAL, synchronous FULL y busy_timeout.
 
 CREATE TABLE SchemaMigration (
     Version INTEGER NOT NULL PRIMARY KEY CHECK (Version > 0),
@@ -12,16 +12,16 @@ CREATE TABLE SchemaMigration (
         CHECK (
             length(Checksum) = 64
             AND Checksum = upper(Checksum)
-            AND Checksum NOT GLOB '*[^0-9A-F]*'
+            AND Checksum ~ '^[0-9A-F]{64}$'
         ),
     AppliedAtUtcMs INTEGER NOT NULL CHECK (AppliedAtUtcMs > 0)
-) STRICT;
+);
 
 CREATE TABLE SystemSequence (
     SequenceName TEXT NOT NULL PRIMARY KEY
         CHECK (SequenceName = trim(SequenceName) AND length(SequenceName) BETWEEN 1 AND 60),
     LastValue INTEGER NOT NULL CHECK (LastValue >= 0)
-) STRICT;
+);
 
 CREATE TABLE "User" (
     UserId INTEGER PRIMARY KEY,
@@ -32,11 +32,11 @@ CREATE TABLE "User" (
         ),
     Role TEXT NOT NULL CHECK (Role IN ('ADMIN', 'CASHIER')),
     IsActive INTEGER NOT NULL CHECK (IsActive IN (0, 1)),
-    PinSalt BLOB NOT NULL CHECK (length(PinSalt) = 16),
-    PinHash BLOB NOT NULL CHECK (length(PinHash) = 32),
+    PinSalt BYTEA NOT NULL CHECK (length(PinSalt) = 16),
+    PinHash BYTEA NOT NULL CHECK (length(PinHash) = 32),
     PinIterations INTEGER NOT NULL CHECK (PinIterations > 0),
     PinAlgorithmVersion INTEGER NOT NULL CHECK (PinAlgorithmVersion > 0)
-) STRICT;
+);
 
 CREATE TABLE Product (
     ProductId INTEGER PRIMARY KEY,
@@ -45,7 +45,7 @@ CREATE TABLE Product (
             Plu = trim(Plu)
             AND Plu = upper(Plu)
             AND length(Plu) BETWEEN 1 AND 32
-            AND Plu NOT GLOB '*[^A-Z0-9]*'
+            AND Plu ~ '^[A-Z0-9]+$'
         ),
     Name TEXT NOT NULL
         CHECK (
@@ -59,7 +59,7 @@ CREATE TABLE Product (
     UnitLocked INTEGER NOT NULL CHECK (UnitLocked IN (0, 1)),
     CHECK (Unit <> 'UNIT' OR StockMilli % 1000 = 0),
     CHECK (StockMilli = 0 OR UnitLocked = 1)
-) STRICT;
+);
 
 CREATE TABLE CashSession (
     CashSessionId INTEGER PRIMARY KEY,
@@ -82,8 +82,8 @@ CREATE TABLE CashSession (
     ClosedNetSalesCop INTEGER,
     ClosedExpectedCashCop INTEGER,
     ClosedSaleCount INTEGER,
-    FOREIGN KEY (OpenedByUserId) REFERENCES "User" (UserId) ON DELETE RESTRICT,
-    FOREIGN KEY (ClosedByUserId) REFERENCES "User" (UserId) ON DELETE RESTRICT,
+    FOREIGN KEY (OpenedByUserId) REFERENCES "User" (UserId),
+    FOREIGN KEY (ClosedByUserId) REFERENCES "User" (UserId),
     CHECK (
         (
             ClosedAtUtcMs IS NULL
@@ -123,7 +123,7 @@ CREATE TABLE CashSession (
             AND ClosedExpectedCashCop = OpeningBalanceCop + ClosedCashSalesCop
         )
     )
-) STRICT;
+);
 
 CREATE TABLE Sale (
     SaleId INTEGER PRIMARY KEY,
@@ -143,8 +143,8 @@ CREATE TABLE Sale (
     PaymentMethod TEXT NOT NULL CHECK (PaymentMethod IN ('CASH', 'TRANSFER')),
     ReceivedCop INTEGER,
     ChangeCop INTEGER,
-    FOREIGN KEY (CashSessionId) REFERENCES CashSession (CashSessionId) ON DELETE RESTRICT,
-    FOREIGN KEY (CashierUserId) REFERENCES "User" (UserId) ON DELETE RESTRICT,
+    FOREIGN KEY (CashSessionId) REFERENCES CashSession (CashSessionId),
+    FOREIGN KEY (CashierUserId) REFERENCES "User" (UserId),
     CHECK (
         (
             PaymentMethod = 'CASH'
@@ -160,7 +160,7 @@ CREATE TABLE Sale (
             AND ChangeCop IS NULL
         )
     )
-) STRICT;
+);
 
 CREATE TABLE SaleLine (
     SaleLineId INTEGER PRIMARY KEY,
@@ -181,11 +181,11 @@ CREATE TABLE SaleLine (
     UnitPriceCopSnapshot INTEGER NOT NULL CHECK (UnitPriceCopSnapshot > 0),
     QuantityMilli INTEGER NOT NULL CHECK (QuantityMilli > 0),
     LineTotalCop INTEGER NOT NULL CHECK (LineTotalCop >= 0),
-    FOREIGN KEY (SaleId) REFERENCES Sale (SaleId) ON DELETE RESTRICT,
-    FOREIGN KEY (ProductId) REFERENCES Product (ProductId) ON DELETE RESTRICT,
+    FOREIGN KEY (SaleId) REFERENCES Sale (SaleId),
+    FOREIGN KEY (ProductId) REFERENCES Product (ProductId),
     CHECK (UnitSnapshot <> 'UNIT' OR QuantityMilli % 1000 = 0),
     CHECK (LineTotalCop = (UnitPriceCopSnapshot * QuantityMilli + 500) / 1000)
-) STRICT;
+);
 
 CREATE TABLE SaleVoid (
     SaleId INTEGER PRIMARY KEY,
@@ -197,9 +197,9 @@ CREATE TABLE SaleVoid (
             AdminNameSnapshot = trim(AdminNameSnapshot)
             AND length(AdminNameSnapshot) BETWEEN 1 AND 60
         ),
-    FOREIGN KEY (SaleId) REFERENCES Sale (SaleId) ON DELETE RESTRICT,
-    FOREIGN KEY (AdminUserId) REFERENCES "User" (UserId) ON DELETE RESTRICT
-) STRICT;
+    FOREIGN KEY (SaleId) REFERENCES Sale (SaleId),
+    FOREIGN KEY (AdminUserId) REFERENCES "User" (UserId)
+);
 
 CREATE TABLE BusinessSetting (
     BusinessSettingId INTEGER PRIMARY KEY CHECK (BusinessSettingId = 1),
@@ -233,29 +233,29 @@ CREATE TABLE BusinessSetting (
             PrinterName IS NULL
             OR (PrinterName = trim(PrinterName) AND length(PrinterName) BETWEEN 1 AND 260)
         )
-) STRICT;
+);
 
 CREATE TABLE LicenseState (
     LicenseStateId INTEGER PRIMARY KEY CHECK (LicenseStateId = 1),
     PayloadVersion INTEGER NOT NULL CHECK (PayloadVersion > 0),
-    ProtectedPayload BLOB NOT NULL CHECK (length(ProtectedPayload) > 0),
+    ProtectedPayload BYTEA NOT NULL CHECK (length(ProtectedPayload) > 0),
     UpdatedAtUtcMs INTEGER NOT NULL CHECK (UpdatedAtUtcMs > 0)
-) STRICT;
+);
 
 CREATE UNIQUE INDEX UX_User_DisplayName_NoCase
-    ON "User" (DisplayName COLLATE NOCASE);
+    ON "User" (lower(DisplayName));
 
 CREATE INDEX IX_User_Active_DisplayName
-    ON "User" (IsActive, DisplayName COLLATE NOCASE);
+    ON "User" (IsActive, lower(DisplayName));
 
 CREATE UNIQUE INDEX UX_Product_Plu_NoCase
-    ON Product (Plu COLLATE NOCASE);
+    ON Product (upper(Plu));
 
 CREATE INDEX IX_Product_Active_Name
-    ON Product (IsActive, Name COLLATE NOCASE);
+    ON Product (IsActive, Name);
 
 CREATE UNIQUE INDEX UX_CashSession_OnlyOneOpen
-    ON CashSession ((1))
+    ON CashSession (1)
     WHERE ClosedAtUtcMs IS NULL;
 
 CREATE INDEX IX_CashSession_OpenedAt
@@ -339,125 +339,194 @@ LEFT JOIN SaleVoid AS sv ON sv.SaleId = s.SaleId
 WHERE cs.ClosedAtUtcMs IS NULL
 GROUP BY cs.CashSessionId, cs.OpeningBalanceCop;
 
+CREATE OR REPLACE FUNCTION tr_product_block_unit_change() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    IF OLD.UnitLocked = 1 AND NEW.Unit <> OLD.Unit THEN
+        RAISE EXCEPTION 'La unidad del producto está bloqueada por historial o existencia';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
 CREATE TRIGGER TR_Product_BlockUnitChange
 BEFORE UPDATE OF Unit ON Product
 FOR EACH ROW
-WHEN OLD.UnitLocked = 1 AND NEW.Unit <> OLD.Unit
+EXECUTE FUNCTION tr_product_block_unit_change();
+
+CREATE OR REPLACE FUNCTION tr_product_prevent_unit_unlock() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-    SELECT RAISE(ABORT, 'La unidad del producto está bloqueada por historial o existencia');
+    IF OLD.UnitLocked = 1 AND NEW.UnitLocked = 0 THEN
+        RAISE EXCEPTION 'El bloqueo de unidad es irreversible';
+    END IF;
+    RETURN NEW;
 END;
+$$;
 
 CREATE TRIGGER TR_Product_PreventUnitUnlock
 BEFORE UPDATE OF UnitLocked ON Product
 FOR EACH ROW
-WHEN OLD.UnitLocked = 1 AND NEW.UnitLocked = 0
+EXECUTE FUNCTION tr_product_prevent_unit_unlock();
+
+CREATE OR REPLACE FUNCTION tr_cash_session_protect_opening_fields() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-    SELECT RAISE(ABORT, 'El bloqueo de unidad es irreversible');
+    IF
+        NEW.OpenedAtUtcMs IS DISTINCT FROM OLD.OpenedAtUtcMs
+        OR NEW.OpenedAtOffsetMinutes IS DISTINCT FROM OLD.OpenedAtOffsetMinutes
+        OR NEW.OpenedByUserId IS DISTINCT FROM OLD.OpenedByUserId
+        OR NEW.OpenedByNameSnapshot IS DISTINCT FROM OLD.OpenedByNameSnapshot
+        OR NEW.OpeningBalanceCop IS DISTINCT FROM OLD.OpeningBalanceCop
+    THEN
+        RAISE EXCEPTION 'Los datos de apertura de caja son inmutables';
+    END IF;
+    RETURN NEW;
 END;
+$$;
 
 CREATE TRIGGER TR_CashSession_ProtectOpeningFields
 BEFORE UPDATE ON CashSession
 FOR EACH ROW
-WHEN
-    NEW.OpenedAtUtcMs IS NOT OLD.OpenedAtUtcMs
-    OR NEW.OpenedAtOffsetMinutes IS NOT OLD.OpenedAtOffsetMinutes
-    OR NEW.OpenedByUserId IS NOT OLD.OpenedByUserId
-    OR NEW.OpenedByNameSnapshot IS NOT OLD.OpenedByNameSnapshot
-    OR NEW.OpeningBalanceCop IS NOT OLD.OpeningBalanceCop
+EXECUTE FUNCTION tr_cash_session_protect_opening_fields();
+
+CREATE OR REPLACE FUNCTION tr_cash_session_no_update_after_close() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-    SELECT RAISE(ABORT, 'Los datos de apertura de caja son inmutables');
+    IF OLD.ClosedAtUtcMs IS NOT NULL THEN
+        RAISE EXCEPTION 'Una caja cerrada es inmutable';
+    END IF;
+    RETURN NEW;
 END;
+$$;
 
 CREATE TRIGGER TR_CashSession_NoUpdateAfterClose
 BEFORE UPDATE ON CashSession
 FOR EACH ROW
-WHEN OLD.ClosedAtUtcMs IS NOT NULL
-BEGIN
-    SELECT RAISE(ABORT, 'Una caja cerrada es inmutable');
-END;
+EXECUTE FUNCTION tr_cash_session_no_update_after_close();
 
-CREATE TRIGGER TR_Sale_RequireOpenCashAndActiveUser
-BEFORE INSERT ON Sale
-FOR EACH ROW
+CREATE OR REPLACE FUNCTION tr_sale_require_open_cash_and_active_user() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-    SELECT CASE WHEN NOT EXISTS (
+    IF NOT EXISTS (
         SELECT 1
         FROM CashSession AS cs
         WHERE cs.CashSessionId = NEW.CashSessionId
           AND cs.ClosedAtUtcMs IS NULL
-    ) THEN RAISE(ABORT, 'La venta requiere una caja abierta') END;
+    ) THEN
+        RAISE EXCEPTION 'La venta requiere una caja abierta';
+    END IF;
 
-    SELECT CASE WHEN NOT EXISTS (
+    IF NOT EXISTS (
         SELECT 1
         FROM "User" AS u
         WHERE u.UserId = NEW.CashierUserId
           AND u.IsActive = 1
           AND u.Role IN ('ADMIN', 'CASHIER')
-    ) THEN RAISE(ABORT, 'El usuario de la venta no está activo o autorizado') END;
+    ) THEN
+        RAISE EXCEPTION 'El usuario de la venta no está activo o autorizado';
+    END IF;
+
+    RETURN NEW;
 END;
+$$;
+
+CREATE TRIGGER TR_Sale_RequireOpenCashAndActiveUser
+BEFORE INSERT ON Sale
+FOR EACH ROW
+EXECUTE FUNCTION tr_sale_require_open_cash_and_active_user();
+
+CREATE OR REPLACE FUNCTION tr_sale_no_update() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    RAISE EXCEPTION 'Sale es inmutable';
+END;
+$$;
 
 CREATE TRIGGER TR_Sale_NoUpdate
 BEFORE UPDATE ON Sale
 FOR EACH ROW
+EXECUTE FUNCTION tr_sale_no_update();
+
+CREATE OR REPLACE FUNCTION tr_sale_no_delete() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-    SELECT RAISE(ABORT, 'Sale es inmutable');
+    RAISE EXCEPTION 'Sale no puede eliminarse';
 END;
+$$;
 
 CREATE TRIGGER TR_Sale_NoDelete
 BEFORE DELETE ON Sale
 FOR EACH ROW
+EXECUTE FUNCTION tr_sale_no_delete();
+
+CREATE OR REPLACE FUNCTION tr_sale_line_no_update() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-    SELECT RAISE(ABORT, 'Sale no puede eliminarse');
+    RAISE EXCEPTION 'SaleLine es inmutable';
 END;
+$$;
 
 CREATE TRIGGER TR_SaleLine_NoUpdate
 BEFORE UPDATE ON SaleLine
 FOR EACH ROW
+EXECUTE FUNCTION tr_sale_line_no_update();
+
+CREATE OR REPLACE FUNCTION tr_sale_line_no_delete() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-    SELECT RAISE(ABORT, 'SaleLine es inmutable');
+    RAISE EXCEPTION 'SaleLine no puede eliminarse';
 END;
+$$;
 
 CREATE TRIGGER TR_SaleLine_NoDelete
 BEFORE DELETE ON SaleLine
 FOR EACH ROW
-BEGIN
-    SELECT RAISE(ABORT, 'SaleLine no puede eliminarse');
-END;
+EXECUTE FUNCTION tr_sale_line_no_delete();
 
-CREATE TRIGGER TR_SaleVoid_RequireOpenCashAndAdmin
-BEFORE INSERT ON SaleVoid
-FOR EACH ROW
+CREATE OR REPLACE FUNCTION tr_sale_void_require_open_cash_and_admin() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-    SELECT CASE WHEN NOT EXISTS (
+    IF NOT EXISTS (
         SELECT 1
         FROM Sale AS s
         JOIN CashSession AS cs ON cs.CashSessionId = s.CashSessionId
         WHERE s.SaleId = NEW.SaleId
           AND cs.ClosedAtUtcMs IS NULL
-    ) THEN RAISE(ABORT, 'Solo puede anularse una venta de una caja abierta') END;
+    ) THEN
+        RAISE EXCEPTION 'Solo puede anularse una venta de una caja abierta';
+    END IF;
 
-    SELECT CASE WHEN NOT EXISTS (
+    IF NOT EXISTS (
         SELECT 1
         FROM "User" AS u
         WHERE u.UserId = NEW.AdminUserId
           AND u.IsActive = 1
           AND u.Role = 'ADMIN'
-    ) THEN RAISE(ABORT, 'La anulación requiere un administrador activo') END;
+    ) THEN
+        RAISE EXCEPTION 'La anulación requiere un administrador activo';
+    END IF;
+
+    RETURN NEW;
 END;
+$$;
+
+CREATE TRIGGER TR_SaleVoid_RequireOpenCashAndAdmin
+BEFORE INSERT ON SaleVoid
+FOR EACH ROW
+EXECUTE FUNCTION tr_sale_void_require_open_cash_and_admin();
+
+CREATE OR REPLACE FUNCTION tr_sale_void_no_update() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    RAISE EXCEPTION 'SaleVoid es inmutable';
+END;
+$$;
 
 CREATE TRIGGER TR_SaleVoid_NoUpdate
 BEFORE UPDATE ON SaleVoid
 FOR EACH ROW
+EXECUTE FUNCTION tr_sale_void_no_update();
+
+CREATE OR REPLACE FUNCTION tr_sale_void_no_delete() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-    SELECT RAISE(ABORT, 'SaleVoid es inmutable');
+    RAISE EXCEPTION 'SaleVoid no puede eliminarse';
 END;
+$$;
 
 CREATE TRIGGER TR_SaleVoid_NoDelete
 BEFORE DELETE ON SaleVoid
 FOR EACH ROW
-BEGIN
-    SELECT RAISE(ABORT, 'SaleVoid no puede eliminarse');
-END;
+EXECUTE FUNCTION tr_sale_void_no_delete();
 
 INSERT INTO SystemSequence (SequenceName, LastValue)
 VALUES ('SaleNumber', 0);

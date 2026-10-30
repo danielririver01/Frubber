@@ -11,7 +11,8 @@ using FrubberPOS.Domain.Products;
 using FrubberPOS.Tests.Authentication;
 using FrubberPOS.Tests.Products;
 using FrubberPOS.Tests.TestDoubles;
-using Microsoft.Data.Sqlite;
+using FrubberPOS.Tests.TestInfrastructure;
+using Npgsql;
 
 namespace FrubberPOS.Tests.Desktop;
 
@@ -148,7 +149,7 @@ public sealed class TableAlignmentTests
     private static async Task<ProductTestBed> BedWithSalesAsync(int count)
     {
         var bed = await ProductTestBed.CreateAsync();
-        await using var connection = new SqliteConnection($"Data Source={bed.DbPath}");
+        await using var connection = PostgresTestDb.NewConnection();
         await connection.OpenAsync();
         await connection.ExecuteAsync(
             "INSERT INTO \"User\" (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
@@ -179,7 +180,7 @@ public sealed class TableAlignmentTests
 
     private static async Task SeedOneSaleAsync(ProductTestBed bed)
     {
-        await using (var connection = new SqliteConnection($"Data Source={bed.DbPath}"))
+        await using (var connection = PostgresTestDb.NewConnection())
         {
             await connection.OpenAsync();
             await connection.ExecuteAsync(

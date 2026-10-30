@@ -5,16 +5,15 @@ using FrubberPOS.Desktop.ViewModels;
 using FrubberPOS.Domain.Products;
 using FrubberPOS.Tests.Products;
 using FrubberPOS.Tests.TestDoubles;
-using Microsoft.Data.Sqlite;
+using FrubberPOS.Tests.TestInfrastructure;
+using Npgsql;
 
 namespace FrubberPOS.Tests.Sales;
 
 /// <summary>
 /// Sale detail dialog ViewModel (JHO-46, P-UX §13.3/13.4): read-only
 /// snapshot rendering, Anular only for ADMIN with an open cash session,
-/// confirm-cancel leaves everything untouched. JHO-91 adds the same
-/// optional reprint flow as the TPV (picker cancel = silence, printer
-/// failure = safe message, sale never touched).
+/// confirm-cancel leaves everything untouched.
 /// </summary>
 public sealed class SaleDetailViewModelTests
 {
@@ -32,17 +31,15 @@ public sealed class SaleDetailViewModelTests
 
     private static async Task<int> SellMangoAsync(ProductTestBed bed)
     {
-        await using (var connection = new SqliteConnection($"Data Source={bed.DbPath}"))
-        {
-            await connection.OpenAsync();
-            await connection.ExecuteAsync(
-                "INSERT INTO \"User\" (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
-                + " VALUES (@UserId, 'Admin', 'ADMIN', 1, @Salt, @Hash, 1, 1);",
-                new { UserId = 1, Salt = new byte[16], Hash = new byte[32] });
-            await connection.ExecuteAsync(
-                "INSERT INTO CashSession (OpenedAtUtcMs, OpenedAtOffsetMinutes, OpenedByUserId, OpenedByNameSnapshot, OpeningBalanceCop)"
-                + " VALUES (1, 0, 1, 'Admin', 0);");
-        }
+        await using var connection = PostgresTestDb.NewConnection();
+        await connection.OpenAsync();
+        await connection.ExecuteAsync(
+            "INSERT INTO \"User\" (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
+            + " VALUES (@UserId, 'Admin', 'ADMIN', 1, @Salt, @Hash, 1, 1);",
+            new { UserId = 1, Salt = new byte[16], Hash = new byte[32] });
+        await connection.ExecuteAsync(
+            "INSERT INTO CashSession (OpenedAtUtcMs, OpenedAtOffsetMinutes, OpenedByUserId, OpenedByNameSnapshot, OpeningBalanceCop)"
+            + " VALUES (1, 0, 1, 'Admin', 0);");
 
         var created = await new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession())
             .ExecuteAsync(new CreateProductRequest("M1", "Mango", ProductUnit.Kg, 6_000, 5_000), CancellationToken.None);
@@ -135,7 +132,7 @@ public sealed class SaleDetailViewModelTests
         Assert.False(vm.VoidedHere);
         Assert.Equal("Vigente", vm.StatusText);
         Assert.Equal(1, nav.ConfirmSaleVoidCount);
-        Assert.Equal(5_000 - 1_250, await StockAsync(bed, 1));
+        Assert.Equal(5_000 - 1_250, await StockAsync(bed.Units, 1));
     }
 
     [Fact]
@@ -208,7 +205,7 @@ public sealed class SaleDetailViewModelTests
         Assert.Equal("Sin papel", vm.ErrorMessage);
         Assert.Equal(string.Empty, vm.StatusMessage);
         Assert.Equal("Vigente", vm.StatusText); // el fallo de papel no toca la venta
-        Assert.Equal(5_000 - 1_250, await StockAsync(bed, 1));
+        Assert.Equal(5_000 - 1_250, await StockAsync(bed.Units, 1));
     }
 
     [Fact]
@@ -243,9 +240,9 @@ public sealed class SaleDetailViewModelTests
         Assert.False(vm.PrintCommand.CanExecute(null));
     }
 
-    private static async Task<long> StockAsync(ProductTestBed bed, int productId)
+    private static async Task<long> StockAsync(NpgsqlUnitOfWorkFactory units, int productId)
     {
-        await using var connection = new SqliteConnection($"Data Source={bed.DbPath}");
+        await using var connection = PostgresTestDb.NewConnection();
         await connection.OpenAsync();
         return await connection.ExecuteScalarAsync<long>(
             "SELECT StockMilli FROM Product WHERE ProductId = @ProductId;", new { ProductId = productId });

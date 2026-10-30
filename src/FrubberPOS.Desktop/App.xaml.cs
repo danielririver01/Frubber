@@ -1,4 +1,4 @@
-﻿using System.Configuration;
+using System.Configuration;
 using System.Data;
 using System.Windows;
 using FrubberPOS.Application.Authentication;
@@ -65,7 +65,7 @@ public partial class App : System.Windows.Application, INavigationService
 
             splash.SetStatus("Aplicando migraciones...");
             var database = provider.GetRequiredService<DatabaseOptions>();
-            var migrated = await provider.GetRequiredService<MigrationRunner>().MigrateAsync(database, CancellationToken.None);
+            var migrated = await provider.GetRequiredService<MigrationRunner>().MigrateAsync(database.ConnectionString, CancellationToken.None);
             if (!migrated.IsSuccess)
             {
                 splash.Close();

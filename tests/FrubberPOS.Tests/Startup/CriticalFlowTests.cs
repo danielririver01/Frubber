@@ -15,7 +15,8 @@ using FrubberPOS.Infrastructure.Persistence.Users;
 using FrubberPOS.Infrastructure.Security;
 using FrubberPOS.Tests.Products;
 using FrubberPOS.Tests.TestDoubles;
-using Microsoft.Data.Sqlite;
+using FrubberPOS.Tests.TestInfrastructure;
+using Npgsql;
 
 namespace FrubberPOS.Tests.Startup;
 
@@ -24,7 +25,8 @@ namespace FrubberPOS.Tests.Startup;
 /// first start → first administrator → sign-in → product → open cash →
 /// sale → void (stock reintegrated, total out of cash) → close cash →
 /// late void refused → manual backup verifies and publishes. Everything
-/// runs against the real SQLite stack and the file is deleted afterwards.
+/// runs against the real PostgreSQL stack and the temp dir is deleted
+/// afterwards.
 /// </summary>
 public sealed class CriticalFlowTests
 {
@@ -72,18 +74,18 @@ public sealed class CriticalFlowTests
                 ct);
             Assert.True(sold.IsSuccess, sold.Error?.Message);
             Assert.Equal(1, sold.Value.SaleNumber);
-            Assert.Equal(3_750, await StockAsync(bed, created.Value.ProductId));
+            Assert.Equal(3_750, await StockAsync(created.Value.ProductId));
 
             // 6) Anulación completa mientras la caja sigue abierta: inventario reintegrado.
             var admin2 = ProductTestBed.AdminSession(); // mismo usuario Dueño (id 1)
             var voidSale = new VoidSaleUseCase(bed.Voids, bed.Sales, bed.Units, admin2, bed.Clock, bed.Gate);
             Assert.True((await voidSale.ExecuteAsync(new VoidSaleRequest(1), ct)).IsSuccess);
-            Assert.Equal(5_000, await StockAsync(bed, created.Value.ProductId));
+            Assert.Equal(5_000, await StockAsync(created.Value.ProductId));
 
             // 7) Cierre informativo: totales congelados sin la anulada.
             var close = new CloseCashSessionUseCase(bed.Sessions, bed.Units, session, bed.Clock, bed.Gate);
             Assert.True((await close.ExecuteAsync(new CloseCashSessionRequest(), ct)).IsSuccess);
-            await using (var verify = new SqliteConnection($"Data Source={bed.DbPath}"))
+            await using (var verify = PostgresTestDb.NewConnection())
             {
                 await verify.OpenAsync(ct);
                 var closed = await verify.QuerySingleAsync<(long Net, long Expected)>(
@@ -97,23 +99,26 @@ public sealed class CriticalFlowTests
             Assert.True(lateVoid.IsFailure);
             Assert.Equal(ErrorCode.Conflict, lateVoid.Error!.Code);
 
-            // 9) Respaldo manual a la ubicación elegida: copia íntegra y original intacta.
+            // 9) Respaldo manual a la ubicación elegida: volcado íntegro y original intacta.
+            var options = new DatabaseOptions(PostgresTestDb.ConnectionString);
             var backup = new CreateBackupUseCase(
-                new SqliteBackupService(new DatabaseOptions(bed.DbPath)),
-                new SqliteBackupStatusService(new DatabaseOptions(bed.DbPath)),
+                new PostgresBackupService(options),
+                new PostgresBackupStatusService(options),
                 session, logger);
             var destination = Path.Combine(workDir, "respaldo.db");
             var backed = await backup.ExecuteAsync(new CreateBackupRequest(destination), ct);
             Assert.True(backed.IsSuccess, backed.Error?.Message);
             Assert.True(File.Exists(destination));
-            await using (var copy = new SqliteConnection($"Data Source={destination};Mode=ReadOnly;Pooling=false"))
-            {
-                await copy.OpenAsync(ct);
-                Assert.Equal("ok", await copy.ExecuteScalarAsync<string>("PRAGMA integrity_check;"));
-                Assert.Equal(1, await copy.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM Sale;"));
-                Assert.Equal("VOIDED", await copy.ExecuteScalarAsync<string>(
-                    "SELECT SaleStatus FROM V_SaleHistory WHERE SaleNumber = 1;"));
-            }
+            var copyText = File.ReadAllText(destination);
+            Assert.Contains("COPY", copyText, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("CREATE TABLE", copyText, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("VOIDED", copyText, StringComparison.OrdinalIgnoreCase);
+
+            await using var original = PostgresTestDb.NewConnection();
+            await original.OpenAsync(ct);
+            Assert.Equal(1, await original.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM Sale;"));
+            Assert.Equal("VOIDED", await original.ExecuteScalarAsync<string>(
+                "SELECT SaleStatus FROM V_SaleHistory WHERE SaleNumber = 1;"));
         }
         finally
         {
@@ -125,9 +130,9 @@ public sealed class CriticalFlowTests
         }
     }
 
-    private static async Task<long> StockAsync(ProductTestBed bed, int productId)
+    private static async Task<long> StockAsync(int productId)
     {
-        await using var connection = new SqliteConnection($"Data Source={bed.DbPath}");
+        await using var connection = PostgresTestDb.NewConnection();
         await connection.OpenAsync();
         return await connection.ExecuteScalarAsync<long>(
             "SELECT StockMilli FROM Product WHERE ProductId = @Id;", new { Id = productId });
