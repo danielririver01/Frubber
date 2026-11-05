@@ -39,6 +39,24 @@ Base temporal eliminada.
 
 La semilla también se probó contra una base llamada `postgres`: rechazó la ejecución antes de modificarla. La consulta posterior no encontró bases temporales residuales.
 
+## Evidencia reportada por el usuario · Windows · 2026-11-05
+
+El usuario informó la ejecución en PostgreSQL 18.6 con el rol de pruebas `frubber` y permiso `CREATEDB`, sin superusuario, en una copia separada del repositorio. La salida comunicada fue:
+
+```text
+PostgreSQL 18.6
+OK: bloque 2 del prototipo original (100 tickets y rollback).
+OK: 100 ventas consecutivas, tickets 1 a 100, cero huecos.
+OK: venta fallida revertida; el siguiente ticket reutiliza el 101.
+OK: 500 ventas concurrentes, 10 procesos y 10 conexiones, 250 por puesto.
+OK: 500 números distintos y consecutivos (102–601); 0 duplicados, 0 huecos.
+OK: 601 ventas, 601 líneas y contador final 601.
+Base temporal eliminada.
+Codigo de salida: 0
+```
+
+Según el usuario, no quedó ninguna base `frubber_jho111_*`. Esta ejecución fue reportada por el usuario, no observada directamente por el agente; prueba la misma línea base 2.0 y no el flujo de cobro de la aplicación.
+
 ## Alcance y pendiente de integración
 
 Esta evidencia demuestra el comportamiento de `ticket_counter` y `next_ticket()` **de la línea base 2.0**, insertando directamente las ventas sintéticas. No prueba el ejecutable de Windows, la operación de la aplicación ni la ruta de venta con credenciales restringidas. Se ejecutó únicamente el bloque 2 del banco histórico mediante psycopg, no el archivo completo con `psql`; además se comprobaron directamente 100 ventas y rollback contra la línea base.
