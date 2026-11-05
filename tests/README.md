@@ -45,6 +45,16 @@ Con detalle por prueba:
 dotnet test tests\FrubberPOS.Tests\FrubberPOS.Tests.csproj -c Release --logger "console;verbosity=normal" 2>&1 | Tee-Object -FilePath "$env:TEMP\frubber-tests.txt"
 ```
 
+## JHO-111: numeración del flujo actual de cobro
+
+`TicketNumberIntegrationTests` crea una base temporal propia para cada prueba usando el rol indicado en `FRUBBERPOS_TEST_CONNECTION_STRING` (necesita `CREATEDB`), aplica las migraciones embebidas y la elimina al terminar. Ejecutar solamente contra un servidor de pruebas, nunca contra el servidor del negocio:
+
+```powershell
+dotnet test tests\FrubberPOS.Tests\FrubberPOS.Tests.csproj -c Release --filter "FullyQualifiedName~TicketNumberIntegrationTests" --logger "console;verbosity=normal"
+```
+
+Una prueba inicia diez trabajadores con el caso de uso real y verifica 500 ventas, líneas, inventario y números consecutivos. La otra provoca un fallo después de insertar la cabecera y comprueba el rollback y la reutilización del número. Ejercitan el esquema que usa hoy la aplicación (`SystemSequence`), con una sola caja; **no** prueban el esquema 2.0 `ticket_counter`, ni la operación con dos puestos. La conexión configurada no debe apuntar a una base con datos reales: otras pruebas de la suite sí borran datos de la base configurada. Si se interrumpe el proceso abruptamente, revisar bases residuales `frubberpos_scratch_*` antes de borrarlas manualmente.
+
 ## Cómo se aísla la base compartida
 
 - **Sin paralelismo**: `AssemblyInfo.cs` fija
