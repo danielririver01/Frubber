@@ -1,6 +1,7 @@
-using Dapper;
+﻿using Dapper;
 using FrubberPOS.Application.Cash;
 using FrubberPOS.Application.Persistence;
+using Npgsql;
 
 namespace FrubberPOS.Infrastructure.Persistence.Cash;
 
@@ -27,7 +28,7 @@ public sealed class DapperCashSessionRepository : ICashSessionRepository
             + " LEFT JOIN Sale s ON s.CashSessionId = cs.CashSessionId"
             + " LEFT JOIN SaleVoid v ON v.SaleId = s.SaleId"
             + " WHERE cs.ClosedAtUtcMs IS NULL"
-            + " GROUP BY cs.CashSessionId;";
+            + " GROUP BY cs.CashSessionId, cs.OpenedAtUtcMs, cs.OpenedAtOffsetMinutes, cs.OpenedByNameSnapshot, cs.OpeningBalanceCop;";
         var row = await unit.Connection.QuerySingleOrDefaultAsync<OpenRow>(sql, transaction: unit.Transaction);
 
         return row is null
@@ -57,19 +58,29 @@ public sealed class DapperCashSessionRepository : ICashSessionRepository
 
         const string sql = "INSERT INTO CashSession"
             + " (OpenedAtUtcMs, OpenedAtOffsetMinutes, OpenedByUserId, OpenedByNameSnapshot, OpeningBalanceCop)"
-            + " VALUES (@OpenedAt, @OffsetMin, @UserId, @UserName, @Balance);"
-            + "SELECT last_insert_rowid();";
-        return await unit.Connection.QuerySingleAsync<int>(
-            sql,
-            new
-            {
-                OpenedAt = openedAtUtcMs,
-                OffsetMin = openedAtOffsetMinutes,
-                UserId = openedByUserId,
-                UserName = openedByNameSnapshot,
-                Balance = openingBalanceCop
-            },
-            unit.Transaction);
+            + " VALUES (@OpenedAt, @OffsetMin, @UserId, @UserName, @Balance)"
+            + " RETURNING CashSessionId;";
+        try
+        {
+            return await unit.Connection.QuerySingleAsync<int>(
+                sql,
+                new
+                {
+                    OpenedAt = openedAtUtcMs,
+                    OffsetMin = openedAtOffsetMinutes,
+                    UserId = openedByUserId,
+                    UserName = openedByNameSnapshot,
+                    Balance = openingBalanceCop
+                },
+                unit.Transaction);
+        }
+        catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.UniqueViolation)
+        {
+            // UX_CashSession_OnlyOneOpen: another opener won the race between
+            // FindOpenAsync and this INSERT. Translate so OpenCashSessionUseCase
+            // can answer a business Conflict instead of leaking a driver error.
+            throw new DuplicateKeyException(ex);
+        }
     }
 
     public async Task<bool> CloseOpenAsync(
@@ -139,7 +150,9 @@ public sealed class DapperCashSessionRepository : ICashSessionRepository
             + " LEFT JOIN Sale s ON s.CashSessionId = cs.CashSessionId"
             + " LEFT JOIN SaleVoid v ON v.SaleId = s.SaleId"
             + " WHERE cs.CashSessionId = @Id"
-            + " GROUP BY cs.CashSessionId;";
+            + " GROUP BY cs.CashSessionId, cs.OpenedAtUtcMs, cs.OpenedAtOffsetMinutes, cs.OpenedByNameSnapshot,"
+            + " cs.OpeningBalanceCop, cs.ClosedAtUtcMs, cs.ClosedAtOffsetMinutes, cs.ClosedByNameSnapshot,"
+            + " cs.ClosedCashSalesCop, cs.ClosedTransferSalesCop, cs.ClosedDiscountCop, cs.ClosedSaleCount;";
         var row = await unit.Connection.QuerySingleOrDefaultAsync<SummaryRow>(sql, new { Id = cashSessionId }, unit.Transaction);
 
         if (row is null)
@@ -227,3 +240,4 @@ public sealed class DapperCashSessionRepository : ICashSessionRepository
         public int SaleCount { get; set; }
     }
 }
+

@@ -1,33 +1,47 @@
 using System.Text.Json;
 using FrubberPOS.Application.Backup;
 using FrubberPOS.Application.Persistence;
+using Npgsql;
 
 namespace FrubberPOS.Infrastructure.Backup;
 
 /// <summary>
-/// Sidecar status for the Respaldo page (JHO-81): database file size plus a
-/// tiny JSON next to the database with the last successful backup. Not a
-/// history table — only the latest run, enough for KPIs and the health banner.
+/// Sidecar status for the Respaldo page (JHO-81): database size from
+/// <c>pg_database_size</c> plus a tiny JSON sidecar with the last
+/// successful backup. Not a history table — only the latest run, enough
+/// for KPIs and the health banner.
 /// </summary>
-public sealed class SqliteBackupStatusService : IBackupStatusService
+public sealed class PostgresBackupStatusService : IBackupStatusService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly DatabaseOptions database;
+    private readonly string logDirectory;
 
-    public SqliteBackupStatusService(DatabaseOptions database)
+    public PostgresBackupStatusService(DatabaseOptions database, string logDirectory)
     {
         ArgumentNullException.ThrowIfNull(database);
+        ArgumentException.ThrowIfNullOrWhiteSpace(logDirectory);
         this.database = database;
+        this.logDirectory = logDirectory;
     }
 
     public BackupOverview GetOverview()
     {
         long size = 0;
-        var dbPath = database.DatabaseFilePath;
-        if (!string.IsNullOrWhiteSpace(dbPath) && File.Exists(dbPath))
+        try
         {
-            size = new FileInfo(dbPath).Length;
+            var builder = new NpgsqlConnectionStringBuilder(database.ConnectionString);
+            using var connection = new NpgsqlConnection(builder.ConnectionString);
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT pg_database_size(current_database());";
+            size = (long)command.ExecuteScalar()!;
+        }
+        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or IOException)
+        {
+            // Base no disponible aún: reportar tamaño cero.
+            size = 0;
         }
 
         string? fileName = null;
@@ -79,7 +93,15 @@ public sealed class SqliteBackupStatusService : IBackupStatusService
         File.WriteAllText(SidecarPath(), JsonSerializer.Serialize(payload, JsonOptions));
     }
 
-    private string SidecarPath() => database.DatabaseFilePath + ".last-backup.json";
+    private string SidecarPath()
+    {
+        // Sidecar lives next to the log directory so it survives backup
+        // file moves and isn't tied to a single database file path.
+        // JHO-113: the directory is injected; deriving it from the connection
+        // string produced a CWD-relative "logs" folder, which is neither the
+        // application data directory nor writable under Program Files.
+        return Path.Combine(logDirectory, "last-backup.json");
+    }
 
     private sealed record SidecarPayload(string FileName, string Path, string LastBackupUtc);
 }

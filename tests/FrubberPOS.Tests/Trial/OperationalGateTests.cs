@@ -14,7 +14,7 @@ using FrubberPOS.Infrastructure.Persistence.Licensing;
 using FrubberPOS.Infrastructure.Persistence.Trial;
 using FrubberPOS.Tests.Products;
 using FrubberPOS.Tests.TestDoubles;
-using Microsoft.Data.Sqlite;
+using FrubberPOS.Tests.TestInfrastructure;
 
 namespace FrubberPOS.Tests.Trial;
 
@@ -23,6 +23,7 @@ namespace FrubberPOS.Tests.Trial;
 /// the licensing decision is produced by <see cref="EvaluateTrialUseCase"/>
 /// over the real trial/license tables and re-checked by the transactional
 /// use cases — a blocked state refuses the sale without touching data.
+/// Portado a PostgreSQL real (JHO-113).
 /// </summary>
 public sealed class OperationalGateTests
 {
@@ -40,9 +41,9 @@ public sealed class OperationalGateTests
         return new Wiring(new OperationalGate(evaluate), clock, status);
     }
 
-    private static async Task SeedTrialAsync(ProductTestBed bed, long firstRunUtcMs, long lastSeenUtcMs)
+    private static async Task SeedTrialAsync(long firstRunUtcMs, long lastSeenUtcMs)
     {
-        await using var connection = new SqliteConnection($"Data Source={bed.DbPath}");
+        await using var connection = PostgresTestDb.NewConnection();
         await connection.OpenAsync();
         await connection.ExecuteAsync(
             "INSERT INTO TrialState (TrialStateId, FirstRunUtcMs, LastSeenUtcMs) VALUES (1, @First, @Last);",
@@ -65,13 +66,13 @@ public sealed class OperationalGateTests
     {
         await using var bed = await ProductTestBed.CreateAsync();
         var nowMs = bed.Clock.UtcNow.ToUnixTimeMilliseconds();
-        await SeedTrialAsync(bed, nowMs - 40 * Day, nowMs - 10 * Day); // instalado hace 40 días
+        await SeedTrialAsync(nowMs - 40 * Day, nowMs - 10 * Day); // instalado hace 40 días
         var wiring = CreateWiring(bed, bed.Clock);
 
         var blocked = await wiring.Gate.CheckAsync(CancellationToken.None);
 
         Assert.NotNull(blocked);
-        Assert.Equal(ErrorCode.LicenseBlocked, blocked.Code);
+        Assert.Equal(ErrorCode.LicenseBlocked, blocked!.Code);
         Assert.Contains("periodo de prueba", blocked.Message);
     }
 
@@ -80,13 +81,13 @@ public sealed class OperationalGateTests
     {
         await using var bed = await ProductTestBed.CreateAsync();
         var nowMs = bed.Clock.UtcNow.ToUnixTimeMilliseconds();
-        await SeedTrialAsync(bed, nowMs - 2 * Day, nowMs + Day); // último uso "en el futuro"
+        await SeedTrialAsync(nowMs - 2 * Day, nowMs + Day); // último uso "en el futuro"
         var wiring = CreateWiring(bed, bed.Clock);
 
         var blocked = await wiring.Gate.CheckAsync(CancellationToken.None);
 
         Assert.NotNull(blocked);
-        Assert.Equal(ErrorCode.LicenseBlocked, blocked.Code);
+        Assert.Equal(ErrorCode.LicenseBlocked, blocked!.Code);
         Assert.Contains("reloj", blocked.Message);
     }
 
@@ -95,7 +96,7 @@ public sealed class OperationalGateTests
     {
         await using var bed = await ProductTestBed.CreateAsync();
         var nowMs = bed.Clock.UtcNow.ToUnixTimeMilliseconds();
-        await SeedTrialAsync(bed, nowMs - 40 * Day, nowMs - 10 * Day);
+        await SeedTrialAsync(nowMs - 40 * Day, nowMs - 10 * Day);
 
         using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var canonical = LicenseKeyFormat.BuildCanonicalPayload(KeyId, Machine, new DateOnly(2026, 9, 29));
@@ -119,7 +120,7 @@ public sealed class OperationalGateTests
     public async Task BlockedTrial_RefusesTheSale_AndBusinessDataStaysUntouched()
     {
         await using var bed = await ProductTestBed.CreateAsync();
-        await using (var connection = new SqliteConnection($"Data Source={bed.DbPath}"))
+        await using (var connection = PostgresTestDb.NewConnection())
         {
             await connection.OpenAsync();
             await connection.ExecuteAsync(
@@ -127,8 +128,8 @@ public sealed class OperationalGateTests
                 + " VALUES (1, 'Admin', 'ADMIN', 1, @Salt, @Hash, 1, 1);",
                 new { Salt = new byte[16], Hash = new byte[32] });
             await connection.ExecuteAsync(
-                "INSERT INTO CashSession (OpenedAtUtcMs, OpenedAtOffsetMinutes, OpenedByUserId, OpenedByNameSnapshot, OpeningBalanceCop)"
-                + " VALUES (1, 0, 1, 'Admin', 0);");
+                "INSERT INTO CashSession (CashSessionId, OpenedAtUtcMs, OpenedAtOffsetMinutes, OpenedByUserId, OpenedByNameSnapshot, OpeningBalanceCop)"
+                + " VALUES (1, 1, 0, 1, 'Admin', 0);");
         }
 
         var create = new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession());
@@ -146,7 +147,7 @@ public sealed class OperationalGateTests
 
         // La prueba vence DESPUÉS de haber operado (RN-LIC-002).
         var nowMs = bed.Clock.UtcNow.ToUnixTimeMilliseconds();
-        await using (var connection = new SqliteConnection($"Data Source={bed.DbPath}"))
+        await using (var connection = PostgresTestDb.NewConnection())
         {
             await connection.OpenAsync();
             await connection.ExecuteAsync("DELETE FROM TrialState;");
@@ -176,7 +177,7 @@ public sealed class OperationalGateTests
         Assert.Equal(ErrorCode.LicenseBlocked, refusedOpen.Error!.Code);
 
         // RN-LIC-003: el bloqueo jamás elimina ni modifica los datos del negocio.
-        await using var verification = new SqliteConnection($"Data Source={bed.DbPath}");
+        await using var verification = PostgresTestDb.NewConnection();
         await verification.OpenAsync();
         Assert.Equal(1, await verification.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM Sale;"));
         Assert.Equal(4_000, await verification.ExecuteScalarAsync<long>(
@@ -207,7 +208,7 @@ public sealed class OperationalGateTests
         Assert.True(status.IsSuccess);
         Assert.False(status.Value.IsLicensed);
 
-        await using var connection = new SqliteConnection($"Data Source={bed.DbPath}");
+        await using var connection = PostgresTestDb.NewConnection();
         await connection.OpenAsync();
         var stored = await connection.QuerySingleAsync<(long First, long Last)>(
             "SELECT FirstRunUtcMs AS First, LastSeenUtcMs AS Last FROM TrialState WHERE TrialStateId = 1;");

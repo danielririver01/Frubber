@@ -2,8 +2,11 @@ using Dapper;
 using FrubberPOS.Application.Authentication;
 using FrubberPOS.Application.Cash;
 using FrubberPOS.Application.Common;
+using FrubberPOS.Application.Persistence;
 using FrubberPOS.Tests.TestDoubles;
-using Microsoft.Data.Sqlite;
+using FrubberPOS.Tests.TestInfrastructure;
+using Npgsql;
+using FrubberPOS.Infrastructure.Persistence;
 
 namespace FrubberPOS.Tests.Cash;
 
@@ -70,17 +73,18 @@ public sealed class CashConcurrencyTests
         var open = new OpenCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession(), bed.Clock, bed.Gate);
         var opened = await open.ExecuteAsync(new OpenCashSessionRequest(100_000), CancellationToken.None);
 
-        await SeedAsync(bed.DbPath, 1, opened.Value.CashSessionId, "CASH", 20_000, 1_000);
-        await SeedAsync(bed.DbPath, 2, opened.Value.CashSessionId, "TRANSFER", 30_000, 0);
-        await SeedAsync(bed.DbPath, 3, opened.Value.CashSessionId, "CASH", 5_000, 0);
+        await SeedAsync(bed.Units, 1, opened.Value.CashSessionId, "CASH", 20_000, 1_000);
+        await SeedAsync(bed.Units, 2, opened.Value.CashSessionId, "TRANSFER", 30_000, 0);
+        await SeedAsync(bed.Units, 3, opened.Value.CashSessionId, "CASH", 5_000, 0);
 
         // Anular la venta 3: el esquema lo permite solo si la caja sigue abierta.
-        await using (var connection = new SqliteConnection($"Data Source={bed.DbPath}"))
+        await using (var unit = await bed.Units.CreateAsync(UnitOfWorkMode.WriteImmediate, CancellationToken.None))
         {
-            await connection.OpenAsync();
-            await connection.ExecuteAsync(
+            await unit.Connection.ExecuteAsync(
                 "INSERT INTO SaleVoid (SaleId, VoidedAtUtcMs, VoidedAtOffsetMinutes, AdminUserId, AdminNameSnapshot)"
-                + " VALUES (3, 5, 0, 1, 'Admin');");
+                + " VALUES (3, 5, 0, 1, 'Admin');",
+                transaction: unit.Transaction);
+            await unit.CommitAsync(CancellationToken.None);
         }
 
         var get = new GetOpenCashSessionUseCase(bed.Sessions, bed.Units, CashTestBed.AdminSession());
@@ -123,11 +127,10 @@ public sealed class CashConcurrencyTests
         Assert.Null((await get.ExecuteAsync(new GetOpenCashSessionRequest(), CancellationToken.None)).Value.Session);
     }
 
-    private static async Task SeedAsync(string path, int saleId, int cashSessionId, string method, long total, long discount)
+    private static async Task SeedAsync(NpgsqlUnitOfWorkFactory units, int saleId, int cashSessionId, string method, long total, long discount)
     {
-        await using var connection = new SqliteConnection($"Data Source={path}");
-        await connection.OpenAsync();
-        await connection.ExecuteAsync(
+        await using var unit = await units.CreateAsync(UnitOfWorkMode.WriteImmediate, CancellationToken.None);
+        await unit.Connection.ExecuteAsync(
             "INSERT INTO Sale (SaleId, SaleNumber, CashSessionId, CashierUserId, CashierNameSnapshot,"
             + " SoldAtUtcMs, SoldAtOffsetMinutes, SubtotalCop, DiscountCop, TotalCop, PaymentMethod, ReceivedCop, ChangeCop)"
             + " VALUES (@Id, @Id, @CashSessionId, 1, 'Admin', 2, 0, @Subtotal, @Discount, @Total, @Method, @Received, @Change);",
@@ -141,6 +144,8 @@ public sealed class CashConcurrencyTests
                 Method = method,
                 Received = method == "CASH" ? total : (long?)null,
                 Change = method == "CASH" ? 0 : (long?)null
-            });
+            },
+            unit.Transaction);
+        await unit.CommitAsync(CancellationToken.None);
     }
 }

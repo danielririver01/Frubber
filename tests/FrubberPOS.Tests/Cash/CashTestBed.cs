@@ -6,7 +6,8 @@ using FrubberPOS.Infrastructure.Migrations;
 using FrubberPOS.Infrastructure.Persistence;
 using FrubberPOS.Infrastructure.Persistence.Cash;
 using FrubberPOS.Tests.TestDoubles;
-using Microsoft.Data.Sqlite;
+using FrubberPOS.Tests.TestInfrastructure;
+using Npgsql;
 
 namespace FrubberPOS.Tests.Cash;
 
@@ -16,12 +17,8 @@ namespace FrubberPOS.Tests.Cash;
 /// </summary>
 internal sealed class CashTestBed : IAsyncDisposable
 {
-    private readonly string path;
-
-    private CashTestBed(string path, DapperCashSessionRepository sessions, FakeCurrentSession session, SqliteUnitOfWorkFactory units)
+    private CashTestBed(DapperCashSessionRepository sessions, FakeCurrentSession session, NpgsqlUnitOfWorkFactory units)
     {
-        this.path = path;
-        DbPath = path;
         Sessions = sessions;
         Session = session;
         Units = units;
@@ -31,9 +28,7 @@ internal sealed class CashTestBed : IAsyncDisposable
 
     public FakeCurrentSession Session { get; }
 
-    public SqliteUnitOfWorkFactory Units { get; }
-
-    public string DbPath { get; }
+    public NpgsqlUnitOfWorkFactory Units { get; }
 
     public FakeClock Clock { get; } = new(new DateTimeOffset(2026, 9, 30, 12, 0, 0, TimeSpan.FromHours(-5)));
 
@@ -56,17 +51,15 @@ internal sealed class CashTestBed : IAsyncDisposable
 
     public static async Task<CashTestBed> CreateAsync()
     {
-        var path = Path.Combine(Path.GetTempPath(), "FrubberPOS", Guid.NewGuid().ToString("N") + ".db");
-        var connectionString = $"Data Source={path}";
+        await PostgresTestDb.MigrateAsync();
 
-        var migrations = await new MigrationRunner().MigrateAsync(connectionString, CancellationToken.None);
-        if (!migrations.IsSuccess)
-        {
-            throw new InvalidOperationException("No se pudo migrar la base de prueba.");
-        }
+        // Limpieza defensiva al crear (idempotente): si una corrida anterior
+        // se cayó a mitad, DisposeAsync nunca corrió y los usuarios 1–2
+        // siguen ahí; sin esto el primer INSERT chocaría contra el PK.
+        await PostgresTestDb.CleanAllAsync();
 
-        var units = new SqliteUnitOfWorkFactory(new SqliteConnectionFactory(new DatabaseOptions(path)));
-        var bed = new CashTestBed(path, new DapperCashSessionRepository(), new FakeCurrentSession(), units);
+        var units = PostgresTestDb.NewUnitFactory();
+        var bed = new CashTestBed(new DapperCashSessionRepository(), new FakeCurrentSession(), units);
 
         await bed.SeedUserAsync(1, "Admin", "ADMIN");
         await bed.SeedUserAsync(2, "Zed Cajero", "CASHIER");
@@ -75,7 +68,7 @@ internal sealed class CashTestBed : IAsyncDisposable
 
     public async Task SeedUserAsync(int id, string name, string role)
     {
-        await using var connection = new SqliteConnection($"Data Source={path}");
+        await using var connection = PostgresTestDb.NewConnection();
         await connection.OpenAsync();
         await connection.ExecuteAsync(
             "INSERT INTO \"User\" (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
@@ -85,20 +78,7 @@ internal sealed class CashTestBed : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        SqliteConnection.ClearPool(new SqliteConnection($"Data Source={path}"));
-        if (File.Exists(path))
-        {
-            File.Delete(path);
-        }
-
-        foreach (var journal in new[] { path + "-wal", path + "-shm", path + "-journal" })
-        {
-            if (File.Exists(journal))
-            {
-                File.Delete(journal);
-            }
-        }
-
+        await PostgresTestDb.CleanAllAsync();
         await Task.CompletedTask;
     }
 }

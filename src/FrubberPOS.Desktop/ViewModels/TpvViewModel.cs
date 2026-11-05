@@ -2,7 +2,9 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using FrubberPOS.Application.Cash;
+using FrubberPOS.Application.Common;
 using FrubberPOS.Application.Navigation;
+using FrubberPOS.Application.Persistence;
 using FrubberPOS.Application.Products;
 using FrubberPOS.Application.Sales;
 using FrubberPOS.Desktop.Common;
@@ -299,6 +301,20 @@ public sealed class TpvViewModel : INotifyPropertyChanged
     {
         var result = await getOpenCash.ExecuteAsync(new GetOpenCashSessionRequest(), CancellationToken.None);
         cashOpen = result.IsSuccess && result.Value.Session is not null;
+
+        // JHO-113 · ADR-029: engine down — the caja informs «Sin conexión
+        // con el servidor» and keeps the checkout blocked (cashOpen stays
+        // false, so no sale can be finalized).
+        if (result.IsFailure && result.Error!.Code == ErrorCode.Connection)
+        {
+            ErrorMessage = result.Error.Message;
+        }
+        else if (result.IsSuccess && ErrorMessage == DatabaseUnavailableException.UserMessage)
+        {
+            // The engine answered again: drop the stale connection notice.
+            ErrorMessage = string.Empty;
+        }
+
         OnPropertyChanged(nameof(IsCashOpen));
         OnPropertyChanged(nameof(CashWarningVisible));
         OnPropertyChanged(nameof(CashWarningText));

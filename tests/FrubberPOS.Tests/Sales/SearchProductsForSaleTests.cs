@@ -4,7 +4,6 @@ using FrubberPOS.Application.Products;
 using FrubberPOS.Application.Sales;
 using FrubberPOS.Tests.Products;
 using FrubberPOS.Tests.TestDoubles;
-using Microsoft.Data.Sqlite;
 
 namespace FrubberPOS.Tests.Sales;
 

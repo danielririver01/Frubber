@@ -100,6 +100,7 @@ public sealed class ResultTests
             ErrorCode.Conflict,
             ErrorCode.LicenseBlocked,
             ErrorCode.Storage,
+            ErrorCode.Connection,
             ErrorCode.Printing,
             ErrorCode.Backup,
             ErrorCode.Unexpected

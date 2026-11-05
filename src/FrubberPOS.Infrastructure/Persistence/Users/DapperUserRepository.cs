@@ -10,7 +10,7 @@ namespace FrubberPOS.Infrastructure.Persistence.Users;
 /// Stateless: every method works on the caller's <see cref="IUnitOfWork"/>
 /// so reads and the last-admin re-check share one connection and one
 /// transaction. Friendly duplicate-name checks live in use cases; the
-/// NOCASE unique index is the backstop.
+/// unique index is the backstop.
 /// </summary>
 public sealed class DapperUserRepository : IUserRepository
 {
@@ -43,7 +43,7 @@ public sealed class DapperUserRepository : IUserRepository
         ArgumentNullException.ThrowIfNull(unit);
 
         const string sql = "SELECT UserId, DisplayName, Role FROM \"User\""
-            + " WHERE IsActive = 1 ORDER BY DisplayName COLLATE NOCASE;";
+            + " WHERE IsActive = 1 ORDER BY lower(DisplayName);";
         var rows = await unit.Connection.QueryAsync<UserRow>(sql, transaction: unit.Transaction);
 
         return rows.Select(row => new ActiveUserDto(row.UserId, row.DisplayName, UserRoles.Parse(row.Role))).ToList();
@@ -69,7 +69,7 @@ public sealed class DapperUserRepository : IUserRepository
         ArgumentNullException.ThrowIfNull(unit);
 
         const string sql = "SELECT UserId, DisplayName, Role, IsActive FROM \"User\""
-            + " ORDER BY IsActive DESC, DisplayName COLLATE NOCASE;";
+            + " ORDER BY IsActive DESC, lower(DisplayName);";
         var rows = await unit.Connection.QueryAsync<UserRow>(sql, transaction: unit.Transaction);
 
         return rows.Select(row => new UserDetailDto(row.UserId, row.DisplayName, UserRoles.Parse(row.Role), row.IsActive != 0)).ToList();
@@ -80,7 +80,7 @@ public sealed class DapperUserRepository : IUserRepository
         ArgumentNullException.ThrowIfNull(unit);
 
         const string sql = "SELECT COUNT(*) FROM \"User\""
-            + " WHERE DisplayName = @Name COLLATE NOCASE AND (@Exclude IS NULL OR UserId <> @Exclude);";
+            + " WHERE lower(DisplayName) = lower(@Name) AND (@Exclude IS NULL OR UserId <> @Exclude);";
         var count = await unit.Connection.QuerySingleAsync<long>(
             sql, new { Name = displayName, Exclude = (int?)excludeUserId }, unit.Transaction);
         return count > 0;
@@ -99,8 +99,8 @@ public sealed class DapperUserRepository : IUserRepository
         ArgumentNullException.ThrowIfNull(unit);
 
         const string sql = "INSERT INTO \"User\" (DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
-            + " VALUES (@Name, @Role, 1, @Salt, @Hash, @Iterations, @Version);"
-            + "SELECT last_insert_rowid();";
+            + " VALUES (@Name, @Role, 1, @Salt, @Hash, @Iterations, @Version)"
+            + " RETURNING UserId;";
         return await unit.Connection.QuerySingleAsync<int>(
             sql,
             new

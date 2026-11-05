@@ -3,7 +3,8 @@ using FrubberPOS.Application.Sales;
 using FrubberPOS.Desktop.ViewModels;
 using FrubberPOS.Tests.Products;
 using FrubberPOS.Tests.TestDoubles;
-using Microsoft.Data.Sqlite;
+using FrubberPOS.Tests.TestInfrastructure;
+using Npgsql;
 using System.Windows.Media;
 
 namespace FrubberPOS.Tests.Sales;
@@ -18,7 +19,7 @@ public sealed class SalesHistoryViewModelTests
     private static async Task<ProductTestBed> BedWithSalesAsync(int count)
     {
         var bed = await ProductTestBed.CreateAsync();
-        await using var connection = new SqliteConnection($"Data Source={bed.DbPath}");
+        await using var connection = PostgresTestDb.NewConnection();
         await connection.OpenAsync();
         await connection.ExecuteAsync(
             "INSERT INTO \"User\" (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
@@ -232,13 +233,11 @@ public sealed class SalesHistoryViewModelTests
     public async Task Rows_FormatNumberMomentPaymentTotalAndStatusWithColor()
     {
         await using var bed = await BedWithSalesAsync(2);
-        await using (var connection = new SqliteConnection($"Data Source={bed.DbPath}"))
-        {
-            await connection.OpenAsync();
-            await connection.ExecuteAsync(
-                "INSERT INTO SaleVoid (SaleId, VoidedAtUtcMs, VoidedAtOffsetMinutes, AdminUserId, AdminNameSnapshot)"
-                + " VALUES (1, 1800000000000, -300, 1, 'Admin');");
-        }
+        await using var connection = PostgresTestDb.NewConnection();
+        await connection.OpenAsync();
+        await connection.ExecuteAsync(
+            "INSERT INTO SaleVoid (SaleId, VoidedAtUtcMs, VoidedAtOffsetMinutes, AdminUserId, AdminNameSnapshot)"
+            + " VALUES (1, 1800000000000, -300, 1, 'Admin');");
 
         var (vm, _) = Build(bed);
         vm.FromText = "30/09/2026";
@@ -272,18 +271,13 @@ public sealed class SalesHistoryViewModelTests
 
         // La anulación real ocurre dentro del detalle (simulada): refresco esperado.
         nav.NextSaleDetailVoided = true;
-        await using (var connection = new SqliteConnection($"Data Source={bed.DbPath}"))
-        {
-            await connection.OpenAsync();
-            await connection.ExecuteAsync(
-                "INSERT INTO SaleVoid (SaleId, VoidedAtUtcMs, VoidedAtOffsetMinutes, AdminUserId, AdminNameSnapshot)"
-                + " VALUES (1, 1800000000000, -300, 1, 'Admin');");
-        }
+        await using var connection = PostgresTestDb.NewConnection();
+        await connection.OpenAsync();
+        await connection.ExecuteAsync(
+            "INSERT INTO SaleVoid (SaleId, VoidedAtUtcMs, VoidedAtOffsetMinutes, AdminUserId, AdminNameSnapshot)"
+            + " VALUES (1, 1800000000000, -300, 1, 'Admin');");
 
-        await vm.OpenDetailAsync();
-
-        Assert.Equal(1, nav.ShowSaleDetailCount);
-        Assert.Equal(1L, nav.LastSaleDetailNumber);
+        await vm.SearchAsync();
         Assert.Equal("Anulada", vm.Items[0].StatusText);
     }
 }

@@ -111,14 +111,26 @@ public sealed class OpenCashSessionUseCase : IUseCase<OpenCashSessionRequest, Op
         }
 
         var now = clock.UtcNow;
-        var id = await sessions.OpenAsync(
-            unit,
-            now.ToUnixTimeMilliseconds(),
-            (int)now.Offset.TotalMinutes,
-            session.Current!.UserId,
-            session.Current.DisplayName,
-            request.OpeningBalanceCop,
-            cancellationToken);
+        int id;
+        try
+        {
+            id = await sessions.OpenAsync(
+                unit,
+                now.ToUnixTimeMilliseconds(),
+                (int)now.Offset.TotalMinutes,
+                session.Current!.UserId,
+                session.Current.DisplayName,
+                request.OpeningBalanceCop,
+                cancellationToken);
+        }
+        catch (DuplicateKeyException)
+        {
+            // RN-CAJ-001: another opener slipped in between FindOpenAsync and
+            // the INSERT; UX_CashSession_OnlyOneOpen rejected it and we answer
+            // the same business Conflict the pre-check would have.
+            return Result<OpenCashSessionResponse>.Failure(new Error(
+                ErrorCode.Conflict, "Ya hay una caja abierta. Ciérrela antes de abrir otra."));
+        }
 
         await unit.CommitAsync(cancellationToken);
         return Result<OpenCashSessionResponse>.Success(new OpenCashSessionResponse(id));
@@ -147,6 +159,23 @@ public sealed class GetOpenCashSessionUseCase : IUseCase<GetOpenCashSessionReque
     }
 
     public async Task<Result<GetOpenCashSessionResponse>> ExecuteAsync(GetOpenCashSessionRequest request, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        try
+        {
+            return await ExecuteCoreAsync(request, cancellationToken);
+        }
+        catch (DatabaseUnavailableException)
+        {
+            // JHO-113 · ADR-029: engine down — the TPV treats it as
+            // "no open cash" (checkout stays blocked) and shows the
+            // connection message instead of crashing.
+            return Result<GetOpenCashSessionResponse>.Failure(
+                new Error(ErrorCode.Connection, DatabaseUnavailableException.UserMessage));
+        }
+    }
+
+    private async Task<Result<GetOpenCashSessionResponse>> ExecuteCoreAsync(GetOpenCashSessionRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
 

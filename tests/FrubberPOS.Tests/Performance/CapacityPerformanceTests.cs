@@ -5,25 +5,25 @@ using FrubberPOS.Application.Products;
 using FrubberPOS.Application.Sales;
 using FrubberPOS.Domain.Products;
 using FrubberPOS.Tests.Products;
-using Microsoft.Data.Sqlite;
+using FrubberPOS.Tests.TestInfrastructure;
+using Npgsql;
 using Xunit.Abstractions;
 
 namespace FrubberPOS.Tests.Performance;
 
 /// <summary>
 /// Capacity and performance targets (JHO-55, RNF-REN-003/004/005/006,
-/// RN-OPE-005): 5.000 products and 100.000 representative sales over local
-/// storage only. Every query reports its elapsed time so the run log
-/// records it against the current hardware; assertions use the SRS limits.
-/// The database is created from the real migrations and deleted afterwards.
+/// RN-OPE-005): 5.000 products and 100.000 representative sales against a
+/// real PostgreSQL database migrated from the real migration scripts.
+/// Every query reports its elapsed time so the run log records it against
+/// the current hardware; assertions use the SRS limits.
 /// </summary>
-public sealed class CapacityPerformanceTests : IAsyncDisposable
+public sealed class CapacityPerformanceTests : IAsyncLifetime
 {
     private static readonly TimeSpan SearchLimit = TimeSpan.FromSeconds(1);       // RNF-REN-003/004
     private static readonly TimeSpan SaleLimit = TimeSpan.FromSeconds(2);         // RNF-REN-005
     private static readonly TimeSpan HistoryLimit = TimeSpan.FromSeconds(3);      // RNF-REN-006
 
-    private readonly List<string> tempDirs = [];
     private readonly ITestOutputHelper output;
 
     public CapacityPerformanceTests(ITestOutputHelper output)
@@ -31,25 +31,22 @@ public sealed class CapacityPerformanceTests : IAsyncDisposable
         this.output = output;
     }
 
-    public async ValueTask DisposeAsync()
-    {
-        foreach (var dir in tempDirs)
-        {
-            SqliteConnection.ClearAllPools();
-            if (Directory.Exists(dir))
-            {
-                Directory.Delete(dir, recursive: true);
-            }
-        }
+    // JHO-113: cada prueba de volumen siembra a mano User/CashSession con id 1
+    // y 5.000 productos; sin limpieza previa la segunda heredaba esas filas y
+    // moría con «llave duplicada». System.IAsyncDisposable no lo resolvía:
+    // xUnit v2 no lo invoca en las clases de prueba.
+    public Task InitializeAsync() => PostgresTestDb.CleanAllAsync();
 
-        await Task.CompletedTask;
+    public Task DisposeAsync()
+    {
+        NpgsqlConnection.ClearAllPools();
+        return Task.CompletedTask;
     }
 
     private async Task<ProductTestBed> VolumeBedAsync()
     {
         var bed = await ProductTestBed.CreateAsync();
-        tempDirs.Add(Path.GetDirectoryName(bed.DbPath)!);
-        await using var connection = new SqliteConnection($"Data Source={bed.DbPath}");
+        await using var connection = PostgresTestDb.NewConnection();
         await connection.OpenAsync();
         await connection.ExecuteAsync(
             "INSERT INTO \"User\" (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
@@ -68,8 +65,8 @@ WITH RECURSIVE seq(n) AS (
 )
 INSERT INTO Product (ProductId, Plu, Name, Unit, PriceCop, StockMilli, IsActive, UnitLocked)
 SELECT n,
-       printf('P%04d', n),
-       'Producto ' || printf('%04d', n),
+       'P' || lpad(n::text, 4, '0'),
+       'Producto ' || lpad(n::text, 4, '0'),
        CASE n % 3 WHEN 0 THEN 'UNIT' WHEN 1 THEN 'KG' ELSE 'LB' END,
        1000 + n,
        CASE n % 3 WHEN 0 THEN n * 1000 ELSE n END,
@@ -102,7 +99,8 @@ FROM seq;");
         await connection.ExecuteAsync(
             "INSERT INTO SaleVoid (SaleId, VoidedAtUtcMs, VoidedAtOffsetMinutes, AdminUserId, AdminNameSnapshot)"
             + " SELECT SaleId, SoldAtUtcMs + 1, -300, 1, 'Admin' FROM Sale WHERE SaleNumber % 1000 = 0;");
-        await connection.ExecuteAsync("UPDATE SystemSequence SET LastValue = 100000 WHERE SequenceName = 'SaleNumber';");
+        await connection.ExecuteAsync(
+            "UPDATE SystemSequence SET LastValue = 100000 WHERE SequenceName = 'SaleNumber';");
         seed.Stop();
         output.WriteLine($"[Perf] Carga de volumen (5.000 productos + 100.000 ventas): {seed.Elapsed}");
         return bed;

@@ -116,6 +116,23 @@ public sealed class FinalizeSaleUseCase : IUseCase<FinalizeSaleRequest, Finalize
     public async Task<Result<FinalizeSaleResponse>> ExecuteAsync(FinalizeSaleRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
+        try
+        {
+            return await ExecuteCoreAsync(request, cancellationToken);
+        }
+        catch (DatabaseUnavailableException)
+        {
+            // JHO-113 · ADR-029: engine down — the sale is never
+            // registered and the cashier sees «Sin conexión con el
+            // servidor» instead of an unhandled crash.
+            return Result<FinalizeSaleResponse>.Failure(
+                new Error(ErrorCode.Connection, DatabaseUnavailableException.UserMessage));
+        }
+    }
+
+    private async Task<Result<FinalizeSaleResponse>> ExecuteCoreAsync(FinalizeSaleRequest request, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
 
         if (request.Lines is null || request.Lines.Count == 0)
         {

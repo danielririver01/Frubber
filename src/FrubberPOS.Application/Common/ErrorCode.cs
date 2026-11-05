@@ -14,6 +14,7 @@ public enum ErrorCode
     Conflict,
     LicenseBlocked,
     Storage,
+    Connection,
     Printing,
     Backup,
     Unexpected

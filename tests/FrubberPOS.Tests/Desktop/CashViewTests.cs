@@ -1,3 +1,4 @@
+using System.Threading;
 using System.Windows;
 using System.Windows.Threading;
 using Dapper;
@@ -6,8 +7,11 @@ using FrubberPOS.Desktop.ViewModels;
 using FrubberPOS.Desktop.Views;
 using FrubberPOS.Tests.Cash;
 using FrubberPOS.Tests.TestDoubles;
-using Microsoft.Data.Sqlite;
+using FrubberPOS.Tests.TestInfrastructure;
+using Npgsql;
 
+using FrubberPOS.Application.Persistence;
+using FrubberPOS.Infrastructure.Persistence;
 namespace FrubberPOS.Tests.Desktop;
 
 /// <summary>
@@ -49,7 +53,7 @@ public sealed class CashViewTests
                 var view = ShowView(window, vm);
                 PumpUntil(() => vm.SaleCountText == "0 ventas", "OnLoaded carga el estado inicial de la caja");
 
-                InsertCashSaleAsync(bed, amountCop: 8_400).GetAwaiter().GetResult();
+                StaViewHarness.Await(InsertCashSaleAsync(bed.Units, amountCop: 8_400));
 
                 view.RaiseEvent(new RoutedEventArgs(FrameworkElement.LoadedEvent));
                 PumpUntil(() => vm.SaleCountText == "1 ventas", "volver a Caja refresca la venta registrada (JHO-84)");
@@ -64,18 +68,19 @@ public sealed class CashViewTests
     }
 
     /// <summary>Venta CASH válida pegada al esquema 001 (CHECKs de Sale).</summary>
-    private static async Task InsertCashSaleAsync(CashTestBed bed, long amountCop)
+    private static async Task InsertCashSaleAsync(NpgsqlUnitOfWorkFactory units, long amountCop)
     {
-        await using var connection = new SqliteConnection($"Data Source={bed.DbPath}");
-        await connection.OpenAsync();
-        var sessionId = await connection.QuerySingleAsync<int>(
+        await using var unit = await units.CreateAsync(UnitOfWorkMode.WriteImmediate, CancellationToken.None);
+        var sessionId = await unit.Connection.QuerySingleAsync<int>(
             "SELECT CashSessionId FROM CashSession WHERE ClosedAtUtcMs IS NULL;");
-        await connection.ExecuteAsync(
+        await unit.Connection.ExecuteAsync(
             "INSERT INTO Sale (SaleNumber, CashSessionId, CashierUserId, CashierNameSnapshot,"
             + " SoldAtUtcMs, SoldAtOffsetMinutes, SubtotalCop, DiscountCop, TotalCop,"
             + " PaymentMethod, ReceivedCop, ChangeCop)"
             + " VALUES (1, @SessionId, 1, 'Admin', 1790000000000, -300, @Amount, 0, @Amount, 'CASH', @Amount, 0);",
-            new { SessionId = sessionId, Amount = amountCop });
+            new { SessionId = sessionId, Amount = amountCop },
+            unit.Transaction);
+        await unit.CommitAsync(CancellationToken.None);
     }
 
     private static void PumpUntil(Func<bool> condition, string because)

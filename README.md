@@ -148,6 +148,31 @@ balanza, respaldo, licenciamiento, rendimiento y seguridad, entre otras.
 dotnet test FrubberPOS.sln --collect:"XPlat Code Coverage"
 ```
 
+### Prerrequisitos de la suite (JHO-113)
+
+Las pruebas corren contra **PostgreSQL real** (no hay SQLite). En una
+máquina nueva hay que preparar el entorno una sola vez:
+
+```powershell
+$env:PGPASSWORD = '<contraseña del superusuario>'
+.\scripts\setup-test-db.ps1
+```
+
+El script (idempotente) crea el rol de pruebas `frubber`/`frubber` con
+permiso `CREATEDB` —lo usan las pruebas del ejecutor de migraciones para
+crear bases desechables— y la base `frubberpos_test`. Para apuntar a otra
+base se usa la variable de entorno:
+
+```powershell
+$env:FRUBBERPOS_TEST_CONNECTION_STRING = 'Host=localhost;Port=5432;Database=frubberpos_test;Username=frubber;Password=frubber;'
+```
+
+> Las credenciales `frubber`/`frubber` son solo de desarrollo local:
+> rotarlas antes de producción.
+
+La suite corre **en serie** (las clases comparten una única base de
+datos) y tarda alrededor de 2 minutos.
+
 Los tests de licenciamiento son los más exigentes: **compilan y ejecutan el verificador real**
 (`EcdsaLicenseSignatureVerifier`) en lugar de un doble, así que cualquier cambio en el formato
 de la licencia rompe la suite de inmediato. También hay pruebas de concurrencia de caja y de

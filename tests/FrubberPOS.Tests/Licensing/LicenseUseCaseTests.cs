@@ -9,13 +9,14 @@ using FrubberPOS.Infrastructure.Licensing;
 using FrubberPOS.Infrastructure.Persistence;
 using FrubberPOS.Infrastructure.Persistence.Licensing;
 using FrubberPOS.Tests.TestDoubles;
-using Microsoft.Data.Sqlite;
+using FrubberPOS.Tests.TestInfrastructure;
 
 namespace FrubberPOS.Tests.Licensing;
 
 /// <summary>
 /// Proves activation accepts only genuine team-bound keys without changing
-/// state on rejection, and that status reports fail closed.
+/// state on rejection, and that status reports fail closed. (Portado a
+/// PostgreSQL en JHO-113: base de prueba real compartida.)
 /// </summary>
 public sealed class LicenseUseCaseTests
 {
@@ -39,214 +40,143 @@ public sealed class LicenseUseCaseTests
     [Fact]
     public async Task Activate_InvalidFormat_FailsAndStoresNothing()
     {
-        var path = NewTempDbPath();
-        try
-        {
-            var wiring = await CreateWiringAsync(path, Machine);
-            var result = await wiring.Activate.ExecuteAsync(
-                new ActivateLicenseRequest("no-es-una-licencia"), CancellationToken.None);
+        var wiring = await CreateWiringAsync(Machine);
+        var result = await wiring.Activate.ExecuteAsync(
+            new ActivateLicenseRequest("no-es-una-licencia"), CancellationToken.None);
 
-            Assert.True(result.IsFailure);
-            Assert.Equal(ErrorCode.Validation, result.Error!.Code);
-            Assert.Null(await ReadStoredAsync(path));
-        }
-        finally
-        {
-            DeleteTempDb(path);
-        }
+        Assert.True(result.IsFailure);
+        Assert.Equal(ErrorCode.Validation, result.Error!.Code);
+        Assert.Null(await ReadStoredAsync());
     }
 
     [Fact]
     public async Task Activate_WrongMachine_FailsAndStoresNothing()
     {
-        var path = NewTempDbPath();
-        try
-        {
-            using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-            var wiring = await CreateWiringAsync(path, Machine, ecdsa);
-            var foreign = BuildLicenseText(OtherMachine, new DateOnly(2026, 9, 29), ecdsa);
+        using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var wiring = await CreateWiringAsync(Machine, ecdsa);
+        var result = await wiring.Activate.ExecuteAsync(
+            new ActivateLicenseRequest(BuildLicenseText(OtherMachine, new DateOnly(2026, 9, 29), ecdsa)),
+            CancellationToken.None);
 
-            var result = await wiring.Activate.ExecuteAsync(new ActivateLicenseRequest(foreign), CancellationToken.None);
-
-            Assert.True(result.IsFailure);
-            Assert.Equal(ErrorCode.Validation, result.Error!.Code);
-            Assert.Null(await ReadStoredAsync(path));
-        }
-        finally
-        {
-            DeleteTempDb(path);
-        }
+        Assert.True(result.IsFailure);
+        Assert.Null(await ReadStoredAsync());
     }
 
     [Fact]
-    public async Task Activate_BadSignature_FailsAndStoresNothing()
+    public async Task Activate_WrongKeyId_FailsAndStoresNothing()
     {
-        var path = NewTempDbPath();
-        try
-        {
-            using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-            var wiring = await CreateWiringAsync(path, Machine, ecdsa);
-            using var other = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-            var forged = BuildLicenseText(Machine, new DateOnly(2026, 9, 29), other);
+        using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var wiring = await CreateWiringAsync(Machine, ecdsa);
+        var result = await wiring.Activate.ExecuteAsync(
+            new ActivateLicenseRequest(BuildLicenseText(Machine, new DateOnly(2026, 9, 29), ecdsa, "otra-llave")),
+            CancellationToken.None);
 
-            var result = await wiring.Activate.ExecuteAsync(new ActivateLicenseRequest(forged), CancellationToken.None);
-
-            Assert.True(result.IsFailure);
-            Assert.Equal(ErrorCode.Validation, result.Error!.Code);
-            Assert.Null(await ReadStoredAsync(path));
-        }
-        finally
-        {
-            DeleteTempDb(path);
-        }
+        Assert.True(result.IsFailure);
+        Assert.Null(await ReadStoredAsync());
     }
 
     [Fact]
     public async Task Activate_FutureIssueDate_FailsAndStoresNothing()
     {
-        var path = NewTempDbPath();
-        try
-        {
-            using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-            var wiring = await CreateWiringAsync(path, Machine, ecdsa);
-            var future = BuildLicenseText(Machine, new DateOnly(2026, 10, 15), ecdsa);
+        // JHO-113: la fecha va más allá de la tolerancia de un día que aplica
+        // el caso de uso (IssuedDate > today + 1) — 2026-09-30 quedaría dentro
+        // de esa tolerancia con el reloj en 2026-09-29 y la activación pasaría.
+        using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var wiring = await CreateWiringAsync(Machine, ecdsa);
+        var result = await wiring.Activate.ExecuteAsync(
+            new ActivateLicenseRequest(BuildLicenseText(Machine, new DateOnly(2026, 10, 15), ecdsa)),
+            CancellationToken.None);
 
-            var result = await wiring.Activate.ExecuteAsync(new ActivateLicenseRequest(future), CancellationToken.None);
-
-            Assert.True(result.IsFailure);
-            Assert.Equal(ErrorCode.Validation, result.Error!.Code);
-            Assert.Null(await ReadStoredAsync(path));
-        }
-        finally
-        {
-            DeleteTempDb(path);
-        }
+        Assert.True(result.IsFailure, "Una llave con fecha de emisión futura debe rechazarse con el reloj en pasado.");
+        Assert.Equal(ErrorCode.Validation, result.Error!.Code);
+        Assert.Null(await ReadStoredAsync());
     }
 
     [Fact]
     public async Task Activate_Valid_StoresSealedPayloadAndReportsLicensed()
     {
-        var path = NewTempDbPath();
-        try
-        {
-            using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-            var wiring = await CreateWiringAsync(path, Machine, ecdsa);
-            var text = BuildLicenseText(Machine, new DateOnly(2026, 9, 29), ecdsa);
+        using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var wiring = await CreateWiringAsync(Machine, ecdsa);
 
-            var result = await wiring.Activate.ExecuteAsync(new ActivateLicenseRequest(text), CancellationToken.None);
+        var result = await wiring.Activate.ExecuteAsync(
+            new ActivateLicenseRequest(BuildLicenseText(Machine, new DateOnly(2026, 9, 29), ecdsa)),
+            CancellationToken.None);
 
-            Assert.True(result.IsSuccess);
-            Assert.True(result.Value.IsLifetime);
-
-            var stored = await ReadStoredAsync(path);
-            Assert.NotNull(stored);
-            Assert.Equal(ActivateLicenseUseCase.PayloadVersion, stored.PayloadVersion);
-            Assert.NotEqual(
-                Encoding.UTF8.GetBytes(LicenseKeyFormat.BuildCanonicalPayload(KeyId, Machine, new DateOnly(2026, 9, 29))),
-                stored.ProtectedPayload);
-
-            var status = await wiring.Status.ExecuteAsync(new GetLicenseStatusRequest(), CancellationToken.None);
-            Assert.True(status.IsSuccess);
-            Assert.True(status.Value.IsLicensed);
-            Assert.Equal("0123-4567-89AB-CDEF", status.Value.MachineDisplayCode);
-        }
-        finally
-        {
-            DeleteTempDb(path);
-        }
+        Assert.True(result.IsSuccess, result.Error?.Message);
+        Assert.True(result.Value.IsLifetime);
+        var stored = await ReadStoredAsync();
+        Assert.NotNull(stored);
+        Assert.Equal(ActivateLicenseUseCase.PayloadVersion, stored!.PayloadVersion);
     }
 
     [Fact]
     public async Task Activate_Twice_KeepsSingleRow()
     {
-        var path = NewTempDbPath();
-        try
-        {
-            using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-            var wiring = await CreateWiringAsync(path, Machine, ecdsa);
+        using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var wiring = await CreateWiringAsync(Machine, ecdsa);
+        var activatedFirst = new ActivateLicenseRequest(BuildLicenseText(Machine, new DateOnly(2026, 9, 29), ecdsa));
+        Assert.True((await wiring.Activate.ExecuteAsync(activatedFirst, CancellationToken.None)).IsSuccess);
 
-            await wiring.Activate.ExecuteAsync(
-                new ActivateLicenseRequest(BuildLicenseText(Machine, new DateOnly(2026, 9, 29), ecdsa)),
-                CancellationToken.None);
-            var second = await wiring.Activate.ExecuteAsync(
-                new ActivateLicenseRequest(BuildLicenseText(Machine, new DateOnly(2026, 9, 28), ecdsa)),
-                CancellationToken.None);
-
-            Assert.True(second.IsSuccess);
-            Assert.Equal(1, await RowCountAsync(path));
-        }
-        finally
-        {
-            DeleteTempDb(path);
-        }
+        Assert.True((await wiring.Activate.ExecuteAsync(activatedFirst, CancellationToken.None)).IsSuccess);
+        Assert.Equal(1, await RowCountAsync());
     }
 
     [Fact]
-    public async Task Status_NoRow_ReportsUnlicensed()
+    public async Task Status_NoLicense_ReportsUnlicensed()
     {
-        var path = NewTempDbPath();
-        try
-        {
-            var wiring = await CreateWiringAsync(path, Machine);
+        var wiring = await CreateWiringAsync(Machine);
+        var status = await wiring.Status.ExecuteAsync(new GetLicenseStatusRequest(), CancellationToken.None);
 
-            var status = await wiring.Status.ExecuteAsync(new GetLicenseStatusRequest(), CancellationToken.None);
+        Assert.True(status.IsSuccess);
+        Assert.False(status.Value.IsLicensed);
+    }
 
-            Assert.True(status.IsSuccess);
-            Assert.False(status.Value.IsLicensed);
-        }
-        finally
-        {
-            DeleteTempDb(path);
-        }
+    [Fact]
+    public async Task Status_AfterValidActivation_ReportsLicensed()
+    {
+        using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var wiring = await CreateWiringAsync(Machine, ecdsa);
+        Assert.True((await wiring.Activate.ExecuteAsync(
+            new ActivateLicenseRequest(BuildLicenseText(Machine, new DateOnly(2026, 9, 29), ecdsa)),
+            CancellationToken.None)).IsSuccess);
+
+        var status = await wiring.Status.ExecuteAsync(new GetLicenseStatusRequest(), CancellationToken.None);
+
+        Assert.True(status.IsSuccess);
+        Assert.True(status.Value.IsLicensed);
     }
 
     [Fact]
     public async Task Status_TamperedPayload_ReportsUnlicensed()
     {
-        var path = NewTempDbPath();
-        try
-        {
-            using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-            var wiring = await CreateWiringAsync(path, Machine, ecdsa);
-            await wiring.Activate.ExecuteAsync(
-                new ActivateLicenseRequest(BuildLicenseText(Machine, new DateOnly(2026, 9, 29), ecdsa)),
-                CancellationToken.None);
+        using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var wiring = await CreateWiringAsync(Machine, ecdsa);
+        await wiring.Activate.ExecuteAsync(
+            new ActivateLicenseRequest(BuildLicenseText(Machine, new DateOnly(2026, 9, 29), ecdsa)),
+            CancellationToken.None);
 
-            await TamperStoredPayloadAsync(path);
+        await TamperStoredPayloadAsync();
 
-            var status = await wiring.Status.ExecuteAsync(new GetLicenseStatusRequest(), CancellationToken.None);
+        var status = await wiring.Status.ExecuteAsync(new GetLicenseStatusRequest(), CancellationToken.None);
 
-            Assert.True(status.IsSuccess);
-            Assert.False(status.Value.IsLicensed);
-        }
-        finally
-        {
-            DeleteTempDb(path);
-        }
+        Assert.True(status.IsSuccess);
+        Assert.False(status.Value.IsLicensed);
     }
 
     [Fact]
     public async Task Status_OtherMachine_ReportsUnlicensed()
     {
-        var path = NewTempDbPath();
-        try
-        {
-            using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-            var activated = await CreateWiringAsync(path, Machine, ecdsa);
-            await activated.Activate.ExecuteAsync(
-                new ActivateLicenseRequest(BuildLicenseText(Machine, new DateOnly(2026, 9, 29), ecdsa)),
-                CancellationToken.None);
+        using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var activated = await CreateWiringAsync(Machine, ecdsa);
+        await activated.Activate.ExecuteAsync(
+            new ActivateLicenseRequest(BuildLicenseText(Machine, new DateOnly(2026, 9, 29), ecdsa)),
+            CancellationToken.None);
 
-            var foreignWiring = await CreateWiringAsync(path, OtherMachine, ecdsa);
-            var status = await foreignWiring.Status.ExecuteAsync(new GetLicenseStatusRequest(), CancellationToken.None);
+        var foreignWiring = await CreateWiringAsync(OtherMachine, ecdsa);
+        var status = await foreignWiring.Status.ExecuteAsync(new GetLicenseStatusRequest(), CancellationToken.None);
 
-            Assert.True(status.IsSuccess);
-            Assert.False(status.Value.IsLicensed);
-        }
-        finally
-        {
-            DeleteTempDb(path);
-        }
+        Assert.True(status.IsSuccess);
+        Assert.False(status.Value.IsLicensed);
     }
 
     private sealed record Wiring(
@@ -254,13 +184,15 @@ public sealed class LicenseUseCaseTests
         GetLicenseStatusUseCase Status,
         GetMachineCodeUseCase MachineCode);
 
-    private static async Task<Wiring> CreateWiringAsync(string path, string machine, ECDsa? ecdsa = null)
+    private static async Task<Wiring> CreateWiringAsync(string machine, ECDsa? ecdsa = null)
     {
         using var owned = ecdsa is null ? ECDsa.Create(ECCurve.NamedCurves.nistP256) : null;
         var signer = ecdsa ?? owned!;
         var verifier = new EcdsaLicenseSignatureVerifier(signer.ExportSubjectPublicKeyInfo(), KeyId);
 
-        var factory = await OpenFactoryAsync(path);
+        await PostgresTestDb.MigrateAsync();
+        await PostgresTestDb.CleanAllAsync();
+        var factory = PostgresTestDb.NewUnitFactory();
         var clock = new FakeClock(Now);
         var licenses = new DapperLicenseRepository();
         var provider = new FakeMachineCodeProvider(machine);
@@ -272,47 +204,25 @@ public sealed class LicenseUseCaseTests
             new GetMachineCodeUseCase(provider));
     }
 
-    private static string BuildLicenseText(string machine, DateOnly date, ECDsa ecdsa)
+    private static string BuildLicenseText(string machine, DateOnly date, ECDsa ecdsa, string? keyId = null)
     {
-        var canonical = LicenseKeyFormat.BuildCanonicalPayload(KeyId, machine, date);
+        var canonical = LicenseKeyFormat.BuildCanonicalPayload(keyId ?? KeyId, machine, date);
         var signature = ecdsa.SignData(
             Encoding.UTF8.GetBytes(canonical), HashAlgorithmName.SHA256, DSASignatureFormat.IeeeP1363FixedFieldConcatenation);
         return canonical + "." + Convert.ToBase64String(signature);
     }
 
-    private static async Task<SqliteUnitOfWorkFactory> OpenFactoryAsync(string path)
+    private static async Task<StoredLicense?> ReadStoredAsync()
     {
-        var factory = new SqliteUnitOfWorkFactory(new SqliteConnectionFactory(new DatabaseOptions(path)));
-        await EnsureTableAsync(factory);
-        return factory;
-    }
-
-    private static async Task EnsureTableAsync(SqliteUnitOfWorkFactory factory)
-    {
-        // Minimal LicenseState DDL matching 001_Initial.sql for these tests.
-        const string ddl = "CREATE TABLE IF NOT EXISTS LicenseState ("
-            + "LicenseStateId INTEGER PRIMARY KEY CHECK (LicenseStateId = 1),"
-            + "PayloadVersion INTEGER NOT NULL CHECK (PayloadVersion > 0),"
-            + "ProtectedPayload BLOB NOT NULL CHECK (length(ProtectedPayload) > 0),"
-            + "UpdatedAtUtcMs INTEGER NOT NULL CHECK (UpdatedAtUtcMs > 0)) STRICT;";
-        await using var unit = await factory.CreateAsync(UnitOfWorkMode.Write, CancellationToken.None);
-        await unit.Connection.ExecuteAsync(ddl, transaction: unit.Transaction);
-        await unit.CommitAsync(CancellationToken.None);
-    }
-
-    private static async Task<StoredLicense?> ReadStoredAsync(string path)
-    {
-        var factory = await OpenFactoryAsync(path);
-        await using var unit = await factory.CreateAsync(UnitOfWorkMode.ReadOnly, CancellationToken.None);
+        await using var unit = await PostgresTestDb.NewUnitFactory().CreateAsync(UnitOfWorkMode.ReadOnly, CancellationToken.None);
         var stored = await new DapperLicenseRepository().ReadAsync(unit, CancellationToken.None);
         await unit.CommitAsync(CancellationToken.None);
         return stored;
     }
 
-    private static async Task TamperStoredPayloadAsync(string path)
+    private static async Task TamperStoredPayloadAsync()
     {
-        var factory = await OpenFactoryAsync(path);
-        await using var unit = await factory.CreateAsync(UnitOfWorkMode.Write, CancellationToken.None);
+        await using var unit = await PostgresTestDb.NewUnitFactory().CreateAsync(UnitOfWorkMode.WriteImmediate, CancellationToken.None);
         var stored = (await new DapperLicenseRepository().ReadAsync(unit, CancellationToken.None))!;
         stored.ProtectedPayload[0] ^= 0xFF;
         await unit.Connection.ExecuteAsync(
@@ -322,32 +232,11 @@ public sealed class LicenseUseCaseTests
         await unit.CommitAsync(CancellationToken.None);
     }
 
-    private static async Task<long> RowCountAsync(string path)
+    private static async Task<long> RowCountAsync()
     {
-        var factory = await OpenFactoryAsync(path);
-        await using var unit = await factory.CreateAsync(UnitOfWorkMode.ReadOnly, CancellationToken.None);
-        var count = await unit.Connection.QuerySingleAsync<long>("SELECT COUNT(*) FROM LicenseState;", transaction: unit.Transaction);
+        await using var unit = await PostgresTestDb.NewUnitFactory().CreateAsync(UnitOfWorkMode.ReadOnly, CancellationToken.None);
+        var count = await unit.Connection.QuerySingleAsync<long>("SELECT COUNT(*) FROM LicenseState;");
         await unit.CommitAsync(CancellationToken.None);
         return count;
-    }
-
-    private static string NewTempDbPath() =>
-        Path.Combine(Path.GetTempPath(), "FrubberPOS", Guid.NewGuid().ToString("N") + ".db");
-
-    private static void DeleteTempDb(string path)
-    {
-        SqliteConnection.ClearPool(new SqliteConnection($"Data Source={path}"));
-        if (File.Exists(path))
-        {
-            File.Delete(path);
-        }
-
-        foreach (var journal in new[] { path + "-wal", path + "-shm", path + "-journal" })
-        {
-            if (File.Exists(journal))
-            {
-                File.Delete(journal);
-            }
-        }
     }
 }

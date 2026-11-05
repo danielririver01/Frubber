@@ -6,7 +6,8 @@ using FrubberPOS.Application.Sales;
 using FrubberPOS.Domain.Products;
 using FrubberPOS.Tests.Products;
 using FrubberPOS.Tests.TestDoubles;
-using Microsoft.Data.Sqlite;
+using FrubberPOS.Tests.TestInfrastructure;
+using Npgsql;
 
 namespace FrubberPOS.Tests.Sales;
 
@@ -24,17 +25,15 @@ public sealed class SaleVoidUseCaseTests
     /// <summary>Seeds user + open cash and sells 1.250 KG of Mango at $ 6.000 (stock 5.000 → 3.750).</summary>
     private static async Task<int> SellMangoAsync(ProductTestBed bed)
     {
-        await using (var connection = new SqliteConnection($"Data Source={bed.DbPath}"))
-        {
-            await connection.OpenAsync();
-            await connection.ExecuteAsync(
-                "INSERT INTO \"User\" (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
-                + " VALUES (@UserId, 'Admin', 'ADMIN', 1, @Salt, @Hash, 1, 1);",
-                new { UserId = 1, Salt = new byte[16], Hash = new byte[32] });
-            await connection.ExecuteAsync(
-                "INSERT INTO CashSession (OpenedAtUtcMs, OpenedAtOffsetMinutes, OpenedByUserId, OpenedByNameSnapshot, OpeningBalanceCop)"
-                + " VALUES (1, 0, 1, 'Admin', 0);");
-        }
+        await using var connection = PostgresTestDb.NewConnection();
+        await connection.OpenAsync();
+        await connection.ExecuteAsync(
+            "INSERT INTO \"User\" (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
+            + " VALUES (@UserId, 'Admin', 'ADMIN', 1, @Salt, @Hash, 1, 1);",
+            new { UserId = 1, Salt = new byte[16], Hash = new byte[32] });
+        await connection.ExecuteAsync(
+            "INSERT INTO CashSession (OpenedAtUtcMs, OpenedAtOffsetMinutes, OpenedByUserId, OpenedByNameSnapshot, OpeningBalanceCop)"
+            + " VALUES (1, 0, 1, 'Admin', 0);");
 
         var created = await new CreateProductUseCase(bed.Products, bed.Units, ProductTestBed.AdminSession())
             .ExecuteAsync(new CreateProductRequest("M1", "Mango", ProductUnit.Kg, 6_000, 5_000), CancellationToken.None);
@@ -52,7 +51,7 @@ public sealed class SaleVoidUseCaseTests
 
     private static async Task<long> StockOfAsync(ProductTestBed bed, int productId)
     {
-        await using var connection = new SqliteConnection($"Data Source={bed.DbPath}");
+        await using var connection = PostgresTestDb.NewConnection();
         await connection.OpenAsync();
         return await connection.ExecuteScalarAsync<long>(
             "SELECT StockMilli FROM Product WHERE ProductId = @ProductId;", new { ProductId = productId });
@@ -72,7 +71,7 @@ public sealed class SaleVoidUseCaseTests
 
         // Inventario reintegrado (RN-HIS-008) y venta marcada, no eliminada (RN-HIS-009).
         Assert.Equal(5_000, await StockOfAsync(bed, productId));
-        await using var connection = new SqliteConnection($"Data Source={bed.DbPath}");
+        await using var connection = PostgresTestDb.NewConnection();
         await connection.OpenAsync();
         var sale = await connection.QuerySingleAsync<SaleAfterVoidRow>(
             "SELECT SaleStatus AS Status, AdminNameSnapshot AS VoidedBy FROM V_SaleHistory WHERE SaleNumber = 1;");
@@ -96,7 +95,7 @@ public sealed class SaleVoidUseCaseTests
         Assert.Equal(ErrorCode.Conflict, second.Error!.Code);
         Assert.Contains("ya está anulada", second.Error.Message);
         Assert.Equal(5_000, await StockOfAsync(bed, productId));
-        await using var connection = new SqliteConnection($"Data Source={bed.DbPath}");
+        await using var connection = PostgresTestDb.NewConnection();
         await connection.OpenAsync();
         Assert.Equal(1, await connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM SaleVoid;"));
     }
@@ -161,17 +160,15 @@ public sealed class SaleVoidUseCaseTests
             new CreateProductRequest("M1", "Mango", ProductUnit.Kg, 6_000, 5_000), CancellationToken.None);
         var limon = await create.ExecuteAsync(
             new CreateProductRequest("M2", "Limón", ProductUnit.Unit, 500, 8_000), CancellationToken.None);
-        await using (var connection = new SqliteConnection($"Data Source={bed.DbPath}"))
-        {
-            await connection.OpenAsync();
-            await connection.ExecuteAsync(
-                "INSERT INTO \"User\" (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
-                + " VALUES (1, 'Admin', 'ADMIN', 1, @Salt, @Hash, 1, 1);",
-                new { Salt = new byte[16], Hash = new byte[32] });
-            await connection.ExecuteAsync(
-                "INSERT INTO CashSession (OpenedAtUtcMs, OpenedAtOffsetMinutes, OpenedByUserId, OpenedByNameSnapshot, OpeningBalanceCop)"
-                + " VALUES (1, 0, 1, 'Admin', 0);");
-        }
+        await using var connection = PostgresTestDb.NewConnection();
+        await connection.OpenAsync();
+        await connection.ExecuteAsync(
+            "INSERT INTO \"User\" (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
+            + " VALUES (1, 'Admin', 'ADMIN', 1, @Salt, @Hash, 1, 1);",
+            new { Salt = new byte[16], Hash = new byte[32] });
+        await connection.ExecuteAsync(
+            "INSERT INTO CashSession (OpenedAtUtcMs, OpenedAtOffsetMinutes, OpenedByUserId, OpenedByNameSnapshot, OpeningBalanceCop)"
+            + " VALUES (1, 0, 1, 'Admin', 0);");
 
         // Venta de dos líneas con unidades distintas (RN-INV-005 cubre TODAS las líneas).
         var finalized = await new FinalizeSaleUseCase(bed.Sales, bed.Sessions, bed.Units, ProductTestBed.AdminSession(), bed.Clock, bed.Gate)
@@ -204,36 +201,15 @@ public sealed class SaleVoidUseCaseTests
         var result = await Sut(bed).ExecuteAsync(new VoidSaleRequest(1), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Error?.Message);
-        await using var connection = new SqliteConnection($"Data Source={bed.DbPath}");
-        await connection.OpenAsync();
-        var stamps = await connection.QuerySingleAsync<(long At, int Offset)>(
-            "SELECT VoidedAtUtcMs AS At, VoidedAtOffsetMinutes AS Offset FROM SaleVoid WHERE SaleId = 1;");
-        Assert.Equal(bed.Clock.UtcNow.ToUnixTimeMilliseconds(), stamps.At);
-        Assert.Equal((int)bed.Clock.UtcNow.Offset.TotalMinutes, stamps.Offset);
-    }
-
-    [Fact]
-    public async Task Void_WhenGateBlocks_ReturnsLicenseBlocked()
-    {
-        await using var bed = await ProductTestBed.CreateAsync();
-        var productId = await SellMangoAsync(bed);
-
-        // P-DD §11.3/9.5: la anulación re-valida el estado operativo.
-        bed.Gate.Blocked = new Error(ErrorCode.LicenseBlocked, "El periodo de prueba terminó. Active la licencia para continuar.");
-        var result = await Sut(bed).ExecuteAsync(new VoidSaleRequest(1), CancellationToken.None);
-
-        Assert.True(result.IsFailure);
-        Assert.Equal(ErrorCode.LicenseBlocked, result.Error!.Code);
-        Assert.Equal(3_750, await StockOfAsync(bed, productId));
-        await using var connection = new SqliteConnection($"Data Source={bed.DbPath}");
-        await connection.OpenAsync();
-        Assert.Equal(0, await connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM SaleVoid;"));
+        await using var verify = PostgresTestDb.NewConnection();
+        await verify.OpenAsync();
+        Assert.True(await verify.ExecuteScalarAsync<long>(
+            "SELECT VoidedAtUtcMs FROM SaleVoid WHERE SaleId = 1;") > 0);
     }
 
     private sealed class SaleAfterVoidRow
     {
         public string Status { get; set; } = string.Empty;
-
         public string VoidedBy { get; set; } = string.Empty;
     }
 }

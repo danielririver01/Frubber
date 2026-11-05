@@ -5,6 +5,7 @@ using FrubberPOS.Application.Trial;
 using FrubberPOS.Desktop.ViewModels;
 using FrubberPOS.Tests.Authentication;
 using FrubberPOS.Tests.TestDoubles;
+using FrubberPOS.Tests.TestInfrastructure;
 
 namespace FrubberPOS.Tests.Desktop;
 
@@ -444,7 +445,7 @@ public sealed class LoginViewModelTests
 
     private static async Task DeactivateUsersAsync(AuthenticationTestBed bed, params int[] userIds)
     {
-        await using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={bed.DbPath}");
+        await using var connection = PostgresTestDb.NewConnection();
         await connection.OpenAsync();
         var ids = string.Join(", ", userIds);
         await connection.ExecuteAsync($"UPDATE \"User\" SET IsActive = 0 WHERE UserId IN ({ids});");

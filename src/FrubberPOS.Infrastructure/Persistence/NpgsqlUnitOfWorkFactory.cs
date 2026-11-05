@@ -7,11 +7,11 @@ namespace FrubberPOS.Infrastructure.Persistence;
 /// <see cref="IDatabaseConnectionFactory"/> (JHO-23). Owns nothing after
 /// returning: the caller commits once and disposes.
 /// </summary>
-public sealed class SqliteUnitOfWorkFactory : IUnitOfWorkFactory
+public sealed class NpgsqlUnitOfWorkFactory : IUnitOfWorkFactory
 {
     private readonly IDatabaseConnectionFactory connectionFactory;
 
-    public SqliteUnitOfWorkFactory(IDatabaseConnectionFactory connectionFactory)
+    public NpgsqlUnitOfWorkFactory(IDatabaseConnectionFactory connectionFactory)
     {
         ArgumentNullException.ThrowIfNull(connectionFactory);
         this.connectionFactory = connectionFactory;
@@ -22,7 +22,7 @@ public sealed class SqliteUnitOfWorkFactory : IUnitOfWorkFactory
         var connection = await connectionFactory.CreateOpenConnectionAsync(cancellationToken);
         try
         {
-            return await SqliteUnitOfWork.BeginAsync(connection, mode, cancellationToken);
+            return await NpgsqlUnitOfWork.BeginAsync(connection, mode, cancellationToken);
         }
         catch
         {

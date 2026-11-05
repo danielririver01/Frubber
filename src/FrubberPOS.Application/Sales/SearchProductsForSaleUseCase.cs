@@ -44,6 +44,22 @@ public sealed class SearchProductsForSaleUseCase : IUseCase<SearchForSaleRequest
     public async Task<Result<SearchForSaleResponse>> ExecuteAsync(SearchForSaleRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
+        try
+        {
+            return await ExecuteCoreAsync(request, cancellationToken);
+        }
+        catch (DatabaseUnavailableException)
+        {
+            // JHO-113 · ADR-029: engine down — inform the cashier and
+            // keep the current draft untouched.
+            return Result<SearchForSaleResponse>.Failure(
+                new Error(ErrorCode.Connection, DatabaseUnavailableException.UserMessage));
+        }
+    }
+
+    private async Task<Result<SearchForSaleResponse>> ExecuteCoreAsync(SearchForSaleRequest request, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
 
         var denied = Authorization.RequireSignedIn(session);
         if (denied is not null)

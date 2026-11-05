@@ -1,51 +1,47 @@
 using Dapper;
+using FrubberPOS.Application.Authentication;
 using FrubberPOS.Application.Common;
 using FrubberPOS.Application.Sales;
 using FrubberPOS.Tests.Products;
-using Microsoft.Data.Sqlite;
+using FrubberPOS.Tests.TestDoubles;
+using FrubberPOS.Tests.TestInfrastructure;
+using Npgsql;
 
 namespace FrubberPOS.Tests.Sales;
 
-/// <summary>
-/// Paginated history query (JHO-47/75, RN-HIS-001/004): admin-only, dates
-/// optional (both null = full history, half range rejected), newest-first,
-/// exactly 50 per page except the last, and fast over 100.000 reference sales.
-/// </summary>
 public sealed class SalesHistoryQueryTests
 {
-    private static SearchSalesHistoryUseCase Sut(ProductTestBed bed, FrubberPOS.Tests.TestDoubles.FakeCurrentSession? session = null) =>
+    private static SearchSalesHistoryUseCase Sut(ProductTestBed bed, FakeCurrentSession? session = null) =>
         new(bed.History, bed.Units, session ?? ProductTestBed.AdminSession());
-
-    /// <summary>UTC ms de un momento local: la prueba vale en cualquier zona horaria.</summary>
-    private static long LocalMs(int year, int month, int day, int hour = 12, int minute = 0)
-    {
-        var local = new DateTime(year, month, day, hour, minute, 0, DateTimeKind.Unspecified);
-        return new DateTimeOffset(local, TimeZoneInfo.Local.GetUtcOffset(local)).ToUnixTimeMilliseconds();
-    }
 
     private static async Task SeedUserAndCashAsync(ProductTestBed bed)
     {
-        await using var connection = new SqliteConnection($"Data Source={bed.DbPath}");
+        await using var connection = PostgresTestDb.NewConnection();
         await connection.OpenAsync();
         await connection.ExecuteAsync(
             "INSERT INTO \"User\" (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
-            + " VALUES (@UserId, 'Admin', 'ADMIN', 1, @Salt, @Hash, 1, 1);",
-            new { UserId = 1, Salt = new byte[16], Hash = new byte[32] });
+            + " VALUES (1, 'Admin', 'ADMIN', 1, @Salt, @Hash, 1, 1);",
+            new { Salt = new byte[16], Hash = new byte[32] });
         await connection.ExecuteAsync(
             "INSERT INTO CashSession (CashSessionId, OpenedAtUtcMs, OpenedAtOffsetMinutes, OpenedByUserId, OpenedByNameSnapshot, OpeningBalanceCop)"
             + " VALUES (1, 1, 0, 1, 'Admin', 0);");
     }
 
-    private static async Task SeedSaleAsync(
-        ProductTestBed bed, long saleNumber, long soldAtUtcMs, string paymentMethod = "CASH",
-        long totalCop = 1_000, string cashier = "Admin", bool voided = false)
+    private static long LocalMs(int year, int month, int day, int hour = 0, int minute = 0)
     {
-        await using var connection = new SqliteConnection($"Data Source={bed.DbPath}");
+        var local = new DateTime(year, month, day, hour, minute, 0, DateTimeKind.Unspecified);
+        return new DateTimeOffset(local, TimeZoneInfo.Local.GetUtcOffset(local)).ToUnixTimeMilliseconds();
+    }
+
+    private static async Task SeedSaleAsync(ProductTestBed bed, long saleNumber, long soldAtUtcMs, string paymentMethod = "CASH", string cashier = "Admin", bool voided = false, long totalCop = 8_000)
+    {
+        await using var connection = PostgresTestDb.NewConnection();
         await connection.OpenAsync();
         var isCash = paymentMethod == "CASH";
         await connection.ExecuteAsync(
             "INSERT INTO Sale (SaleNumber, CashSessionId, CashierUserId, CashierNameSnapshot,"
-            + " SoldAtUtcMs, SoldAtOffsetMinutes, SubtotalCop, DiscountCop, TotalCop, PaymentMethod, ReceivedCop, ChangeCop)"
+            + " SoldAtUtcMs, SoldAtOffsetMinutes, SubtotalCop, DiscountCop, TotalCop, PaymentMethod,"
+            + " ReceivedCop, ChangeCop)"
             + " VALUES (@SaleNumber, 1, 1, @Cashier, @SoldAtUtcMs, 0, @TotalCop, 0, @TotalCop, @PaymentMethod,"
             + " @ReceivedCop, @ChangeCop);",
             new
@@ -159,8 +155,8 @@ public sealed class SalesHistoryQueryTests
         await using var bed = await ProductTestBed.CreateAsync();
         await SeedUserAndCashAsync(bed);
         var moment = LocalMs(2026, 9, 30, 12, 5);
-        await SeedSaleAsync(bed, 7, LocalMs(2026, 9, 30), "TRANSFER", 8_400, "Cajero Uno");
-        await SeedSaleAsync(bed, 8, moment, "CASH", 2_000, "Admin", voided: true);
+        await SeedSaleAsync(bed, 7, LocalMs(2026, 9, 30), "TRANSFER", "Cajero Uno");
+        await SeedSaleAsync(bed, 8, moment, "CASH", "Admin", voided: true, totalCop: 2_000);
 
         var result = await Sut(bed).ExecuteAsync(
             new SearchSalesHistoryRequest(new DateOnly(2026, 9, 30), new DateOnly(2026, 9, 30), 1), CancellationToken.None);
@@ -184,18 +180,16 @@ public sealed class SalesHistoryQueryTests
     {
         await using var bed = await ProductTestBed.CreateAsync();
         await SeedUserAndCashAsync(bed);
-        await using (var connection = new SqliteConnection($"Data Source={bed.DbPath}"))
+        await using var connection = PostgresTestDb.NewConnection();
+        await connection.OpenAsync();
+        var baseMs = LocalMs(2026, 9, 30);
+        for (long number = 1; number <= 120; number++)
         {
-            await connection.OpenAsync();
-            var baseMs = LocalMs(2026, 9, 30);
-            for (long number = 1; number <= 120; number++)
-            {
-                await connection.ExecuteAsync(
-                    "INSERT INTO Sale (SaleNumber, CashSessionId, CashierUserId, CashierNameSnapshot,"
-                    + " SoldAtUtcMs, SoldAtOffsetMinutes, SubtotalCop, DiscountCop, TotalCop, PaymentMethod, ReceivedCop, ChangeCop)"
-                    + " VALUES (@Number, 1, 1, 'Admin', @Moment, 0, 1000, 0, 1000, 'CASH', 1000, 0);",
-                    new { Number = number, Moment = baseMs + number * 1_000 });
-            }
+            await connection.ExecuteAsync(
+                "INSERT INTO Sale (SaleNumber, CashSessionId, CashierUserId, CashierNameSnapshot,"
+                + " SoldAtUtcMs, SoldAtOffsetMinutes, SubtotalCop, DiscountCop, TotalCop, PaymentMethod, ReceivedCop, ChangeCop)"
+                + " VALUES (@Number, 1, 1, 'Admin', @Moment, 0, 1000, 0, 1000, 'CASH', 1000, 0);",
+                new { Number = number, Moment = baseMs + number * 1_000 });
         }
 
         var page2 = await Sut(bed).ExecuteAsync(
@@ -219,11 +213,10 @@ public sealed class SalesHistoryQueryTests
     {
         await using var bed = await ProductTestBed.CreateAsync();
         await SeedUserAndCashAsync(bed);
-        await using (var connection = new SqliteConnection($"Data Source={bed.DbPath}"))
-        {
-            await connection.OpenAsync();
-            // 100.000 ventas generadas en una sola sentencia (CTE recursivo).
-            await connection.ExecuteAsync(@"
+        await using var connection = PostgresTestDb.NewConnection();
+        await connection.OpenAsync();
+        // 100.000 ventas generadas con CTE recursivo.
+        await connection.ExecuteAsync(@"
 WITH RECURSIVE seq(n) AS (
     SELECT 1
     UNION ALL SELECT n + 1 FROM seq WHERE n < 100000
@@ -232,8 +225,7 @@ INSERT INTO Sale (SaleNumber, CashSessionId, CashierUserId, CashierNameSnapshot,
     SoldAtUtcMs, SoldAtOffsetMinutes, SubtotalCop, DiscountCop, TotalCop, PaymentMethod, ReceivedCop, ChangeCop)
 SELECT n, 1, 1, 'Admin', @Base + n, -300, 1000, 0, 1000, 'CASH', 1000, 0
 FROM seq;",
-                new { Base = LocalMs(2026, 9, 30) });
-        }
+            new { Base = LocalMs(2026, 9, 30) });
 
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         var result = await Sut(bed).ExecuteAsync(

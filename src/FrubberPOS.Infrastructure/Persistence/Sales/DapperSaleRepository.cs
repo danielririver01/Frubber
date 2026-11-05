@@ -1,4 +1,4 @@
-using Dapper;
+﻿using Dapper;
 using FrubberPOS.Application.Persistence;
 using FrubberPOS.Application.Sales;
 
@@ -39,8 +39,8 @@ public sealed class DapperSaleRepository : ISaleRepository
         const string sql = "INSERT INTO Sale (SaleNumber, CashSessionId, CashierUserId, CashierNameSnapshot,"
             + " SoldAtUtcMs, SoldAtOffsetMinutes, SubtotalCop, DiscountCop, TotalCop, PaymentMethod, ReceivedCop, ChangeCop)"
             + " VALUES (@SaleNumber, @CashSessionId, @CashierUserId, @CashierNameSnapshot,"
-            + " @SoldAtUtcMs, @SoldAtOffsetMinutes, @SubtotalCop, @DiscountCop, @TotalCop, @PaymentMethod, @ReceivedCop, @ChangeCop);"
-            + "SELECT last_insert_rowid();";
+            + " @SoldAtUtcMs, @SoldAtOffsetMinutes, @SubtotalCop, @DiscountCop, @TotalCop, @PaymentMethod, @ReceivedCop, @ChangeCop)"
+            + " RETURNING SaleId;";
         long totalCop = subtotalCop - discountCop;
         long? changeCop = paymentMethod == "CASH" && receivedCop is not null ? receivedCop - totalCop : null;
 
@@ -99,8 +99,7 @@ public sealed class DapperSaleRepository : ISaleRepository
         const string sql = "UPDATE Product"
             + " SET StockMilli = StockMilli + @DeltaMilli, UnitLocked = 1"
             + " WHERE ProductId = @ProductId;";
-        await unit.Connection.ExecuteAsync(
-            sql, new { DeltaMilli = deltaMilli, ProductId = productId }, unit.Transaction);
+        await unit.Connection.ExecuteAsync(sql, new { DeltaMilli = deltaMilli, ProductId = productId }, unit.Transaction);
     }
 
     public async Task<ProductPriceRow?> FindProductRowAsync(IUnitOfWork unit, int productId, CancellationToken cancellationToken)
@@ -187,3 +186,4 @@ public sealed class DapperSaleRepository : ISaleRepository
         public long LineTotalCop { get; set; }
     }
 }
+

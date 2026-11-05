@@ -11,7 +11,8 @@ using FrubberPOS.Domain.Products;
 using FrubberPOS.Tests.Authentication;
 using FrubberPOS.Tests.Products;
 using FrubberPOS.Tests.TestDoubles;
-using Microsoft.Data.Sqlite;
+using FrubberPOS.Tests.TestInfrastructure;
+using Npgsql;
 
 namespace FrubberPOS.Tests.Desktop;
 
@@ -40,9 +41,9 @@ public sealed class TableAlignmentTests
                 new GetTicketForSaleUseCase(bed.Sales, bed.Settings, bed.Units),
                 new FakeTicketPrinter(),
                 new FakeNavigator { NextQuantityMilli = 1_000 });
-            vm.SearchAsync().GetAwaiter().GetResult();
+            StaViewHarness.Await(vm.SearchAsync());
             vm.SelectedResult = vm.Results.First();
-            vm.AddSelectedAsync().GetAwaiter().GetResult();
+            StaViewHarness.Await(vm.AddSelectedAsync());
             // El borde teal de la fila seleccionada (3 px) desplaza las celdas
             // del ticket; medir sin selección evita el falso negativo.
             vm.SelectedResult = null;
@@ -73,7 +74,7 @@ public sealed class TableAlignmentTests
             var vm = new SalesHistoryViewModel(
                 new SearchSalesHistoryUseCase(bed.History, bed.Units, ProductTestBed.AdminSession()),
                 new FakeNavigator());
-            vm.InitializeAsync().GetAwaiter().GetResult();
+            StaViewHarness.Await(vm.InitializeAsync());
             Assert.True(vm.Items.Count > 0);
 
             var view = new SalesHistoryView(vm);
@@ -97,7 +98,7 @@ public sealed class TableAlignmentTests
                 new SetUserActiveStateUseCase(bed.Users, bed.Units, AuthenticationTestBed.AdminSession()),
                 new DeleteUserUseCase(bed.Users, bed.Units, AuthenticationTestBed.AdminSession()),
                 new FakeNavigator());
-            vm.LoadAsync().GetAwaiter().GetResult();
+            StaViewHarness.Await(vm.LoadAsync());
             Assert.True(vm.Users.Count > 0);
 
             var view = new UsersView(vm);
@@ -123,7 +124,7 @@ public sealed class TableAlignmentTests
                 new GetTicketForSaleUseCase(bed.Sales, bed.Settings, bed.Units),
                 new FakeTicketPrinter(),
                 new FakeNavigator());
-            vm.LoadAsync(1, viewerIsAdmin: true).GetAwaiter().GetResult();
+            StaViewHarness.Await(vm.LoadAsync(1, viewerIsAdmin: true));
             Assert.True(vm.Lines.Count > 0);
 
             var dialog = new SaleDetailDialog(vm, 1, viewerIsAdmin: true);
@@ -148,7 +149,7 @@ public sealed class TableAlignmentTests
     private static async Task<ProductTestBed> BedWithSalesAsync(int count)
     {
         var bed = await ProductTestBed.CreateAsync();
-        await using var connection = new SqliteConnection($"Data Source={bed.DbPath}");
+        await using var connection = PostgresTestDb.NewConnection();
         await connection.OpenAsync();
         await connection.ExecuteAsync(
             "INSERT INTO \"User\" (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
@@ -179,7 +180,7 @@ public sealed class TableAlignmentTests
 
     private static async Task SeedOneSaleAsync(ProductTestBed bed)
     {
-        await using (var connection = new SqliteConnection($"Data Source={bed.DbPath}"))
+        await using (var connection = PostgresTestDb.NewConnection())
         {
             await connection.OpenAsync();
             await connection.ExecuteAsync(

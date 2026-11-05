@@ -3,7 +3,7 @@ using FrubberPOS.Application.Persistence;
 
 namespace FrubberPOS.Infrastructure.Persistence;
 
-internal sealed class SqliteUnitOfWork : IUnitOfWork
+internal sealed class NpgsqlUnitOfWork : IUnitOfWork
 {
     private readonly DbConnection connection;
     private readonly DbTransaction? transaction;
@@ -11,23 +11,28 @@ internal sealed class SqliteUnitOfWork : IUnitOfWork
     private bool committed;
     private bool disposed;
 
-    private SqliteUnitOfWork(DbConnection connection, DbTransaction? transaction, bool immediate)
+    private NpgsqlUnitOfWork(DbConnection connection, DbTransaction? transaction, bool immediate)
     {
         this.connection = connection;
         this.transaction = transaction;
         this.immediate = immediate;
     }
 
-    internal static async Task<SqliteUnitOfWork> BeginAsync(DbConnection connection, UnitOfWorkMode mode, CancellationToken cancellationToken)
+    internal static async Task<NpgsqlUnitOfWork> BeginAsync(DbConnection connection, UnitOfWorkMode mode, CancellationToken cancellationToken)
     {
         DbTransaction? transaction = null;
         var immediate = false;
 
         if (mode == UnitOfWorkMode.WriteImmediate)
         {
+            // PostgreSQL doesn't have BEGIN IMMEDIATE; acquire the write
+            // lock explicitly with a dummy statement inside a transaction.
             await using var begin = connection.CreateCommand();
-            begin.CommandText = "BEGIN IMMEDIATE;";
+            begin.CommandText = "BEGIN;";
             await begin.ExecuteNonQueryAsync(cancellationToken);
+            await using var lockCmd = connection.CreateCommand();
+            lockCmd.CommandText = "SELECT 1 FROM Sale WHERE 1 = 0 FOR UPDATE;";
+            await lockCmd.ExecuteNonQueryAsync(cancellationToken);
             immediate = true;
         }
         else if (mode == UnitOfWorkMode.Write)
@@ -35,7 +40,7 @@ internal sealed class SqliteUnitOfWork : IUnitOfWork
             transaction = connection.BeginTransaction();
         }
 
-        return new SqliteUnitOfWork(connection, transaction, immediate);
+        return new NpgsqlUnitOfWork(connection, transaction, immediate);
     }
 
     public DbConnection Connection

@@ -6,7 +6,7 @@ using FrubberPOS.Application.Sales;
 using FrubberPOS.Desktop.ViewModels;
 using FrubberPOS.Tests.Products;
 using FrubberPOS.Tests.TestDoubles;
-using Microsoft.Data.Sqlite;
+using FrubberPOS.Tests.TestInfrastructure;
 
 namespace FrubberPOS.Tests.Sales;
 
@@ -257,7 +257,7 @@ public sealed class TpvViewModelCheckoutTests
 {
     private static async Task OpenCashAsync(ProductTestBed bed)
     {
-        await using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={bed.DbPath}");
+        await using var connection = PostgresTestDb.NewConnection();
         await connection.OpenAsync();
         await connection.ExecuteAsync(
             "INSERT INTO \"User\" (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"

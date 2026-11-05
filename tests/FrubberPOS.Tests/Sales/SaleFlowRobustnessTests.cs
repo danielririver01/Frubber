@@ -7,7 +7,7 @@ using FrubberPOS.Desktop.ViewModels;
 using FrubberPOS.Domain.Products;
 using FrubberPOS.Tests.Products;
 using FrubberPOS.Tests.TestDoubles;
-using Microsoft.Data.Sqlite;
+using FrubberPOS.Tests.TestInfrastructure;
 
 namespace FrubberPOS.Tests.Sales;
 
@@ -21,7 +21,7 @@ public sealed class SaleFlowRobustnessTests
 {
     private static async Task OpenCashAsync(ProductTestBed bed)
     {
-        await using var connection = new SqliteConnection($"Data Source={bed.DbPath}");
+        await using var connection = PostgresTestDb.NewConnection();
         await connection.OpenAsync();
         await connection.ExecuteAsync(
             "INSERT INTO \"User\" (UserId, DisplayName, Role, IsActive, PinSalt, PinHash, PinIterations, PinAlgorithmVersion)"
@@ -65,14 +65,14 @@ public sealed class SaleFlowRobustnessTests
 
     private static async Task<int> CountSalesAsync(ProductTestBed bed)
     {
-        await using var connection = new SqliteConnection($"Data Source={bed.DbPath}");
+        await using var connection = PostgresTestDb.NewConnection();
         await connection.OpenAsync();
         return await connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM Sale;");
     }
 
     private static async Task<T> QuerySingleAsync<T>(ProductTestBed bed, string sql)
     {
-        await using var connection = new SqliteConnection($"Data Source={bed.DbPath}");
+        await using var connection = PostgresTestDb.NewConnection();
         await connection.OpenAsync();
         return await connection.QuerySingleAsync<T>(sql);
     }
@@ -225,7 +225,7 @@ public sealed class SaleFlowRobustnessTests
         await AddFirstResultAsync(vm);
 
         // El precio cambia en el catálogo entre el agregado y el cobro.
-        await using (var connection = new SqliteConnection($"Data Source={bed.DbPath}"))
+        await using (var connection = PostgresTestDb.NewConnection())
         {
             await connection.OpenAsync();
             await connection.ExecuteAsync("UPDATE Product SET PriceCop = 5_000 WHERE Plu = 'L1';");
