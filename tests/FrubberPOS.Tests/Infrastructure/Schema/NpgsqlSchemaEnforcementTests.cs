@@ -21,7 +21,14 @@ namespace FrubberPOS.Tests.Infrastructure.Schema;
 /// </remarks>
 public sealed class NpgsqlSchemaEnforcementTests : IAsyncLifetime
 {
-    public Task InitializeAsync() => PostgresTestDb.CleanAllAsync();
+    // JHO-113: migrar antes de limpiar. CleanAllAsync trunca tablas del
+    // esquema, así que si esta clase arranca sobre una base recién creada
+    // (orden de ejecución distinto) fallaría con «relation does not exist».
+    public async Task InitializeAsync()
+    {
+        await PostgresTestDb.MigrateAsync();
+        await PostgresTestDb.CleanAllAsync();
+    }
 
     public Task DisposeAsync() => PostgresTestDb.CleanAllAsync();
 

@@ -27,7 +27,7 @@ public sealed class FakeLicenseRepository : ILicenseRepository
 /// <summary>
 /// No-op unit of work for tests whose repositories ignore persistence.
 /// <see cref="Connection"/> is intentionally unusable: tests reaching it
-/// must use the real SQLite factories instead. Production code never uses this.
+/// must use the real PostgreSQL factories instead. Production code never uses this.
 /// </summary>
 public sealed class FakeUnitOfWork : IUnitOfWork
 {
