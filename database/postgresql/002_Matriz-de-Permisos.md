@@ -11,6 +11,8 @@ Archivos:
 | `database/postgresql/001_Baseline.sql` | Línea base del esquema (M2-27) |
 | `database/postgresql/002_Security.sql` | Roles, revokes, funciones SECURITY DEFINER |
 | `prototipo/verificacion-seguridad-real.sql` | Pruebas contra el esquema real (criterios 1–3) |
+| `database/postgresql/003_RegistroVenta.sql` | Operación transaccional de venta para el esquema 2.0; aún sin conectar a la aplicación |
+| `prototipo/prueba-registro-venta-aislada.py` | Prueba de 003 en un clúster PostgreSQL aislado y desechable |
 
 ## 1. Roles
 
@@ -59,6 +61,12 @@ sin huecos) y M2-19 (cobro idempotente). Con M2-28 el puesto queda con acceso de
 escritura **cero**, y cada función que se agregue a futuro debe REPITIR esa
 prohibición: `REVOKE EXECUTE ... FROM frubber_puesto` es el punto de partida
 normal, no al revés.
+
+### Operación de venta 003 (aún sin integración en la aplicación)
+
+`app_registrar_venta(...)` es `SECURITY DEFINER`, con `search_path` fijado y sin ejecución para `PUBLIC`; se concede solo al grupo `frubber_puesto`. Identifica el puesto mediante `session_user`, comprueba que la caja le pertenece y está abierta, bloquea caja y productos, revalida los datos del borrador y registra número, venta, líneas e inventario en una transacción. No otorga escritura directa ni acceso al contador. El número solo queda consumido si la transacción completa se confirma.
+
+El cliente aún debe validar licencia y autenticar al cajero. La función comprueba que el usuario indicado esté activo, pero **no vincula el PIN autenticado con la sesión**: la identidad del usuario y demás reglas de autorización del cliente siguen siendo el riesgo residual de AD-03; no confundir esta protección con autorización integral. Una solicitud con `client_request_id` ya usado se rechaza sin consumir número. **Todavía no devuelve la venta existente**: la recuperación idempotente pertenece a JHO-114 y esta operación, por sí sola, no resuelve los cortes de red. El código de la aplicación y el instalador todavía no aplican ni llaman 003; no distribuir con base únicamente en esta prueba.
 
 ## 3. PIN: verificación dentro del motor (ADR-026 reformulada)
 

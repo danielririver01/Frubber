@@ -57,8 +57,46 @@ Codigo de salida: 0
 
 Según el usuario, no quedó ninguna base `frubber_jho111_*`. Esta ejecución fue reportada por el usuario, no observada directamente por el agente; prueba la misma línea base 2.0 y no el flujo de cobro de la aplicación.
 
+## Evidencia reportada por el usuario · cobro actual · Windows
+
+El usuario informó que ejecutó `TicketNumberIntegrationTests` en Windows, con PostgreSQL 18 local y el código en el commit `27f0fff`. Compilaron los cinco proyectos y pasaron **2 de 2 pruebas**, con código de salida 0 y duración de 5,0483 segundos:
+
+```text
+Correctas FrubberPOS.Tests.Sales.TicketNumberIntegrationTests.CheckoutFailureAfterNumberAndHeader_RollsBackAndReusesNumber [1 s]
+Correctas FrubberPOS.Tests.Sales.TicketNumberIntegrationTests.ConcurrentCheckout_500Sales_ProducesConsecutiveNumbersAndCompleteSales [1 s]
+Pruebas totales: 2
+Correcto: 2
+Codigo de salida: 0
+```
+
+La prueba concurrente usa diez trabajadores que realizan 50 ventas cada uno; no son 500 operaciones simultáneas. Según el usuario no quedaron bases temporales `frubberpos_scratch_*`. Informó dos avisos xUnit2013 preexistentes en `ProductsViewModelTests.cs`. Esta evidencia no fue observada directamente por el agente y corresponde al flujo actual con una caja y las migraciones embebidas, no al esquema 2.0 ni a dos puestos reales.
+
 ## Alcance y pendiente de integración
 
 Esta evidencia demuestra el comportamiento de `ticket_counter` y `next_ticket()` **de la línea base 2.0**, insertando directamente las ventas sintéticas. No prueba el ejecutable de Windows, la operación de la aplicación ni la ruta de venta con credenciales restringidas. Se ejecutó únicamente el bloque 2 del banco histórico mediante psycopg, no el archivo completo con `psql`; además se comprobaron directamente 100 ventas y rollback contra la línea base.
 
-El código de la aplicación usa las migraciones embebidas 001–004 y `SystemSequence`, no la línea base 2.0 y `ticket_counter`. Como ya se registró en JHO-113, son dos esquemas diferentes: este resultado no demuestra que la aplicación esté integrada con el esquema probado. El 2026-11-05 el dueño confirmó continuar con la línea base 2.0 (`database/postgresql/001_Baseline.sql`), conforme a ADR-029 y JHO-109. La elección está resuelta, pero aún hay que integrar la aplicación con esa base y probar el flujo real de cobro antes de cerrar JHO-111. La suite .NET/WPF no se verificó en el entorno Linux del agente sin SDK .NET; el usuario sí informó la ejecución del banco SQL en Windows, descrita arriba.
+El código de la aplicación usa las migraciones embebidas 001–004 y `SystemSequence`, no la línea base 2.0 y `ticket_counter`. Como ya se registró en JHO-113, son dos esquemas diferentes: este resultado no demuestra que la aplicación esté integrada con el esquema probado. El 2026-11-05 el dueño confirmó continuar con la línea base 2.0 (`database/postgresql/001_Baseline.sql`), conforme a ADR-029 y JHO-109. La elección está resuelta. Las pruebas del contador de JHO-111 no demuestran la integración de la aplicación con esa base: ese trabajo y la prueba del flujo real de cobro se siguen en JHO-136. El agente no ha ejecutado la suite .NET/WPF en Linux; el usuario informó las ejecuciones de las pruebas SQL y de dos pruebas .NET en Windows, descritas arriba.
+
+### Registro transaccional con permisos de puesto · 2026-11-05
+
+Se agregó `database/postgresql/003_RegistroVenta.sql`: una función que identifica el puesto por su conexión y registra número, cabecera, líneas e inventario en la misma transacción, sin conceder acceso directo a tablas sensibles. Se comprobó en PostgreSQL 18.6 real en Linux, en un clúster temporal aislado con dos roles de puesto y dos productos distintos. `prototipo/prueba-registro-venta-aislada.py` ejecuta la prueba; **solo debe usarse en un clúster desechable y dedicado**, no en un servidor compartido. La prueba crea y elimina una base llamada `frubber` y roles de clúster.
+
+Salida de la ejecución más reciente, código 0:
+
+```text
+OK: permisos mínimos, caja de otro puesto y precio manipulado rechazados.
+OK: solicitud repetida rechazada sin consumir un número; reintento idempotente pendiente.
+OK: fallo tras insertar cabecera revierte la venta y reutiliza el número 3.
+OK: 500 ventas concurrentes, dos puestos y diez conexiones: números 4 a 503, sin huecos ni duplicados.
+OK: 503 ventas, 503 líneas, contador 503 e inventario correcto.
+OK: dos solicitudes simultáneas con el mismo identificador crean una sola venta y ningún hueco.
+Base y roles temporales eliminados.
+```
+
+Se verificó la limpieza de bases y roles y se repitió tres veces la prueba anterior de 500 operaciones. SHA-256 de 003: `1ce0693b0371758047aeee8230e4c2e23f8db7457454c86a0f608d311bda99e7`; SHA-256 del banco: `f2340e1f26711af553bff8207a1926b288a2e76873b2e6963b25488323a350b4`.
+
+**Límites:** la app y el instalador aún no aplican ni llaman esta función; la prueba no abre la interfaz ni ejecuta dos instalaciones Windows. Una repetición de solicitud se rechaza: no se devuelve aún la venta previa (JHO-114). La función comprueba que el cajero esté activo, pero no vincula su identidad a un PIN autenticado en el servidor; sigue aplicando el riesgo residual documentado en AD-03. La licencia también debe comprobarla la aplicación. No se ha habilitado la distribución.
+
+### Verificación del impedimento de integración
+
+El 2026-11-05 el agente aplicó `001_Baseline.sql` y `002_Security.sql` en un **servidor PostgreSQL 18.6 aislado y desechable**. La consulta del contador del repositorio actual falló por tabla inexistente (`SystemSequence`). Un rol de prueba miembro de `frubber_puesto` no tenía permiso de insertar en `sale`, leer directamente `cash_session` ni actualizar `ticket_counter`, y `SELECT next_ticket()` falló por permisos. Esto es coherente con la protección de tablas críticas y demuestra que no basta con cambiar el nombre de la tabla: el flujo 2.0 también necesita operaciones autorizadas compatibles con la matriz de seguridad. No se debe conceder escritura directa ni utilizar un superusuario en los puestos para hacer pasar el cobro. Esta comprobación se realizó directamente en PostgreSQL, no ejecutando la aplicación.
