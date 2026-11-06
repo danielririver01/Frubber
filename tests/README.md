@@ -89,3 +89,7 @@ Una prueba inicia diez trabajadores con el caso de uso real y verifica 500 venta
 `PostgresBackupService` lo busca junto a `DatabaseOptions`/instalación; en una
 máquina sin PostgreSQL las pruebas de respaldo fallan por entorno, no por
 código.
+
+### JHO-136 · Instalador aislado de línea base 2.0
+
+`Postgres20BaselineInstallerTests` usa bases temporales aleatorias y requiere PostgreSQL de pruebas con permiso CREATEDB. No apunta a bases de clientes. Para ejecutarla en Windows: `dotnet test tests/FrubberPOS.Tests/FrubberPOS.Tests.csproj -c Release --filter "FullyQualifiedName~Postgres20BaselineInstallerTests"`. Alcance y límites en `prototipo/JHO-136-integracion-postgresql.md`; no habilita la aplicación 2.0 ni instala seguridad.

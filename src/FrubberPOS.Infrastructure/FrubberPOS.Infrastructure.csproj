@@ -15,6 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="../../database/postgresql/001_Baseline.sql" LogicalName="FrubberPOS.Infrastructure.Migrations.V2.001_Baseline.sql" />
     <EmbeddedResource Include="Migrations/001_Initial.sql" />
     <EmbeddedResource Include="Migrations/002_Trial.sql" />
     <EmbeddedResource Include="Migrations/003_OpeningBalanceCorrection.sql" />

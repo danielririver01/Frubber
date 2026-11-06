@@ -82,6 +82,20 @@ public sealed class MigrationRunner
         ArgumentNullException.ThrowIfNull(connectionFactory);
 
         await using var connection = await connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+
+        // The 2.0 baseline has a different migration ledger and incompatible
+        // tables. Never run the legacy catalog against it, even if its ledger
+        // is empty or the legacy ledger also exists (mixed/partial database).
+        await using (var guard = connection.CreateCommand())
+        {
+            guard.CommandText = "SELECT to_regclass('public.schema_migration') IS NOT NULL;";
+            if ((bool)(await guard.ExecuteScalarAsync(cancellationToken))!)
+            {
+                return Result<int>.Failure(new Error(ErrorCode.Conflict,
+                    "Esta base corresponde a la línea 2.0 y esta versión de Frubber POS aún no es compatible. No se aplicaron migraciones."));
+            }
+        }
+
         var applied = await ReadAppliedAsync(connection, cancellationToken);
         var ordered = catalog.OrderBy(m => m.Version).ToList();
         var latestKnown = ordered.Count == 0 ? 0 : ordered[^1].Version;

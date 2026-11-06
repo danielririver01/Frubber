@@ -193,3 +193,7 @@ Por tarea:
 4. `dotnet restore` + `dotnet build -c Release` en verde en Windows 10/11 x64.
 5. Sin paquetes MediatR ni APIs/servidores de aplicación.
 6. Issue en `Done` con comentario de evidencia del build.
+
+## 9. Spec Kit en este proyecto
+
+Spec Kit organiza cambios nuevos sin sustituir los documentos y decisiones ya aprobados. Leer `.specify/memory/constitution.md` y, para el cambio activo, `spec.md`, `plan.md` y `tasks.md` bajo `specs/`. La integración instalada es genérica: los comandos son instrucciones en `.specify/arena-commands/`, no se presume que este entorno descubra comandos `/speckit` automáticamente. Su flujo puede seguirse leyendo esas instrucciones y usando los scripts Python instalados. No instalar ni ejecutar extensiones que creen o cambien ramas en esta sesión. El puntero `.specify/feature.json` es local e ignorado por Git; si falta, establecer `SPECIFY_FEATURE_DIRECTORY` con la ruta de la especificación correspondiente. El issue en Linear y sus criterios siguen siendo la autoridad para el avance y cierre.

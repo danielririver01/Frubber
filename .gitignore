@@ -30,3 +30,6 @@ installer/FrubberPOS.Installer/payload.zip
 installer/FrubberPOS.Installer/bin/
 installer/FrubberPOS.Installer/obj/
 
+# Python tooling (Spec Kit and isolated verification scripts)
+__pycache__/
+*.py[cod]
