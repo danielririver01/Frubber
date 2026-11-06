@@ -88,7 +88,7 @@ public sealed class MigrationRunner
         // is empty or the legacy ledger also exists (mixed/partial database).
         await using (var guard = connection.CreateCommand())
         {
-            guard.CommandText = "SELECT to_regclass('public.schema_migration') IS NOT NULL;";
+            guard.CommandText = "SELECT pg_catalog.to_regclass('public.schema_migration') IS NOT NULL;";
             if ((bool)(await guard.ExecuteScalarAsync(cancellationToken))!)
             {
                 return Result<int>.Failure(new Error(ErrorCode.Conflict,

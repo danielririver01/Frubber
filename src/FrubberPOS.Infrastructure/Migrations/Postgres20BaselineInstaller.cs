@@ -1,3 +1,4 @@
+using System.Data.Common;
 using FrubberPOS.Application.Common;
 using FrubberPOS.Application.Persistence;
 using Npgsql;
@@ -13,6 +14,24 @@ public sealed class Postgres20BaselineInstaller
 {
     private const string ResourceName = "FrubberPOS.Infrastructure.Migrations.V2.001_Baseline.sql";
     private const string ScriptName = "001_Baseline.sql";
+    private readonly Func<DbTransaction, CancellationToken, Task> commitAsync;
+    private readonly Func<DbConnection, DbTransaction, CancellationToken, Task>? afterScriptAsync;
+
+    public Postgres20BaselineInstaller()
+        : this(static (transaction, token) => transaction.CommitAsync(token), null)
+    {
+    }
+
+    // Internal injection points let integration tests simulate a failure after
+    // DDL or an unacknowledged COMMIT. Production always uses the constructor
+    // above and executes only the embedded baseline.
+    internal Postgres20BaselineInstaller(
+        Func<DbTransaction, CancellationToken, Task> commitAsync,
+        Func<DbConnection, DbTransaction, CancellationToken, Task>? afterScriptAsync)
+    {
+        this.commitAsync = commitAsync ?? throw new ArgumentNullException(nameof(commitAsync));
+        this.afterScriptAsync = afterScriptAsync;
+    }
 
     public async Task<Result<int>> InstallAsync(IDatabaseConnectionFactory factory, CancellationToken cancellationToken)
     {
@@ -32,19 +51,35 @@ public sealed class Postgres20BaselineInstaller
             await using (var setup = connection.CreateCommand())
             {
                 setup.Transaction = transaction;
-                setup.CommandText = "SELECT pg_advisory_xact_lock(1179796818, 20); SET LOCAL search_path = public, pg_catalog;";
+                // Keep public as the creation schema but let PostgreSQL search
+                // pg_catalog first implicitly; explicit public-before-pg_catalog
+                // would let user-defined functions shadow system functions.
+                setup.CommandText = "SELECT pg_catalog.pg_advisory_xact_lock(1179796818, 20); SET LOCAL search_path = public, pg_temp;";
                 await setup.ExecuteNonQueryAsync(cancellationToken);
             }
 
             await using (var check = connection.CreateCommand())
             {
                 check.Transaction = transaction;
-                check.CommandText = "SELECT to_regclass('public.schema_migration') IS NOT NULL;";
+                check.CommandText = "SELECT pg_catalog.to_regclass('public.schema_migration') IS NOT NULL;";
                 if ((bool)(await check.ExecuteScalarAsync(cancellationToken))!)
                 {
+                    // Do not query an impostor view (or a row-security policy)
+                    // that could execute untrusted code during validation.
+                    await using var kind = connection.CreateCommand();
+                    kind.Transaction = transaction;
+                    kind.CommandText = """
+                        SELECT COALESCE((SELECT c.relkind = 'r' AND c.relpersistence = 'p' AND NOT c.relrowsecurity
+                                           FROM pg_catalog.pg_class c
+                                          WHERE c.oid = pg_catalog.to_regclass('public.schema_migration')), false);
+                        """;
+                    if (!(bool)(await kind.ExecuteScalarAsync(cancellationToken))!)
+                    {
+                        return Conflict();
+                    }
                     await using var mixed = connection.CreateCommand();
                     mixed.Transaction = transaction;
-                    mixed.CommandText = "SELECT to_regclass('public.schemamigration') IS NOT NULL;";
+                    mixed.CommandText = "SELECT pg_catalog.to_regclass('public.schemamigration') IS NOT NULL;";
                     if ((bool)(await mixed.ExecuteScalarAsync(cancellationToken))!)
                     {
                         return Conflict();
@@ -61,8 +96,7 @@ public sealed class Postgres20BaselineInstaller
                     }
                     // Dispose the reader before completing the transaction.
                     await rows.DisposeAsync();
-                    await transaction.CommitAsync(cancellationToken);
-                    return Result<int>.Success(0);
+                    return await CommitWithOutcomeAsync(transaction, 0, cancellationToken);
                 }
             }
 
@@ -74,22 +108,22 @@ public sealed class Postgres20BaselineInstaller
             {
                 check.Transaction = transaction;
                 check.CommandText = """
-                    SELECT EXISTS (SELECT 1 FROM pg_namespace
+                    SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_namespace
                                     WHERE nspname <> 'public' AND nspname <> 'information_schema'
                                       AND nspname NOT LIKE 'pg\_%' ESCAPE '\')
-                        OR EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public')
-                        OR EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public')
-                        OR EXISTS (SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace WHERE n.nspname = 'public')
-                        OR EXISTS (SELECT 1 FROM pg_depend d JOIN pg_namespace n ON n.oid = d.refobjid
-                                   WHERE d.refclassid = 'pg_namespace'::regclass AND n.nspname = 'public' AND d.deptype = 'n')
-                        OR EXISTS (SELECT 1 FROM pg_extension WHERE extname <> 'plpgsql')
-                        OR EXISTS (SELECT 1 FROM pg_publication)
-                        OR EXISTS (SELECT 1 FROM pg_subscription)
-                        OR EXISTS (SELECT 1 FROM pg_foreign_data_wrapper)
-                        OR EXISTS (SELECT 1 FROM pg_foreign_server)
-                        OR EXISTS (SELECT 1 FROM pg_event_trigger)
-                        OR EXISTS (SELECT 1 FROM pg_largeobject_metadata)
-                        OR EXISTS (SELECT 1 FROM pg_language WHERE lanname NOT IN ('internal', 'c', 'sql', 'plpgsql'));
+                        OR EXISTS (SELECT 1 FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public')
+                        OR EXISTS (SELECT 1 FROM pg_catalog.pg_proc p JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public')
+                        OR EXISTS (SELECT 1 FROM pg_catalog.pg_type t JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace WHERE n.nspname = 'public')
+                        OR EXISTS (SELECT 1 FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_namespace n ON n.oid = d.refobjid
+                                   WHERE d.refclassid = 'pg_catalog.pg_namespace'::pg_catalog.regclass AND n.nspname = 'public' AND d.deptype = 'n')
+                        OR EXISTS (SELECT 1 FROM pg_catalog.pg_extension WHERE extname <> 'plpgsql')
+                        OR EXISTS (SELECT 1 FROM pg_catalog.pg_publication)
+                        OR EXISTS (SELECT 1 FROM pg_catalog.pg_subscription)
+                        OR EXISTS (SELECT 1 FROM pg_catalog.pg_foreign_data_wrapper)
+                        OR EXISTS (SELECT 1 FROM pg_catalog.pg_foreign_server)
+                        OR EXISTS (SELECT 1 FROM pg_catalog.pg_event_trigger)
+                        OR EXISTS (SELECT 1 FROM pg_catalog.pg_largeobject_metadata)
+                        OR EXISTS (SELECT 1 FROM pg_catalog.pg_language WHERE lanname NOT IN ('internal', 'c', 'sql', 'plpgsql'));
                     """;
                 if ((bool)(await check.ExecuteScalarAsync(cancellationToken))!)
                 {
@@ -102,6 +136,10 @@ public sealed class Postgres20BaselineInstaller
                 apply.Transaction = transaction;
                 apply.CommandText = script;
                 await apply.ExecuteNonQueryAsync(cancellationToken);
+            }
+            if (afterScriptAsync is not null)
+            {
+                await afterScriptAsync(connection, transaction, cancellationToken);
             }
             await using (var record = connection.CreateCommand())
             {
@@ -117,18 +155,38 @@ public sealed class Postgres20BaselineInstaller
                 record.Parameters.Add(hash);
                 await record.ExecuteNonQueryAsync(cancellationToken);
             }
-            await transaction.CommitAsync(cancellationToken);
-            return Result<int>.Success(1);
+            return await CommitWithOutcomeAsync(transaction, 1, cancellationToken);
         }
         catch (Exception ex) when (ex is NpgsqlException || ex is InvalidOperationException)
         {
             // Before commit, disposal rolls back script and ledger together.
             // A broken connection during COMMIT can leave the outcome unknown;
             // never claim that the database is unchanged in that case.
-            return Result<int>.Failure(new Error(ErrorCode.Storage,
-                "No se pudo confirmar el resultado de la preparación 2.0. Revise el historial en el servidor antes de continuar."));
+            return UnknownOutcome();
         }
     }
+
+    private async Task<Result<int>> CommitWithOutcomeAsync(
+        DbTransaction transaction, int applied, CancellationToken cancellationToken)
+    {
+        // Once commit is attempted, cancellation or a transport failure can
+        // happen after the server committed but before the acknowledgement.
+        // Conservatively treat every such failure as an unknown outcome.
+        cancellationToken.ThrowIfCancellationRequested();
+        try
+        {
+            await commitAsync(transaction, cancellationToken);
+            return Result<int>.Success(applied);
+        }
+        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException
+            or IOException or TimeoutException or OperationCanceledException)
+        {
+            return UnknownOutcome();
+        }
+    }
+
+    private static Result<int> UnknownOutcome() => Result<int>.Failure(new Error(ErrorCode.Storage,
+        "No se pudo confirmar el resultado de la preparación 2.0. Revise el historial en el servidor antes de continuar."));
 
     private static Result<int> Conflict() => Result<int>.Failure(new Error(ErrorCode.Conflict,
         "La base no está vacía o su historial 2.0 no coincide. No se aplicaron cambios."));

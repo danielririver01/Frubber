@@ -71,6 +71,86 @@ public sealed class Postgres20BaselineInstallerTests
     }
 
     [Fact]
+    public async Task ExistingShadowFunctions_AreNotExecutedDuringPreflight()
+    {
+        await using var db = await PostgresTestDb.CreateScratchAsync();
+        await using var connection = db.NewConnection();
+        await connection.OpenAsync();
+        await using (var setup = new NpgsqlCommand("""
+            CREATE FUNCTION public.to_regclass(text) RETURNS pg_catalog.regclass
+                LANGUAGE plpgsql AS $$BEGIN RAISE EXCEPTION 'shadow to_regclass'; END$$;
+            CREATE FUNCTION public.pg_advisory_xact_lock(integer, integer) RETURNS void
+                LANGUAGE plpgsql AS $$BEGIN RAISE EXCEPTION 'shadow advisory lock'; END$$;
+            """, connection))
+            await setup.ExecuteNonQueryAsync();
+        var unsafeSearchPath = new NpgsqlConnectionStringBuilder(db.ConnectionString)
+        {
+            SearchPath = "public,pg_catalog"
+        }.ConnectionString;
+
+        var result = await new Postgres20BaselineInstaller().InstallAsync(Factory(unsafeSearchPath), CancellationToken.None);
+        Assert.True(result.IsFailure);
+        Assert.Equal(ErrorCode.Conflict, result.Error!.Code);
+        Assert.Equal(2L, await ScalarLong(connection, "SELECT count(*) FROM pg_catalog.pg_proc p JOIN pg_catalog.pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname IN ('to_regclass','pg_advisory_xact_lock');"));
+        Assert.Equal(0L, await ScalarLong(connection, "SELECT count(*) FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relname='schema_migration';"));
+    }
+
+    [Fact]
+    public async Task LegacyGuard_IgnoresShadowToRegclass_InUntrustedSearchPath()
+    {
+        await using var db = await PostgresTestDb.CreateScratchAsync();
+        await using var connection = db.NewConnection();
+        await connection.OpenAsync();
+        await using (var setup = new NpgsqlCommand("""
+            CREATE TABLE public.schema_migration(version integer);
+            CREATE FUNCTION public.to_regclass(text) RETURNS pg_catalog.regclass
+                LANGUAGE plpgsql AS $$BEGIN RAISE EXCEPTION 'shadow to_regclass'; END$$;
+            """, connection))
+            await setup.ExecuteNonQueryAsync();
+        var unsafeSearchPath = new NpgsqlConnectionStringBuilder(db.ConnectionString)
+        {
+            SearchPath = "public,pg_catalog"
+        }.ConnectionString;
+        var result = await new MigrationRunner().MigrateAsync(unsafeSearchPath, CancellationToken.None);
+        Assert.True(result.IsFailure);
+        Assert.Equal(ErrorCode.Conflict, result.Error!.Code);
+        Assert.Equal(0L, await ScalarLong(connection, "SELECT count(*) FROM public.schema_migration;"));
+    }
+
+    [Fact]
+    public async Task LedgerView_IsRejectedWithoutExecutingItsQuery()
+    {
+        await using var db = await PostgresTestDb.CreateScratchAsync();
+        await using var connection = db.NewConnection();
+        await connection.OpenAsync();
+        await using (var setup = new NpgsqlCommand("""
+            CREATE FUNCTION public.ledger_trap() RETURNS integer LANGUAGE plpgsql
+                AS $$BEGIN RAISE EXCEPTION 'ledger view executed'; END$$;
+            CREATE VIEW public.schema_migration AS
+                SELECT public.ledger_trap() AS version, '001_Baseline.sql'::text AS script_name, repeat('A',64) AS checksum;
+            """, connection))
+            await setup.ExecuteNonQueryAsync();
+        var result = await new Postgres20BaselineInstaller().InstallAsync(Factory(db.ConnectionString), CancellationToken.None);
+        Assert.True(result.IsFailure);
+        Assert.Equal(ErrorCode.Conflict, result.Error!.Code);
+        Assert.Equal(1L, await ScalarLong(connection, "SELECT count(*) FROM pg_catalog.pg_class WHERE oid=pg_catalog.to_regclass('public.schema_migration') AND relkind='v';"));
+    }
+
+    [Fact]
+    public async Task LedgerWithRowSecurity_IsRejected()
+    {
+        await using var db = await PostgresTestDb.CreateScratchAsync();
+        await using var connection = db.NewConnection();
+        await connection.OpenAsync();
+        await using (var setup = new NpgsqlCommand("CREATE TABLE public.schema_migration(version integer, script_name text, checksum text); ALTER TABLE public.schema_migration ENABLE ROW LEVEL SECURITY;", connection))
+            await setup.ExecuteNonQueryAsync();
+        var result = await new Postgres20BaselineInstaller().InstallAsync(Factory(db.ConnectionString), CancellationToken.None);
+        Assert.True(result.IsFailure);
+        Assert.Equal(ErrorCode.Conflict, result.Error!.Code);
+        Assert.Equal(0L, await ScalarLong(connection, "SELECT count(*) FROM public.schema_migration;"));
+    }
+
+    [Fact]
     public async Task ChangedOrFutureLedger_IsRefused()
     {
         await using var db = await PostgresTestDb.CreateScratchAsync();
@@ -117,6 +197,66 @@ public sealed class Postgres20BaselineInstallerTests
         Assert.Equal(ErrorCode.Conflict, baseline.Error!.Code);
         Assert.Equal(0L, await ScalarLong(connection, "SELECT count(*) FROM public.schemamigration;"));
         Assert.Equal(0L, await ScalarLong(connection, "SELECT count(*) FROM public.schema_migration;"));
+    }
+
+    [Fact]
+    public async Task FailureAfterBaseline_RollsBackSchemaAndLedger_ThenCanRetry()
+    {
+        await using var db = await PostgresTestDb.CreateScratchAsync();
+        var installer = new Postgres20BaselineInstaller(
+            static (transaction, token) => transaction.CommitAsync(token),
+            async (connection, transaction, token) =>
+            {
+                await using var command = connection.CreateCommand();
+                command.Transaction = transaction;
+                command.CommandText = "SELECT 1 / 0;";
+                await command.ExecuteNonQueryAsync(token);
+            });
+
+        var result = await installer.InstallAsync(Factory(db.ConnectionString), CancellationToken.None);
+        Assert.True(result.IsFailure);
+        Assert.Equal(ErrorCode.Storage, result.Error!.Code);
+        await using (var connection = db.NewConnection())
+        {
+            await connection.OpenAsync();
+            Assert.Equal(0L, await ScalarLong(connection, "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relname IN ('schema_migration','ticket_counter');"));
+        }
+        var retry = await new Postgres20BaselineInstaller().InstallAsync(Factory(db.ConnectionString), CancellationToken.None);
+        Assert.True(retry.IsSuccess, retry.Error?.Message);
+        Assert.Equal(1, retry.Value);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CommitAcknowledgementLost_ReturnsUnknownEvenWhenDatabaseCommitted(bool cancelled)
+    {
+        await using var db = await PostgresTestDb.CreateScratchAsync();
+        var installer = new Postgres20BaselineInstaller(
+            async (transaction, token) =>
+            {
+                // Simulates a lost response after the server committed; this is
+                // not a physical network disconnection or an Npgsql fault test.
+                await transaction.CommitAsync(token);
+                if (cancelled) throw new OperationCanceledException("Simulated cancellation during acknowledgement.");
+                throw new IOException("Simulated lost acknowledgement.");
+            },
+            null);
+
+        var result = await installer.InstallAsync(Factory(db.ConnectionString), CancellationToken.None);
+        Assert.True(result.IsFailure);
+        Assert.Equal(ErrorCode.Storage, result.Error!.Code);
+        Assert.Contains("Revise el historial", result.Error.Message);
+        Assert.DoesNotContain("sin cambios", result.Error.Message, StringComparison.OrdinalIgnoreCase);
+        await using (var connection = db.NewConnection())
+        {
+            await connection.OpenAsync();
+            Assert.Equal(1L, await ScalarLong(connection, "SELECT count(*) FROM public.schema_migration WHERE version=1;"));
+            Assert.Equal(0L, await ScalarLong(connection, "SELECT last_number FROM public.ticket_counter WHERE scope='venta';"));
+        }
+        var retry = await new Postgres20BaselineInstaller().InstallAsync(Factory(db.ConnectionString), CancellationToken.None);
+        Assert.True(retry.IsSuccess, retry.Error?.Message);
+        Assert.Equal(0, retry.Value);
     }
 
     [Fact]

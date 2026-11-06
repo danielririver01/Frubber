@@ -37,3 +37,7 @@ El catálogo de objetos de PostgreSQL incluye más que tablas, funciones y tipos
 ## Puertas de entrega
 
 Revisar pruebas de objetos no ordinarios, fallo antes de commit y concurrencia; ejecutar la clase xUnit y regresiones del migrador en Windows, además del build. Mantener la aplicación y 002 desconectados hasta que JHO-136 cumpla sus requisitos completos. Revaluar constitución y especificación después de cada hallazgo; no marcar como completado lo no ejecutado.
+
+### Mitigación de resolución de nombres
+
+El mecanismo no confía en funciones ni catálogos definidos en `public`: califica llamadas y tablas de `pg_catalog`, mantiene `public` como esquema de creación y rechaza vistas o tablas con seguridad por fila como historial. Los controles son defensas parciales, no autenticación del esquema. Ensayos SQL adversariales aislados no sustituyen xUnit, auditoría de seguridad ni pruebas Windows.

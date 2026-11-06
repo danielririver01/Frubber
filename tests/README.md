@@ -93,3 +93,5 @@ código.
 ### JHO-136 · Instalador aislado de línea base 2.0
 
 `Postgres20BaselineInstallerTests` usa bases temporales aleatorias y requiere PostgreSQL de pruebas con permiso CREATEDB. No apunta a bases de clientes. Para ejecutarla en Windows: `dotnet test tests/FrubberPOS.Tests/FrubberPOS.Tests.csproj -c Release --filter "FullyQualifiedName~Postgres20BaselineInstallerTests"`. Alcance y límites en `prototipo/JHO-136-integracion-postgresql.md`; no habilita la aplicación 2.0 ni instala seguridad.
+
+El instalador incorpora pruebas de fallo inyectado después del guion y de respuesta de confirmación perdida simulada; estas no sustituyen una prueba de corte real con Npgsql ni están registradas como ejecutadas en este entorno. Ver `prototipo/JHO-136-integracion-postgresql.md`.
