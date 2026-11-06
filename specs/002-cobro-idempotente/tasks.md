@@ -14,6 +14,7 @@
 
 ## Integración antes del cierre
 
+- [x] T007a [US1] Prototipar y probar consulta histórica de cabecera y líneas restringida al puesto original; no sustituye autorización de cajero ni integración.
 - [ ] T008 Diseñar e implementar en la aplicación la persistencia durable del identificador y del intento sin contraseñas/PIN, y recuperación tras reinicio; no asignar un UUID nuevo ante resultado incierto.
 - [ ] T009 Integrar autorización de cajero por PIN y licencia con la sesión y las operaciones; no activar el prototipo sin los candados de AD-03.
 - [ ] T010 Ejecutar flujo de cobro y corte con Npgsql y la aplicación, pruebas de permisos y concurrencia entre puestos y regresión/build Windows; registrar evidencia en Linear.
@@ -25,4 +26,4 @@
 - Un mismo intento en diez conexiones dio el mismo ID, número y total; una carrera por UUID entre dos puestos tuvo un ganador y un rechazo sin datos. Rollback y fallo inyectado no dejaron intento ni consumieron número; un competidor esperó y reutilizó el número 2.
 - Proxy TCP local sin TLS dejó pasar `COMMIT`, descartó la respuesta de PostgreSQL y psycopg observó desconexión. Reintento idéntico recuperó ID/número/total de la venta 505 sin repetir inventario. Esto **no** prueba Npgsql ni persistencia del cliente.
 - Se verificaron el rechazo al activar sobre venta preexistente, escritura/lectura directa y función anterior, datos alterados, puesto distinto/inactivo, caja cerrada y datos de línea no permitidos. Base y roles temporales borrados; servidor aislado.
-- El prototipo devuelve ID, número y total; aún falta una ruta autorizada para recuperar todos los datos y líneas del comprobante. No demuestra seguridad completa ni cierre del issue.
+- El cobro devuelve ID, número y total; una consulta experimental separada recupera cabecera y líneas históricas solo al puesto activo original. Se probó con caja cerrada, cambio de precio, dos líneas ordenadas y rechazo a otro puesto. Falta enlazar autenticación de cajero y licencia y adaptar el ticket real. No demuestra seguridad completa ni cierre del issue.

@@ -25,6 +25,7 @@ ROLES = tuple('puesto_' + code.lower() for code in CODES)
 FORBIDDEN = ('frubber_puesto', 'frubber_puesto_test', *ROLES)
 SALE = 'SELECT * FROM public.app_cobrar_idempotente(%s,%s,%s,%s,%s,%s,%s)'
 ORIGINAL = 'SELECT * FROM public.app_registrar_venta(%s,%s,%s,%s,%s,%s,%s)'
+RECEIPT = 'SELECT * FROM public.app_comprobante_por_intento(%s)'
 
 
 def require(condition, message):
@@ -201,6 +202,14 @@ def main():
                 first = sale(one, args)
                 require(first[1:] == (1, 1500), 'Primer cobro incorrecto')
                 require(sale(one, args) == first, 'El reintento no recuperó la venta')
+                receipt = one.execute(RECEIPT, (first_id,)).fetchone()
+                require(receipt[:2] == first[:2] and receipt[3:10] ==
+                        ('Cajero prueba', 1500, 0, 1500, 'CASH', 1500, 0), 'Cabecera de comprobante incorrecta')
+                require(receipt[2] is not None and receipt[10] == [
+                    {'line_number': 1, 'name': 'Producto de prueba', 'unit': 'UNIT',
+                     'quantity_milli': 1000, 'unit_price_cop': 1500, 'line_total_cop': 1500}],
+                    'Líneas históricas del comprobante incorrectas')
+                require(one.execute(RECEIPT, (uuid.uuid4(),)).fetchone() is None, 'Intento desconocido retornó comprobante')
                 reordered = Jsonb([{'unit': 'UNIT', 'name': 'Producto de prueba', 'plu': products[0][1],
                                     'unit_price_cop': 1500, 'quantity_milli': 1000, 'product_id': products[0][0]}])
                 require(sale(one, (*args[:6], reordered)) == first, 'Orden JSON alteró el reintento')
@@ -208,6 +217,7 @@ def main():
                 denied(lambda: sale(one, payload(sessions[0], user_id, products[0], first_id, price=1)), psycopg.errors.InsufficientPrivilege)
             with psycopg.connect(role_dsns[1], autocommit=True) as other:
                 denied(lambda: sale(other, args), psycopg.errors.InsufficientPrivilege)
+                require(other.execute(RECEIPT, (first_id,)).fetchone() is None, 'Otro puesto recibió el comprobante')
                 denied(lambda: other.execute(ORIGINAL, args), psycopg.errors.InsufficientPrivilege)
                 denied(lambda: other.execute('SELECT * FROM public.sale_request_guard'), psycopg.errors.InsufficientPrivilege)
             with psycopg.connect(dsn, autocommit=True) as c:
@@ -217,6 +227,7 @@ def main():
                 c.execute('UPDATE public.product SET price_cop=2000 WHERE product_id=%s', (products[0][0],))
             with psycopg.connect(role_dsns[0], autocommit=True) as one:
                 require(sale(one, args) == first, 'El cambio de precio impidió recuperar el comprobante')
+                require(one.execute(RECEIPT, (first_id,)).fetchone() == receipt, 'El comprobante cambió con el catálogo')
             with psycopg.connect(dsn, autocommit=True) as c:
                 c.execute('UPDATE public.product SET price_cop=1500 WHERE product_id=%s', (products[0][0],))
             print('OK: reintento idéntico, permisos mínimos y rechazo de cambios/otro puesto.')
@@ -320,6 +331,22 @@ def main():
             print('OK: corte real TCP en COMMIT, reintento devuelve la misma venta 505.')
             print('OK: 505 ventas, líneas e intentos completos; contador e inventarios coherentes.')
 
+            # Check ordered historical lines on the receipt without changing the
+            # final state: this multi-line sale is deliberately rolled back.
+            multiline_id = uuid.uuid4()
+            multiline = Jsonb([{'product_id': pid, 'quantity_milli': quantity, 'unit_price_cop': 1500,
+                                'plu': plu, 'name': 'Producto de prueba', 'unit': 'UNIT'}
+                               for (pid, plu), quantity in zip(reversed(products), (2000, 1000))])
+            with psycopg.connect(role_dsns[1]) as one:
+                row = sale(one, (sessions[1], user_id, 0, 'CASH', 4500, multiline_id, multiline))
+                ticket = one.execute(RECEIPT, (multiline_id,)).fetchone()
+                require(row[1:] == (506, 4500), 'Venta temporal multilínea incorrecta')
+                require(ticket[10] == [{'line_number': i, 'name': 'Producto de prueba', 'unit': 'UNIT',
+                                         'quantity_milli': qty, 'unit_price_cop': 1500, 'line_total_cop': total}
+                                        for i, qty, total in ((1, 2000, 3000), (2, 1000, 1500))], 'Orden de líneas históricas incorrecto')
+                one.rollback()
+            print('OK: comprobante histórico de dos líneas, orden conservado y puesto distinto sin acceso.')
+
             # A closed cash session must still permit recovery of its receipt,
             # but not a new sale. A deactivated terminal cannot recover it.
             with psycopg.connect(dsn, autocommit=True) as c:
@@ -333,10 +360,12 @@ def main():
                     WHERE cash_session_id=%s""", (user_id, *([sessions[0]] * 5)))
             with psycopg.connect(role_dsns[0], autocommit=True) as one:
                 require(sale(one, cut_args) == recovered, 'Caja cerrada impidió recuperación')
+                require(one.execute(RECEIPT, (cut_id,)).fetchone()[:2] == recovered[:2], 'Caja cerrada impidió consultar comprobante')
                 denied(lambda: sale(one, payload(sessions[0], user_id, products[0], uuid.uuid4())), psycopg.errors.CheckViolation)
                 with psycopg.connect(dsn, autocommit=True) as c:
                     c.execute('UPDATE public.terminal SET is_active=false WHERE machine_code=%s', (CODES[0],))
                 denied(lambda: sale(one, cut_args), psycopg.errors.InsufficientPrivilege)
+                denied(lambda: one.execute(RECEIPT, (cut_id,)), psycopg.errors.InsufficientPrivilege)
             with psycopg.connect(dsn, autocommit=True) as c:
                 require(c.execute('SELECT count(*) FROM public.sale').fetchone()[0] == 505, 'Caja cerrada o puesto inactivo alteraron ventas')
                 require(c.execute('SELECT count(*) FROM public.sale_request_guard').fetchone()[0] == 505, 'Fallos dejaron intentos')

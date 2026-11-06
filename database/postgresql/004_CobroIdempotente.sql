@@ -139,6 +139,48 @@ BEGIN
 END
 $function$;
 
+-- Consulta provisional del comprobante inmutable SOLO desde su puesto activo.
+-- Sin resultado no significa que el cobro haya fallado: podría estar en curso.
+-- El cliente debe repetir siempre el mismo UUID y datos ante resultado incierto.
+-- Aún falta vincular la autorización de cajero/PIN y licencia antes de usarla.
+CREATE FUNCTION public.app_comprobante_por_intento(p_request_id uuid)
+RETURNS TABLE (
+    sale_id bigint, sale_number bigint, sold_at timestamptz,
+    cashier_name text, subtotal_cop bigint, discount_cop bigint, total_cop bigint,
+    payment_method text, received_cop bigint, change_cop bigint, lines jsonb
+)
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $receipt$
+DECLARE
+    v_terminal_id bigint;
+BEGIN
+    IF session_user !~ '^puesto_[0-9a-f]{16}$' THEN
+        RAISE EXCEPTION 'La sesión no corresponde a un puesto autorizado' USING ERRCODE = '42501';
+    END IF;
+    SELECT t.terminal_id INTO v_terminal_id FROM public.terminal AS t
+     WHERE t.machine_code = upper(substr(session_user, 8)) AND t.is_active;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'El puesto no está activo' USING ERRCODE = '42501';
+    END IF;
+    RETURN QUERY
+    SELECT s.sale_id, s.sale_number, s.sold_at, s.cashier_name_snapshot,
+           s.subtotal_cop, s.discount_cop, s.total_cop, s.payment_method,
+           s.received_cop, s.change_cop,
+           (SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+                'line_number', l.line_number, 'name', l.product_name_snapshot,
+                'unit', l.unit_snapshot, 'quantity_milli', l.quantity_milli,
+                'unit_price_cop', l.unit_price_cop_snapshot, 'line_total_cop', l.line_total_cop)
+                ORDER BY l.line_number)
+              FROM public.sale_line AS l WHERE l.sale_id = s.sale_id)
+      FROM public.sale_request_guard AS g
+      JOIN public.sale AS s ON s.sale_id = g.sale_id AND s.client_request_id = g.client_request_id
+     WHERE g.client_request_id = p_request_id AND g.terminal_id = v_terminal_id;
+END
+$receipt$;
+REVOKE ALL ON FUNCTION public.app_comprobante_por_intento(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.app_comprobante_por_intento(uuid) TO frubber_puesto;
+
 -- El puesto no puede saltarse la ruta que guarda el identificador.
 REVOKE ALL ON FUNCTION public.app_registrar_venta(bigint,bigint,bigint,text,bigint,uuid,jsonb) FROM PUBLIC, frubber_puesto;
 REVOKE ALL ON FUNCTION public.app_cobrar_idempotente(bigint,bigint,bigint,text,bigint,uuid,jsonb) FROM PUBLIC;
