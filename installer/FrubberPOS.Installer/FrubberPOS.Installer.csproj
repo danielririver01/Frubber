@@ -20,6 +20,10 @@
     <Description>Asistente de instalación de Frubber POS</Description>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="../../src/FrubberPOS.Infrastructure/FrubberPOS.Infrastructure.csproj" />
+  </ItemGroup>
+
   <!-- El payload de la app (artifacts\publish comprimido en payload.zip) viaja
        DENTRO del exe para entregar un solo archivo. Lo genera build-installer.ps1. -->
   <ItemGroup Condition="Exists('$(MSBuildProjectDirectory)\payload.zip')">

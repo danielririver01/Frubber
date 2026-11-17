@@ -263,7 +263,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         try
         {
-            await installer.InstallAsync(target, ShortcutCheck.IsChecked == true, progress, CancellationToken.None);
+            await installer.InstallAsync(target, ShortcutCheck.IsChecked == true, progress, CancellationToken.None,
+                App.WorkstationOptions);
             CurrentStep = 5;
         }
         catch (Exception ex)
@@ -292,7 +293,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         var exe = Path.Combine(PathBox.Text.Trim(), InstallService.AppExeName);
         if (File.Exists(exe))
         {
-            Process.Start(new ProcessStartInfo(exe) { UseShellExecute = true });
+            var start = new ProcessStartInfo(exe) { UseShellExecute = true };
+            if (installer.InstalledWorkstationProfile is not null)
+            {
+                start.ArgumentList.Add("--puesto");
+                start.ArgumentList.Add(installer.InstalledWorkstationProfile);
+            }
+            Process.Start(start);
         }
 
         Close();

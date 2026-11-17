@@ -3,6 +3,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
+using FrubberPOS.Infrastructure.Persistence.Workstations;
 
 namespace FrubberPOS.Installer;
 
@@ -20,6 +21,7 @@ public sealed class InstallService
     public const string AppName = "Frubber POS";
     public const string Version = "1.0.1";
     public const string UninstallerName = "FrubberPOS-Desinstalar.exe";
+    public string? InstalledWorkstationProfile { get; private set; }
 
     private static string UninstallKeyPath => @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\FrubberPOS";
 
@@ -62,10 +64,15 @@ public sealed class InstallService
         string targetDir,
         bool createDesktopShortcut,
         IProgress<(double Fraction, string Stage)> progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        WorkstationInstallOptions? workstation = null)
     {
+        InstalledWorkstationProfile = null;
         // JHO-95: la raíz de un disco jamás es destino directo.
         targetDir = NormalizeTargetDir(targetDir);
+        var previousProfile = Path.Combine(targetDir, "connection", "puesto.cfg");
+        if (workstation is null && File.Exists(previousProfile))
+            InstalledWorkstationProfile = previousProfile;
 
         progress.Report((0.02, "Preparando los archivos…"));
 
@@ -120,6 +127,16 @@ public sealed class InstallService
             if (Directory.Exists(tempDir)) TryDelete(tempDir);
         }
 
+        if (workstation is not null)
+        {
+            progress.Report((0.89, "Instalando el certificado y comprobando la conexión segura…"));
+            var configured = await new WorkstationCertificateInstaller().InstallAsync(
+                workstation.ProfilePath, workstation.CertificatePath, targetDir, cancellationToken);
+            if (configured.IsFailure)
+                throw new InstallFailedException(configured.Error!.Message, null);
+            InstalledWorkstationProfile = configured.Value;
+        }
+
         // 3. El propio instalador queda copiado como desinstalador dentro de la carpeta,
         //    y 4. los accesos directos: menú inicio siempre, escritorio si se pidió.
         progress.Report((0.9, "Creando los accesos directos…"));
@@ -139,13 +156,14 @@ public sealed class InstallService
             var startMenuDir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms), AppName);
             Directory.CreateDirectory(startMenuDir);
-            CreateShortcut(Path.Combine(startMenuDir, AppName + ".lnk"), exePath, targetDir);
+            var workstationArguments = InstalledWorkstationProfile is null ? "" : $"--puesto \"{InstalledWorkstationProfile}\"";
+            CreateShortcut(Path.Combine(startMenuDir, AppName + ".lnk"), exePath, targetDir, workstationArguments);
             CreateShortcut(Path.Combine(startMenuDir, "Desinstalar " + AppName + ".lnk"), uninstallerPath, targetDir);
             if (createDesktopShortcut)
             {
                 CreateShortcut(
                     Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory), AppName + ".lnk"),
-                    exePath, targetDir);
+                    exePath, targetDir, workstationArguments);
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or COMException)
@@ -244,7 +262,7 @@ public sealed class InstallService
         progress.Report((1.0, "Desinstalación terminada. Tus datos siguen en C:\\ProgramData\\FrubberPOS."));
     }
 
-    private static void CreateShortcut(string path, string target, string workDir)
+    private static void CreateShortcut(string path, string target, string workDir, string arguments = "")
     {
         var shellType = Type.GetTypeFromProgID("WScript.Shell")
             ?? throw new InvalidOperationException("WScript.Shell no está disponible en este Windows.");
@@ -252,6 +270,7 @@ public sealed class InstallService
         dynamic link = shell.CreateShortcut(path);
         link.TargetPath = target;
         link.WorkingDirectory = workDir;
+        link.Arguments = arguments;
         link.IconLocation = target + ",0";
         link.Description = AppName;
         link.Save();
@@ -267,3 +286,5 @@ public sealed class InstallService
         catch { /* el flujo principal decide si es bloqueante */ }
     }
 }
+
+public sealed record WorkstationInstallOptions(string CertificatePath, string ProfilePath);

@@ -2,16 +2,29 @@ using System.Windows;
 
 namespace FrubberPOS.Installer;
 
-public partial class App : Application
+public partial class App : System.Windows.Application
 {
     /// <summary>--uninstall: desinstalar (desde "Agregar o quitar programas"). --quiet: sin preguntas.</summary>
     public static bool UninstallMode { get; private set; }
     public static bool QuietMode { get; private set; }
+    public static WorkstationInstallOptions? WorkstationOptions { get; private set; }
 
     protected override void OnStartup(StartupEventArgs e)
     {
         UninstallMode = e.Args.Any(a => a.Equals("--uninstall", StringComparison.OrdinalIgnoreCase));
         QuietMode = e.Args.Any(a => a.Equals("--quiet", StringComparison.OrdinalIgnoreCase));
+
+        if (!UninstallMode && e.Args.Length > 0)
+        {
+            if (e.Args is not ["--certificado-puesto", var certificate, "--perfil-puesto", var profile])
+            {
+                MessageBox.Show("Para instalar un puesto, indique --certificado-puesto <archivo.pem> --perfil-puesto <archivo.cfg>.",
+                    "Frubber POS — Asistente de instalación", MessageBoxButton.OK, MessageBoxImage.Error);
+                Shutdown(1);
+                return;
+            }
+            WorkstationOptions = new(certificate, profile);
+        }
 
         if (QuietMode && UninstallMode)
         {
