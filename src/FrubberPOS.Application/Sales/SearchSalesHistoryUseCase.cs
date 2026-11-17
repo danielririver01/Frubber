@@ -26,12 +26,12 @@ public sealed class SearchSalesHistoryUseCase : IUseCase<SearchSalesHistoryReque
 {
     public const int PageSize = 50;
 
-    private readonly ISaleHistoryRepository history;
+    private readonly ISaleHistorySearchRepository history;
     private readonly IUnitOfWorkFactory units;
     private readonly ICurrentSession session;
 
     public SearchSalesHistoryUseCase(
-        ISaleHistoryRepository history,
+        ISaleHistorySearchRepository history,
         IUnitOfWorkFactory units,
         ICurrentSession session)
     {
@@ -90,11 +90,17 @@ public sealed class SearchSalesHistoryUseCase : IUseCase<SearchSalesHistoryReque
             toUtcMsExclusive = long.MaxValue;
         }
 
-        await using var unit = await units.CreateAsync(UnitOfWorkMode.ReadOnly, cancellationToken);
-        var page = await history.SearchAsync(
-            unit, fromUtcMs, toUtcMsExclusive, (request.Page - 1) * PageSize, PageSize, cancellationToken);
-
-        return Result<SearchSalesHistoryResponse>.Success(
-            new SearchSalesHistoryResponse(page.Items, page.TotalCount, request.Page, PageSize));
+        try
+        {
+            await using var unit = await units.CreateAsync(UnitOfWorkMode.ReadOnly, cancellationToken);
+            var page = await history.SearchAsync(
+                unit, fromUtcMs, toUtcMsExclusive, (request.Page - 1) * PageSize, PageSize, cancellationToken);
+            return Result<SearchSalesHistoryResponse>.Success(
+                new SearchSalesHistoryResponse(page.Items, page.TotalCount, request.Page, PageSize));
+        }
+        catch (DatabaseUnavailableException ex)
+        {
+            return Result<SearchSalesHistoryResponse>.Failure(new Error(ErrorCode.Connection, ex.Message));
+        }
     }
 }

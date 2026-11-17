@@ -46,10 +46,21 @@ public sealed class GetSaleDetailUseCase : IUseCase<GetSaleDetailRequest, SaleDe
             return Result<SaleDetailDto>.Failure(new Error(ErrorCode.Validation, "El número de venta no es válido."));
         }
 
-        await using var unit = await units.CreateAsync(UnitOfWorkMode.ReadOnly, cancellationToken);
-        var detail = await history.FindDetailAsync(unit, request.SaleNumber, cancellationToken);
-        return detail is null
-            ? Result<SaleDetailDto>.Failure(new Error(ErrorCode.NotFound, $"No se encontró la venta V-{request.SaleNumber:D6}."))
-            : Result<SaleDetailDto>.Success(detail);
+        try
+        {
+            await using var unit = await units.CreateAsync(UnitOfWorkMode.ReadOnly, cancellationToken);
+            var detail = await history.FindDetailAsync(unit, request.SaleNumber, cancellationToken);
+            return detail is null
+                ? Result<SaleDetailDto>.Failure(new Error(ErrorCode.NotFound, $"No se encontró la venta V-{request.SaleNumber:D6}."))
+                : Result<SaleDetailDto>.Success(detail);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Result<SaleDetailDto>.Failure(new Error(ErrorCode.Authorization, "Inicie sesión nuevamente como administrador."));
+        }
+        catch (DatabaseUnavailableException ex)
+        {
+            return Result<SaleDetailDto>.Failure(new Error(ErrorCode.Connection, ex.Message));
+        }
     }
 }

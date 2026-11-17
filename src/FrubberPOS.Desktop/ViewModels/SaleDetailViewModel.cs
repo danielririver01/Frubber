@@ -23,10 +23,10 @@ namespace FrubberPOS.Desktop.ViewModels;
 public sealed class SaleDetailViewModel : INotifyPropertyChanged
 {
     private readonly GetSaleDetailUseCase getDetail;
-    private readonly VoidSaleUseCase voidSale;
-    private readonly GetTicketForSaleUseCase getTicketForSale;
-    private readonly ITicketPrinter ticketPrinter;
-    private readonly INavigationService navigation;
+    private readonly VoidSaleUseCase? voidSale;
+    private readonly GetTicketForSaleUseCase? getTicketForSale;
+    private readonly ITicketPrinter? ticketPrinter;
+    private readonly INavigationService? navigation;
     private readonly ObservableCollection<SaleDetailLineViewModel> lines = [];
 
     private long saleNumber;
@@ -42,19 +42,22 @@ public sealed class SaleDetailViewModel : INotifyPropertyChanged
         VoidSaleUseCase voidSale,
         GetTicketForSaleUseCase getTicketForSale,
         ITicketPrinter ticketPrinter,
-        INavigationService navigation)
+        INavigationService navigation) : this(getDetail)
     {
-        ArgumentNullException.ThrowIfNull(getDetail);
         ArgumentNullException.ThrowIfNull(voidSale);
         ArgumentNullException.ThrowIfNull(getTicketForSale);
         ArgumentNullException.ThrowIfNull(ticketPrinter);
         ArgumentNullException.ThrowIfNull(navigation);
-        this.getDetail = getDetail;
         this.voidSale = voidSale;
         this.getTicketForSale = getTicketForSale;
         this.ticketPrinter = ticketPrinter;
         this.navigation = navigation;
+    }
 
+    public SaleDetailViewModel(GetSaleDetailUseCase getDetail)
+    {
+        ArgumentNullException.ThrowIfNull(getDetail);
+        this.getDetail = getDetail;
         VoidCommand = new AsyncCommand(_ => VoidAsync(), () => CanVoid);
         PrintCommand = new AsyncCommand(_ => PrintAsync(), () => CanPrint);
     }
@@ -98,7 +101,7 @@ public sealed class SaleDetailViewModel : INotifyPropertyChanged
     public bool VoidInfoVisible => IsVoided;
 
     /// <summary>P-UX §13.4: solo ADMIN, vigente y con su caja aún abierta.</summary>
-    public bool CanVoid => isAdmin && detail is { Status: "ACTIVE", CashSessionOpen: true };
+    public bool CanVoid => voidSale is not null && isAdmin && detail is { Status: "ACTIVE", CashSessionOpen: true };
 
     public bool VoidButtonVisible => isAdmin;
 
@@ -120,7 +123,7 @@ public sealed class SaleDetailViewModel : INotifyPropertyChanged
     public AsyncCommand PrintCommand { get; }
 
     /// <summary>JHO-91: reprint is available to every role, active or voided sale.</summary>
-    public bool CanPrint => detail is not null && !isPrinting;
+    public bool CanPrint => getTicketForSale is not null && detail is not null && !isPrinting;
 
     public bool IsPrinting
     {
@@ -152,7 +155,7 @@ public sealed class SaleDetailViewModel : INotifyPropertyChanged
 
     public async Task VoidAsync()
     {
-        if (!CanVoid)
+        if (!CanVoid || voidSale is null || navigation is null)
         {
             return;
         }
@@ -186,7 +189,7 @@ public sealed class SaleDetailViewModel : INotifyPropertyChanged
     /// </summary>
     public async Task PrintAsync()
     {
-        if (!CanPrint)
+        if (!CanPrint || getTicketForSale is null || navigation is null || ticketPrinter is null)
         {
             return;
         }

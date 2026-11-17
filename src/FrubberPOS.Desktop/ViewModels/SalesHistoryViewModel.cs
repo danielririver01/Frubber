@@ -21,7 +21,7 @@ namespace FrubberPOS.Desktop.ViewModels;
 public sealed class SalesHistoryViewModel : INotifyPropertyChanged
 {
     private readonly SearchSalesHistoryUseCase searchHistory;
-    private readonly INavigationService navigation;
+    private readonly Func<long, bool>? openDetail;
     private readonly ObservableCollection<SaleHistoryRowViewModel> items = [];
 
     private string fromText = string.Empty;
@@ -39,17 +39,17 @@ public sealed class SalesHistoryViewModel : INotifyPropertyChanged
     private int searchVersion;
     private SaleHistoryRowViewModel? selectedItem;
 
-    public SalesHistoryViewModel(SearchSalesHistoryUseCase searchHistory, INavigationService navigation)
+    public SalesHistoryViewModel(SearchSalesHistoryUseCase searchHistory, INavigationService? navigation,
+        Func<long, bool>? openDetail = null)
     {
         ArgumentNullException.ThrowIfNull(searchHistory);
-        ArgumentNullException.ThrowIfNull(navigation);
         this.searchHistory = searchHistory;
-        this.navigation = navigation;
+        this.openDetail = openDetail ?? (navigation is null ? null : navigation.ShowSaleDetail);
 
         SearchCommand = new AsyncCommand(_ => SearchAsync(1));
         PreviousPageCommand = new AsyncCommand(_ => SearchAsync(page - 1), () => page > 1);
         NextPageCommand = new AsyncCommand(_ => SearchAsync(page + 1), () => (long)page * SearchSalesHistoryUseCase.PageSize < totalCount);
-        OpenDetailCommand = new AsyncCommand(_ => OpenDetailAsync(), () => SelectedItem is not null);
+        OpenDetailCommand = new AsyncCommand(_ => OpenDetailAsync(), () => this.openDetail is not null && SelectedItem is not null);
         ClearFilterCommand = new AsyncCommand(_ => ClearFilterAsync());
     }
 
@@ -262,12 +262,12 @@ public sealed class SalesHistoryViewModel : INotifyPropertyChanged
     public async Task OpenDetailAsync()
     {
         var selected = SelectedItem;
-        if (selected is null)
+        if (selected is null || openDetail is null)
         {
             return;
         }
 
-        var voided = navigation.ShowSaleDetail(selected.SaleNumber);
+        var voided = openDetail(selected.SaleNumber);
         if (voided)
         {
             await SearchAsync(page); // el estado cambió: refrescar la misma página

@@ -22,7 +22,7 @@ public sealed class Pbkdf2PinHasher : IPinHasher
         ArgumentNullException.ThrowIfNull(pin);
 
         var salt = RandomNumberGenerator.GetBytes(SaltSize);
-        var hash = Rfc2898DeriveBytes.Pbkdf2(pin, salt, DefaultIterations, HashAlgorithmName.SHA256, HashSize);
+        var hash = DeriveKey(pin, salt, DefaultIterations);
         return new PinHashResult(salt, hash, DefaultIterations, CurrentAlgorithmVersion);
     }
 
@@ -41,7 +41,10 @@ public sealed class Pbkdf2PinHasher : IPinHasher
             return false;
         }
 
-        var candidate = Rfc2898DeriveBytes.Pbkdf2(pin, salt, iterations, HashAlgorithmName.SHA256, HashSize);
+        var candidate = DeriveKey(pin, salt, iterations);
         return CryptographicOperations.FixedTimeEquals(candidate, hash);
     }
+
+    internal static byte[] DeriveKey(string pin, byte[] salt, int iterations) =>
+        Rfc2898DeriveBytes.Pbkdf2(pin, salt, iterations, HashAlgorithmName.SHA256, HashSize);
 }

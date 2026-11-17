@@ -6,13 +6,21 @@ using FrubberPOS.Application.Logging;
 using FrubberPOS.Application.Navigation;
 using FrubberPOS.Application.Persistence;
 using FrubberPOS.Application.Products;
+using FrubberPOS.Application.Sales;
 using FrubberPOS.Application.Startup;
 using FrubberPOS.Application.Trial;
 using FrubberPOS.Application.Users;
+using FrubberPOS.Application.Workstations;
+using FrubberPOS.Desktop.Authentication;
 using FrubberPOS.Desktop.Composition;
 using FrubberPOS.Desktop.ViewModels;
 using FrubberPOS.Desktop.Views;
 using FrubberPOS.Infrastructure.Migrations;
+using FrubberPOS.Infrastructure.Licensing;
+using FrubberPOS.Infrastructure.Persistence.Workstations;
+using FrubberPOS.Infrastructure.Persistence;
+using FrubberPOS.Infrastructure.Security;
+using FrubberPOS.Infrastructure.System;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace FrubberPOS.Desktop;
@@ -29,8 +37,13 @@ public partial class App : System.Windows.Application, INavigationService
     private SingleInstanceGuard? instanceGuard;
     private ServiceProvider? provider;
     private Window? currentWindow;
+    private Func<ProductEditorViewModel>? workstationProductEditor;
+    private Func<AdjustStockViewModel>? workstationStockEditor;
+    private Func<UserEditorViewModel>? workstationUserEditor;
+    private Func<ResetPinViewModel>? workstationPinEditor;
     private bool trialIsLicensed;
     private int trialDaysLeft = -1;
+    private Window? DialogOwner => Windows.OfType<Window>().FirstOrDefault(window => window.IsActive) ?? currentWindow;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -56,6 +69,18 @@ public partial class App : System.Windows.Application, INavigationService
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
                 Shutdown();
+                return;
+            }
+
+            if (e.Args.Contains("--puesto", StringComparer.Ordinal))
+            {
+                if (e.Args is not ["--puesto", var configurationPath])
+                {
+                    ShowWorkstationStartupError(splash, "Indique el archivo de configuración protegida del puesto.");
+                    return;
+                }
+
+                await StartWorkstationAsync(splash, configurationPath, CancellationToken.None);
                 return;
             }
 
@@ -174,6 +199,77 @@ public partial class App : System.Windows.Application, INavigationService
         }
     }
 
+    private async Task StartWorkstationAsync(SplashWindow splash, string configurationPath, CancellationToken cancellationToken)
+    {
+        splash.SetStatus("Leyendo configuración protegida del puesto...");
+        var configuration = await ProtectedWorkstationConfiguration.LoadAsync(configurationPath, cancellationToken);
+        if (configuration.IsFailure)
+        {
+            ShowWorkstationStartupError(splash, configuration.Error!.Message);
+            return;
+        }
+
+        splash.SetStatus("Verificando conexión y licencia del negocio...");
+        var settings = configuration.Value;
+        var store = new Postgres20WorkstationStore(settings.Database);
+        var session = new CurrentSession();
+        var gate = new Postgres20LicenseGate(store, EcdsaLicenseSignatureVerifier.CreateProduction(),
+            settings.ServerMachineCode, SystemClock.Instance);
+        var startup = await new CheckWorkstationStartupUseCase(store, gate).ExecuteAsync(new(), cancellationToken);
+        if (startup.IsFailure)
+        {
+            ShowWorkstationStartupError(splash, startup.Error!.Message);
+            return;
+        }
+
+        var users = await store.ListUsersAsync(cancellationToken);
+        if (users.IsFailure || users.Value.Count == 0)
+        {
+            ShowWorkstationStartupError(splash, users.Error?.Message ?? "El servidor no tiene usuarios activos.");
+            return;
+        }
+
+        var model = new WorkstationViewModel(startup.Value, users.Value, store,
+            new AuthenticateWorkstationUserUseCase(store, session),
+            new OpenWorkstationCashUseCase(store, session, gate),
+            new CloseWorkstationCashUseCase(store, session, gate),
+            new FinalizeWorkstationSaleUseCase(store, session, gate));
+        var historyRepository = new Postgres20SaleHistorySearchRepository(store);
+        var historyUnits = new NpgsqlUnitOfWorkFactory(new NpgsqlConnectionFactory(settings.Database), serializeWorkstationAdmin: true);
+        var history = new SearchSalesHistoryUseCase(historyRepository, historyUnits, session);
+        var detail = new GetSaleDetailUseCase(historyRepository, historyUnits, session);
+        var products = new Postgres20ProductRepository(store);
+        var accounts = new Postgres20UserRepository(store);
+        var hasher = new Pbkdf2PinHasher();
+        workstationProductEditor = () => new ProductEditorViewModel(new CreateProductUseCase(products, historyUnits, session),
+            new UpdateProductUseCase(products, historyUnits, session), new SuggestNextPluUseCase(products, historyUnits, session));
+        workstationStockEditor = () => new AdjustStockViewModel(new AdjustStockUseCase(products, historyUnits, session));
+        workstationUserEditor = () => new UserEditorViewModel(new CreateUserUseCase(accounts, hasher, historyUnits, session),
+            new UpdateUserUseCase(accounts, historyUnits, session));
+        workstationPinEditor = () => new ResetPinViewModel(new ResetUserPinUseCase(accounts, hasher, historyUnits, session));
+        SwapWindow(new WorkstationWindow(model, () => new SalesHistoryViewModel(history, navigation: null,
+            openDetail: saleNumber =>
+            {
+                new SaleDetailDialog(new SaleDetailViewModel(detail), saleNumber, viewerIsAdmin: true)
+                {
+                    Owner = DialogOwner
+                }.ShowDialog();
+                return false;
+            }),
+            () => new ProductsViewModel(new SearchProductsUseCase(products, historyUnits, session),
+                new SetProductActiveStateUseCase(products, historyUnits, session), new DeleteProductUseCase(products, historyUnits, session), this),
+            () => new UsersViewModel(new ListUsersUseCase(accounts, historyUnits, session),
+                new SetUserActiveStateUseCase(accounts, historyUnits, session), new DeleteUserUseCase(accounts, historyUnits, session), this)));
+        splash.Close();
+    }
+
+    private void ShowWorkstationStartupError(SplashWindow splash, string message)
+    {
+        splash.Close();
+        MessageBox.Show(message, "Frubber POS 2.0", MessageBoxButton.OK, MessageBoxImage.Error);
+        Shutdown(1);
+    }
+
     public void ShowFirstStart() => SwapWindow(new FirstStartWindow(Resolve<FirstStartViewModel>()));
 
     public void ShowLogin() => SwapWindow(new LoginWindow(Resolve<LoginViewModel>()));
@@ -242,9 +338,9 @@ public partial class App : System.Windows.Application, INavigationService
 
     public bool ShowProductEditor(ProductDto? existing)
     {
-        var window = new ProductEditorDialog(Resolve<ProductEditorViewModel>(), existing)
+        var window = new ProductEditorDialog(workstationProductEditor?.Invoke() ?? Resolve<ProductEditorViewModel>(), existing)
         {
-            Owner = currentWindow
+            Owner = DialogOwner
         };
         return window.ShowDialog() == true;
     }
@@ -252,11 +348,11 @@ public partial class App : System.Windows.Application, INavigationService
     public bool ShowAdjustStock(ProductDto product)
     {
         ArgumentNullException.ThrowIfNull(product);
-        var viewModel = Resolve<AdjustStockViewModel>();
+        var viewModel = workstationStockEditor?.Invoke() ?? Resolve<AdjustStockViewModel>();
         viewModel.Load(product);
         var window = new AdjustStockDialog(viewModel)
         {
-            Owner = currentWindow
+            Owner = DialogOwner
         };
         return window.ShowDialog() == true;
     }
@@ -269,7 +365,7 @@ public partial class App : System.Windows.Application, INavigationService
             $"¿Eliminar «{product.Name}» ({product.Plu})? El producto se quitará del catálogo y esta acción no se puede deshacer. (F9 confirma)",
             "Eliminar producto")
         {
-            Owner = currentWindow
+            Owner = DialogOwner
         };
         return dialog.ShowDialog() == true;
     }
@@ -386,9 +482,9 @@ public partial class App : System.Windows.Application, INavigationService
 
     public bool ShowUserEditor(UserDetailDto? existing)
     {
-        var window = new UserEditorDialog(Resolve<UserEditorViewModel>(), existing)
+        var window = new UserEditorDialog(workstationUserEditor?.Invoke() ?? Resolve<UserEditorViewModel>(), existing)
         {
-            Owner = currentWindow
+            Owner = DialogOwner
         };
         return window.ShowDialog() == true;
     }
@@ -396,9 +492,9 @@ public partial class App : System.Windows.Application, INavigationService
     public bool ShowPinReset(UserDetailDto user)
     {
         ArgumentNullException.ThrowIfNull(user);
-        var window = new ResetPinDialog(Resolve<ResetPinViewModel>(), user)
+        var window = new ResetPinDialog(workstationPinEditor?.Invoke() ?? Resolve<ResetPinViewModel>(), user)
         {
-            Owner = currentWindow
+            Owner = DialogOwner
         };
         return window.ShowDialog() == true;
     }
@@ -411,7 +507,7 @@ public partial class App : System.Windows.Application, INavigationService
             $"¿Desactivar a «{user.DisplayName}»? No podrá ingresar hasta que un administrador lo reactive. Su historial se conserva. (F9 confirma)",
             "Desactivar usuario")
         {
-            Owner = currentWindow
+            Owner = DialogOwner
         };
         return dialog.ShowDialog() == true;
     }
@@ -424,7 +520,7 @@ public partial class App : System.Windows.Application, INavigationService
             $"¿Eliminar a «{user.DisplayName}»? Si tiene historial se desactivará en su lugar. Esta acción no se puede deshacer. (F9 confirma)",
             "Eliminar usuario")
         {
-            Owner = currentWindow
+            Owner = DialogOwner
         };
         return dialog.ShowDialog() == true;
     }

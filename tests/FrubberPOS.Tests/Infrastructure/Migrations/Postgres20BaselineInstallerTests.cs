@@ -1,3 +1,6 @@
+using System.Buffers.Binary;
+using System.Net;
+using System.Net.Sockets;
 using FrubberPOS.Application.Common;
 using FrubberPOS.Application.Persistence;
 using FrubberPOS.Infrastructure.Migrations;
@@ -259,6 +262,83 @@ public sealed class Postgres20BaselineInstallerTests
         Assert.Equal(0, retry.Value);
     }
 
+    [CommitCutFact]
+    public async Task CommitConnectionCut_ReturnsUnknownAndDirectRetryFindsInstalledBaseline()
+    {
+        var testConnection = new NpgsqlConnectionStringBuilder(PostgresTestDb.ConnectionString);
+        Assert.True(testConnection.Host is "localhost" or "127.0.0.1",
+            "This test requires a disposable PostgreSQL cluster on IPv4 loopback.");
+        await using var db = await PostgresTestDb.CreateScratchAsync();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var cut = DropCommitResponseAsync(listener, testConnection.Port, timeout.Token);
+        var throughProxy = new NpgsqlConnectionStringBuilder(db.ConnectionString)
+        {
+            Host = "127.0.0.1",
+            Port = ((IPEndPoint)listener.LocalEndpoint).Port,
+            SslMode = SslMode.Disable,
+            Pooling = false,
+        };
+
+        var installer = new Postgres20BaselineInstaller();
+        var install = installer.InstallAsync(Factory(throughProxy.ConnectionString), timeout.Token);
+        await Task.WhenAll(cut, install);
+        var result = await install;
+        Assert.True(result.IsFailure);
+        Assert.Equal(ErrorCode.Storage, result.Error!.Code);
+        Assert.Contains("Revise el historial", result.Error.Message);
+
+        await using var connection = db.NewConnection();
+        await connection.OpenAsync(timeout.Token);
+        Assert.Equal(1L, await ScalarLong(connection, "SELECT count(*) FROM public.schema_migration WHERE version=1;"));
+        Assert.Equal(0L, await ScalarLong(connection, "SELECT last_number FROM public.ticket_counter WHERE scope='venta';"));
+        var retry = await installer.InstallAsync(Factory(db.ConnectionString), timeout.Token);
+        Assert.True(retry.IsSuccess, retry.Error?.Message);
+        Assert.Equal(0, retry.Value);
+    }
+
+    private static async Task DropCommitResponseAsync(TcpListener listener, int serverPort, CancellationToken token)
+    {
+        using var client = await listener.AcceptTcpClientAsync(token);
+        using var server = new TcpClient();
+        await server.ConnectAsync(IPAddress.Loopback, serverPort, token);
+        var clientStream = client.GetStream();
+        var serverStream = server.GetStream();
+        using var relay = CancellationTokenSource.CreateLinkedTokenSource(token);
+        var requests = clientStream.CopyToAsync(serverStream, relay.Token);
+        try
+        {
+            // Plain PostgreSQL backend frames: one type byte, four length
+            // bytes (including the length itself), then the message payload.
+            var header = new byte[5];
+            while (true)
+            {
+                await serverStream.ReadExactlyAsync(header, token);
+                var payload = new byte[BinaryPrimitives.ReadInt32BigEndian(header.AsSpan(1)) - 4];
+                await serverStream.ReadExactlyAsync(payload, token);
+                if (header[0] == 'C' && payload.AsSpan().SequenceEqual("COMMIT\0"u8))
+                {
+                    return;
+                }
+                await clientStream.WriteAsync(header, token);
+                await clientStream.WriteAsync(payload, token);
+            }
+        }
+        finally
+        {
+            await relay.CancelAsync();
+            try
+            {
+                await requests;
+            }
+            catch (OperationCanceledException) when (relay.IsCancellationRequested)
+            {
+                // Stop forwarding requests before closing both sockets.
+            }
+        }
+    }
+
     [Fact]
     public async Task ConcurrentInstallers_SerializeAndApplyOnce()
     {
@@ -275,5 +355,16 @@ public sealed class Postgres20BaselineInstallerTests
     {
         await using var command = new NpgsqlCommand(sql, connection);
         return (long)(await command.ExecuteScalarAsync())!;
+    }
+
+    private sealed class CommitCutFactAttribute : FactAttribute
+    {
+        public CommitCutFactAttribute()
+        {
+            if (Environment.GetEnvironmentVariable("FRUBBER_JHO136_ISOLATED") != "1")
+            {
+                Skip = "Enable FRUBBER_JHO136_ISOLATED=1 only for a disposable local PostgreSQL cluster.";
+            }
+        }
     }
 }

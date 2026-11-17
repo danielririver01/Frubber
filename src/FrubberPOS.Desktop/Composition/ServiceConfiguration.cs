@@ -71,6 +71,7 @@ public static class ServiceConfiguration
         services.AddSingleton<ICashSessionRepository, DapperCashSessionRepository>();
         services.AddSingleton<ISaleRepository, DapperSaleRepository>();
         services.AddSingleton<ISaleHistoryRepository, DapperSaleHistoryRepository>();
+        services.AddSingleton<ISaleHistorySearchRepository>(sp => sp.GetRequiredService<ISaleHistoryRepository>());
         services.AddSingleton<ISaleVoidRepository, DapperSaleVoidRepository>();
         services.AddSingleton<IBusinessSettingRepository, DapperBusinessSettingRepository>();
         services.AddSingleton<IScaleSettingRepository, DapperScaleSettingRepository>();

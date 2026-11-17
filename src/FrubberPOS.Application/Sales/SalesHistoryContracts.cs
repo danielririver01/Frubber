@@ -61,7 +61,7 @@ public sealed record SaleDetailDto(
     IReadOnlyList<SaleDetailLineDto> Lines);
 
 /// <summary>Sale history read port (JHO-47/48). Read-only queries only.</summary>
-public interface ISaleHistoryRepository
+public interface ISaleHistorySearchRepository
 {
     /// <summary>
     /// Newest-first page over the UTC range [fromUtcMs, toUtcMsExclusive).
@@ -73,7 +73,10 @@ public interface ISaleHistoryRepository
         int skip,
         int take,
         CancellationToken cancellationToken);
+}
 
+public interface ISaleHistoryRepository : ISaleHistorySearchRepository
+{
     /// <summary>Full historical detail; <c>null</c> when the number is unknown.</summary>
     Task<SaleDetailDto?> FindDetailAsync(IUnitOfWork unit, long saleNumber, CancellationToken cancellationToken);
 }

@@ -30,10 +30,13 @@ public sealed class EcdsaLicenseSignatureVerifier : ILicenseSignatureVerifier
     public static EcdsaLicenseSignatureVerifier CreateProduction() =>
         new(Convert.FromBase64String(LicensePublicKeys.CurrentPublicKeyBase64), LicensePublicKeys.CurrentKeyId);
 
-    public bool Verify(string keyId, string machineCode, DateOnly issuedDate, byte[] signature)
+    public bool Verify(string keyId, string machineCode, DateOnly issuedDate, byte[] signature) =>
+        !string.IsNullOrWhiteSpace(machineCode) &&
+        VerifyCanonical(keyId, LicenseKeyFormat.BuildCanonicalPayload(keyId, machineCode, issuedDate), signature);
+
+    internal bool VerifyCanonical(string keyId, string canonical, byte[] signature)
     {
         if (!string.Equals(keyId, this.keyId, StringComparison.Ordinal)
-            || string.IsNullOrWhiteSpace(machineCode)
             || signature is null
             || signature.Length != 64)
         {
@@ -42,7 +45,6 @@ public sealed class EcdsaLicenseSignatureVerifier : ILicenseSignatureVerifier
 
         try
         {
-            var canonical = LicenseKeyFormat.BuildCanonicalPayload(keyId, machineCode, issuedDate);
             var data = Encoding.UTF8.GetBytes(canonical);
             using var ecdsa = ECDsa.Create();
             ecdsa.ImportSubjectPublicKeyInfo(subjectPublicKeyInfo, out _);

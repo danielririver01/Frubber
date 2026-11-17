@@ -1,0 +1,94 @@
+<Window x:Class="FrubberPOS.Desktop.Views.WorkstationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Frubber POS 2.0" Width="720" Height="650" MinWidth="540" MinHeight="450"
+        WindowStartupLocation="CenterScreen" Background="{StaticResource AppBackground}"
+        AutomationProperties.AutomationId="WorkstationWindow" Closing="OnClosing">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="VisibleWhenTrue"/>
+    </Window.Resources>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="28" IsEnabled="{Binding CanInteract}">
+            <TextBlock Text="Frubber POS 2.0" Style="{StaticResource PageTitle}"/>
+            <TextBlock Text="{Binding TerminalName}" AutomationProperties.AutomationId="TerminalName"
+                       Style="{StaticResource PageSubtitle}" Margin="0,4,0,4"/>
+            <TextBlock Text="{Binding UserName}" Style="{StaticResource PageSubtitle}" Margin="0,0,0,10"/>
+            <StackPanel x:Name="AdminMenu" Orientation="Horizontal" Margin="0,0,0,10"
+                        Visibility="{Binding ShowAdminMenu, Converter={StaticResource VisibleWhenTrue}, FallbackValue=Collapsed}">
+                <Button Content="Historial" Click="OnHistory"/>
+                <Button Content="Productos" Margin="8,0,0,0" Click="OnProducts"/>
+                <Button Content="Usuarios" Margin="8,0,0,0" Click="OnUsers"/>
+            </StackPanel>
+
+            <Border Style="{StaticResource Card}" Visibility="{Binding ShowLogin, Converter={StaticResource VisibleWhenTrue}}">
+                <StackPanel>
+                    <TextBlock Text="Iniciar sesión" Style="{StaticResource PageTitle}"/>
+                    <Label Content="Usuario" Target="{Binding ElementName=Users}" Margin="0,10,0,0"/>
+                    <ComboBox x:Name="Users" AutomationProperties.AutomationId="Users" DisplayMemberPath="DisplayName"
+                              ItemsSource="{Binding Users}" SelectedItem="{Binding SelectedUser}"/>
+                    <Label Content="PIN" Target="{Binding ElementName=Pin}" Margin="0,8,0,0"/>
+                    <PasswordBox x:Name="Pin" AutomationProperties.AutomationId="Pin" MaxLength="4"/>
+                    <Button Content="Entrar" AutomationProperties.AutomationId="SignIn" IsDefault="True"
+                            Margin="0,12,0,0" Click="OnSignIn"/>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Visibility="{Binding ShowCash, Converter={StaticResource VisibleWhenTrue}}">
+                <StackPanel>
+                    <TextBlock Text="Caja" Style="{StaticResource PageTitle}"/>
+                    <Label Content="Saldo inicial (COP)" Target="{Binding ElementName=OpeningBalance}" Margin="0,10,0,0"/>
+                    <TextBox x:Name="OpeningBalance" AutomationProperties.AutomationId="OpeningBalance"
+                             Text="{Binding OpeningBalance, UpdateSourceTrigger=PropertyChanged}"/>
+                    <Button Content="Abrir caja" AutomationProperties.AutomationId="OpenCash" Margin="0,12,0,0" Click="OnOpenCash"/>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Visibility="{Binding ShowSale, Converter={StaticResource VisibleWhenTrue}}">
+                <StackPanel>
+                    <StackPanel IsEnabled="{Binding CanEditSale}">
+                    <TextBlock Text="Venta" Style="{StaticResource PageTitle}"/>
+                    <TextBlock Text="Caja abierta" Style="{StaticResource PageSubtitle}" Margin="0,4,0,0"/>
+                    <Grid Margin="0,10,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="2*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Margin="0,0,8,0">
+                            <Label Content="PLU" Target="{Binding ElementName=Plu}"/>
+                            <TextBox x:Name="Plu" AutomationProperties.AutomationId="Plu"
+                                     Text="{Binding Plu, UpdateSourceTrigger=PropertyChanged}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Margin="0,0,8,0">
+                            <Label Content="Cantidad" Target="{Binding ElementName=Quantity}"/>
+                            <TextBox x:Name="Quantity" AutomationProperties.AutomationId="Quantity"
+                                     Text="{Binding Quantity, UpdateSourceTrigger=PropertyChanged}"/>
+                        </StackPanel>
+                        <Button Grid.Column="2" VerticalAlignment="Bottom" Content="Agregar" Click="OnAddProduct"
+                                AutomationProperties.AutomationId="AddProduct"/>
+                    </Grid>
+                    <ListBox ItemsSource="{Binding Lines}" MinHeight="60" MaxHeight="120"/>
+                    <TextBlock Text="{Binding Total}" Style="{StaticResource DisplayTotal}" Margin="0,10,0,8"/>
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton Content="Efectivo" GroupName="Payment" IsChecked="{Binding IsCash}"/>
+                        <RadioButton Content="Transferencia" GroupName="Payment" Margin="14,0,0,0"
+                                     AutomationProperties.AutomationId="Transfer"/>
+                    </StackPanel>
+                    <Label Content="Efectivo recibido (COP)" Target="{Binding ElementName=Received}"/>
+                    <TextBox x:Name="Received" AutomationProperties.AutomationId="Received" IsEnabled="{Binding IsCash}"
+                             Text="{Binding Received, UpdateSourceTrigger=PropertyChanged}"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                        <Button Content="Cobrar" AutomationProperties.AutomationId="Checkout" Click="OnCheckout"/>
+                        <Button Content="Limpiar venta" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" Click="OnClearSale"/>
+                    </StackPanel>
+                    </StackPanel>
+                    <Button Content="Cerrar caja" AutomationProperties.AutomationId="CloseCash" Margin="0,10,0,0"
+                            Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left"
+                            IsEnabled="{Binding CanCloseCash}" Click="OnCloseCash"/>
+                </StackPanel>
+            </Border>
+            <TextBlock Text="{Binding Message}" AutomationProperties.AutomationId="Result"
+                       TextWrapping="Wrap" Margin="0,12,0,0"/>
+        </StackPanel>
+    </ScrollViewer>
+</Window>
