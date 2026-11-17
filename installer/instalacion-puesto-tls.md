@@ -22,6 +22,8 @@ La prueba .NET Release `WorkstationCertificateInstallerTests` pasó en PostgreSQ
 
 La regresión final terminó con 752 pruebas aprobadas, cero fallidas y cinco omitidas por condiciones de laboratorio. Las pruebas dirigidas de cupo y certificado se ejecutaron por separado y pasaron. La solución y el instalador compilaron en Release. La solución conserva dos advertencias xUnit2013 previas en `ProductsViewModelTests`.
 
-La prueba completa del asistente elevado sigue pendiente. La revisión automática rechazó abrirlo porque su ejecución puede modificar el registro HKLM y los accesos directos de la instalación existente. El paquete de laboratorio está preparado en `artifacts/jho129-installer`. Los perfiles y el servidor temporales se eliminan al cerrar el banco de pruebas.
+El dueño autorizó la prueba elevada y confirmó que la instalación terminó limpia y sin errores. La ubicación efectiva fue `C:\Program Files\Frubber POS`. Se comprobó el acceso directo con `--puesto` y se conectó realmente con el perfil instalado. La salida fue `Mode=VerifyFull`, `CertificateInstalled=true`, `ServerSsl=on`, `ConnectionTls=true` y `ProductionLicense=Verified`. La comprobación visual fue aportada por el dueño tras detener el control de pantalla con Escape.
+
+Se restauraron la entrada de desinstalación y los accesos anteriores, con comparación del registro exportado y de las huellas de los accesos. Los binarios instalados por el dueño permanecen en la ubicación efectiva indicada. El clúster y los archivos temporales del banco se eliminaron. La evidencia se registró en E-08 de la bitácora 6.2, en Google Docs y en su copia local de `Documentacion/`.
 
 El SHA-256 del paquete preparado es `901AEA21C89F541DD753E3D453ADBA61F615FB00D20FFE83FC8847018F88F3DC`.
