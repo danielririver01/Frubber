@@ -9,7 +9,7 @@ Agregar un prototipo de función PostgreSQL que serializa solicitudes por UUID e
 
 ## Contexto técnico
 
-C#/.NET 10 WPF, Npgsql, Dapper y PostgreSQL 18.6. Baseline `database/postgresql/001_Baseline.sql`; seguridad 002 y venta 003 aún no conectadas. El registro de solicitud se guarda como JSONB con igualdad estructural; objetos JSON con orden de propiedades diferente son equivalentes, pero el orden de líneas y todos los valores forman parte del intento. El bloqueo único y de fila evita doble ejecución y se revierte con la venta. Repeticiones aceptadas usan el mismo rol/puesto y contenido exacto.
+C#/.NET 10 WPF, Npgsql, Dapper y PostgreSQL 18.6. JHO-136 conectó el inicio `--puesto`, seguridad 002, venta 003, perfil DPAPI, TLS verificado y licencia de la 2.0. El registro de solicitud de 004 se guarda como JSONB con igualdad estructural. El orden de líneas y todos los valores forman parte del intento. El bloqueo único y de fila evita doble ejecución y se revierte con la venta. Repeticiones aceptadas usan el mismo rol/puesto y contenido exacto.
 
 ## Puertas de constitución
 
@@ -30,7 +30,15 @@ La línea 004 experimental rechaza bases con ventas existentes y requiere admini
 
 ## Transición pendiente a la aplicación
 
-El código de caja actual llama `FinalizeSaleUseCase` con líneas y pago, sin UUID; abre la caja global, revalida catálogo, numera e inserta por separado en el esquema A. `TpvViewModel` mantiene el borrador en memoria y permite volver a intentar después de un fallo. Una desconexión durante la confirmación puede dejar resultado incierto: la frase «la venta nunca se registra» de su comentario no es una garantía. **No integrar ni liberar el flujo B hasta reemplazar esa ruta y proteger los reintentos.**
+En la composición 2.0, `WorkstationViewModel` usa `FinalizeWorkstationSaleUseCase`, que genera un UUID nuevo por ejecución. `Postgres20WorkstationStore` resuelve la caja propia al enviar a `app_registrar_venta`. Si hay resultado incierto, el modelo bloquea el borrador en memoria. Reiniciar pierde ese bloqueo. La integración de JHO-114 se realiza en esta composición; la ruta de la 1.0 queda fuera del alcance.
+
+### Orden de integración
+
+1. Definir el contrato de intento persistido con UUID, puesto, identidad de la base aprovisionada, ID de caja, cajero, líneas y pago. Capturar el ID de caja al crear el intento en vez de consultar la caja abierta al reintentar. Guardar un único intento pendiente por puesto de forma atómica bajo el perfil Windows protegido.
+2. En el arranque, leer y validar el intento antes de habilitar otro cobro o cierre. En caso de autenticación de otro cajero, cambio de perfil o almacenamiento ilegible, mostrar un estado de revisión sin enviar ni sobrescribir el intento.
+3. Vincular la identidad del cajero verificada por PIN a la función SQL que autoriza cobrar o recuperar, y conservar la revalidación de licencia. El enlace de autorización debe comprobar puesto y cajero aun cuando el intento ya se haya confirmado.
+4. Integrar la ruta bajo ensayo aislado. En error incierto, conservar el intento y permitir consultar o repetir la misma solicitud. Al recibir el resultado confirmado, persistir el resultado antes de limpiar el intento, de modo que sea posible mostrarlo aunque el proceso se cierre entre ambos pasos.
+5. Ejecutar dos cortes controlados, uno antes de confirmar y otro tras confirmar y antes de recibir respuesta, recreando el cliente entre envíos. Comparar respuesta, números, inventario y cantidad de ventas. Mantener la prueba de solicitudes a la vez y de identidad incorrecta.
 
 El flujo B necesita guardar de forma durable y atómica, antes de cualquier envío, UUID, identidad estable del servidor/base y puesto, caja, cajero, líneas ordenadas y datos de pago. El diseño definitivo debe resolver bloqueo entre procesos, escritura interrumpida, versión/formato, confidencialidad y permisos Windows, pérdida/corrupción/respaldos y qué hacer si cambió la base; no debe guardar PIN, hash ni contraseña. Se bloquean ediciones y cobros nuevos que puedan duplicar el intento mientras el resultado sea incierto. Tras éxito confirmado se conserva suficiente estado para presentar el resultado incluso si la aplicación cae antes de limpiar; recuperación/limpieza debe ser idempotente. Una restauración del servidor a un punto anterior puede perder tanto venta como historial y requiere un procedimiento de conciliación: el UUID por sí solo no es un respaldo.
 

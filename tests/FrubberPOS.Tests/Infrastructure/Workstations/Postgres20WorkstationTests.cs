@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Dapper;
 using FrubberPOS.Application.Authentication;
@@ -43,6 +44,7 @@ public sealed class Postgres20WorkstationTests
                     adminOptions.Port != 5432, "The test requires an isolated IPv4 loopback cluster on a non-default port.");
         await using var admin = new NpgsqlConnection(adminOptions.ConnectionString);
         await admin.OpenAsync();
+        Assert.Equal("on", await admin.ExecuteScalarAsync<string>("SHOW ssl;"));
         Assert.Equal(0, await admin.ExecuteScalarAsync<int>("""
             SELECT count(*) FROM pg_catalog.pg_roles
             WHERE rolname IN ('frubber_puesto', 'frubber_puesto_test') OR rolname LIKE 'puesto_%';
@@ -81,6 +83,23 @@ public sealed class Postgres20WorkstationTests
         var badHost = new NpgsqlConnectionStringBuilder(firstOptions.ConnectionString) { Host = "localhost" };
         Assert.Equal(ErrorCode.Connection,
             (await new Postgres20WorkstationStore(new DatabaseOptions(badHost.ConnectionString)).CheckAsync(token)).Error?.Code);
+        using (var key = ECDsa.Create(ECCurve.NamedCurves.nistP256))
+        {
+            var certificateRequest = new CertificateRequest("CN=Certificado ajeno a Frubber", key, HashAlgorithmName.SHA256);
+            using var certificate = certificateRequest.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
+            var wrongRootPath = Path.GetTempFileName();
+            try
+            {
+                await File.WriteAllTextAsync(wrongRootPath, certificate.ExportCertificatePem(), token);
+                var wrongRoot = new NpgsqlConnectionStringBuilder(firstOptions.ConnectionString) { RootCertificate = wrongRootPath };
+                Assert.Equal(ErrorCode.Connection,
+                    (await new Postgres20WorkstationStore(new DatabaseOptions(wrongRoot.ConnectionString)).CheckAsync(token)).Error?.Code);
+            }
+            finally
+            {
+                File.Delete(wrongRootPath);
+            }
+        }
         var withoutTls = new NpgsqlConnectionStringBuilder(firstOptions.ConnectionString) { SslMode = SslMode.Disable };
         await using (var deniedConnection = new NpgsqlConnection(withoutTls.ConnectionString))
         {
@@ -115,6 +134,8 @@ public sealed class Postgres20WorkstationTests
         Assert.True(openings[2].IsSuccess, openings[2].Error?.Message);
         var secondCash = openings[2].Value;
         Assert.NotEqual(firstCash, secondCash);
+        Assert.Equal(firstCash, (await first.GetCashAsync(token)).Value.CashId);
+        Assert.Equal(secondCash, (await second.GetCashAsync(token)).Value.CashId);
         Assert.Equal(2, await admin.ExecuteScalarAsync<int>("SELECT count(*) FROM public.cash_session WHERE closed_at IS NULL;"));
 
         await using (var roleConnection = new NpgsqlConnection(firstOptions.ConnectionString))
@@ -347,6 +368,8 @@ public sealed class Postgres20WorkstationTests
         Assert.True(firstSummary.IsSuccess, firstSummary.Error?.Message);
         Assert.True((await transferB).IsSuccess, (await transferB).Error?.Message);
         Assert.Equal(new WorkstationCashClosure(firstCash, 1000, 20000, 0, 0, 20000, 21000, 20), firstSummary.Value);
+        Assert.Null((await first.GetCashAsync(token)).Value.CashId);
+        Assert.Equal(secondCash, (await second.GetCashAsync(token)).Value.CashId);
         Assert.Equal(secondCash, await admin.ExecuteScalarAsync<long>(
             "SELECT cash_session_id FROM public.cash_session WHERE closed_at IS NULL;"));
         var saleAfterClose = await secondCheckout.ExecuteAsync(request, token);

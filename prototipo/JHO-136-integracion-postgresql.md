@@ -128,3 +128,9 @@ La regresión de Windows pasó con 747 aprobadas, cero fallos y dos pruebas de a
 Para el menú administrativo de la 2.0, aplicar en el servidor `008_AdministracionPuesto.sql` y `009_ProductosUsuariosPuesto.sql` en ese orden antes de iniciar los puestos con los binarios correspondientes. Al ingresar con PIN de administrador aparecen Productos, Usuarios e Historial. Las escrituras se ejecutan por funciones autorizadas y el detalle de venta conserva los datos del momento de cobro.
 
 La integración dirigida abrió las vistas WPF con datos de PostgreSQL 18.6 por TLS en el clúster desechable. Verificó las operaciones de Productos y Usuarios, el detalle de solo lectura, la visibilidad por rol, los rechazos de permisos en SQL y la protección del último administrador. Se mantuvieron los resultados de cierre y cobro de T012 en los dos equipos. Para los resultados detallados, véase T013 en `specs/003-operacion-dos-puestos/tasks.md`.
+
+### Aprovisionamiento del certificado del puesto (JHO-129)
+
+El servidor configura `ssl = on` y reglas `hostssl` para sus puestos. La dirección configurada en `Host` coincide con un nombre DNS o una dirección IP del certificado del servidor. El instalador del puesto debe colocar el certificado público de confianza y guardar su ruta en `Root Certificate` dentro del perfil DPAPI, con `SSL Mode=VerifyFull`. La clave privada permanece en el servidor.
+
+Los perfiles del laboratorio se prepararon por separado. La entrega del certificado desde el instalador y el registro de la evidencia en la bitácora 6.2 siguen pendientes para JHO-129.
