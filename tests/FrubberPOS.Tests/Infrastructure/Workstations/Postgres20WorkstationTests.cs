@@ -607,8 +607,8 @@ public sealed class Postgres20WorkstationTests
             license!.Key.KeyId, license.CanonicalPayload, license.Key.Signature));
         await admin.ExecuteAsync("""
             INSERT INTO public.license_state (license_state_id, payload_version, signed_payload)
-            VALUES (1, 2, @signed);
-            """, new { signed });
+            VALUES (1, @version, @signed);
+            """, new { signed, version = license.CanonicalPayload.StartsWith("FRB1|", StringComparison.Ordinal) ? 1 : 2 });
         var profile = Path.Combine(directory, "recovery.cfg");
         await WriteProfileAsync(role);
 
@@ -728,6 +728,17 @@ public sealed class Postgres20WorkstationTests
             File.Delete(journalPath);
             File.Delete(journalPath + ".lock");
         }
+
+        var second = await RegisterAsync(admin, role, "Puesto licenciado 2");
+        var third = await RegisterAsync(admin, role, "Puesto licenciado 3");
+        Assert.Equal(license.Seats == 1 ? ErrorCode.LicenseBlocked : (ErrorCode?)null,
+            (await CheckSeatAsync(second))?.Code);
+        Assert.Equal(ErrorCode.LicenseBlocked, (await CheckSeatAsync(third))?.Code);
+
+        Task<Error?> CheckSeatAsync(NpgsqlConnectionStringBuilder options) =>
+            new Postgres20LicenseGate(new(new DatabaseOptions(options.ConnectionString), experimentalRecovery: true),
+                EcdsaLicenseSignatureVerifier.CreateProduction(), license.Key.MachineCode, SystemClock.Instance)
+            .CheckAsync(CancellationToken.None);
 
         Process Start()
         {
