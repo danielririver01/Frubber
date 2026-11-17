@@ -70,6 +70,8 @@ public partial class WorkstationWindow : Window
 
     private async void OnAddProduct(object sender, RoutedEventArgs e) => await model.AddProductAsync();
     private async void OnCheckout(object sender, RoutedEventArgs e) => await model.CheckoutAsync();
+    private async void OnRecoverSale(object sender, RoutedEventArgs e) => await model.RecoverSaleAsync();
+    private async void OnAcknowledgeReceipt(object sender, RoutedEventArgs e) => await model.AcknowledgeReceiptAsync();
     private void OnClearSale(object sender, RoutedEventArgs e) => model.ClearSale();
     private void OnClosing(object? sender, CancelEventArgs e) => e.Cancel = !model.CanInteract;
 }

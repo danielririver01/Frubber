@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Dapper;
@@ -7,6 +8,7 @@ using FrubberPOS.Application.Common;
 using FrubberPOS.Application.Persistence;
 using FrubberPOS.Application.Products;
 using FrubberPOS.Application.Sales;
+using FrubberPOS.Application.Trial;
 using FrubberPOS.Application.Users;
 using FrubberPOS.Application.Workstations;
 using FrubberPOS.Domain.Products;
@@ -19,9 +21,11 @@ namespace FrubberPOS.Infrastructure.Persistence.Workstations;
 public sealed class Postgres20WorkstationStore : IWorkstationStore
 {
     private readonly NpgsqlConnectionFactory connections;
+    private readonly bool experimentalRecovery;
+    private Guid? saleToken;
     internal Guid? AdminToken { get; private set; }
 
-    public Postgres20WorkstationStore(DatabaseOptions options)
+    public Postgres20WorkstationStore(DatabaseOptions options, bool experimentalRecovery = false)
     {
         ArgumentNullException.ThrowIfNull(options);
         if (new NpgsqlConnectionStringBuilder(options.ConnectionString).SslMode != SslMode.VerifyFull)
@@ -29,6 +33,7 @@ public sealed class Postgres20WorkstationStore : IWorkstationStore
             throw new ArgumentException("La conexión del puesto debe verificar el certificado y el nombre del servidor.", nameof(options));
         }
         connections = new NpgsqlConnectionFactory(options);
+        this.experimentalRecovery = experimentalRecovery;
     }
 
     public Task<Result<WorkstationInfo>> CheckAsync(CancellationToken cancellationToken) =>
@@ -40,15 +45,52 @@ public sealed class Postgres20WorkstationStore : IWorkstationStore
                 WHERE is_active
                   AND pg_catalog.has_function_privilege('public.app_abrir_caja(bigint,bigint)', 'EXECUTE')
                   AND pg_catalog.has_function_privilege('public.app_cerrar_caja(bigint,bigint)', 'EXECUTE')
-                  AND pg_catalog.has_function_privilege(
-                      'public.app_registrar_venta(bigint,bigint,bigint,text,bigint,uuid,jsonb)', 'EXECUTE');
+                  AND pg_catalog.has_function_privilege(pg_catalog.to_regprocedure(@SaleFunction), 'EXECUTE');
                 """;
             var terminal = await connection.QuerySingleOrDefaultAsync<WorkstationInfo>(
-                new CommandDefinition(sql, cancellationToken: cancellationToken));
+                new CommandDefinition(sql, new
+                {
+                    SaleFunction = experimentalRecovery
+                        ? "public.app_sale_submit(uuid,uuid,bigint,bigint,bigint,text,bigint,uuid,jsonb)"
+                        : "public.app_registrar_venta(bigint,bigint,bigint,text,bigint,uuid,jsonb)"
+                }, cancellationToken: cancellationToken));
             return terminal is null
                 ? Result<WorkstationInfo>.Failure(new Error(ErrorCode.Authorization, "El puesto no está autorizado para operar."))
                 : Result<WorkstationInfo>.Success(terminal);
         }, cancellationToken);
+
+    internal Task<Result<Guid>> ReadRecoveryDatabaseIdAsync(CancellationToken cancellationToken) =>
+        QueryAsync(async connection =>
+        {
+            var id = await connection.QuerySingleOrDefaultAsync<Guid?>(
+                new CommandDefinition("SELECT public.app_sale_recovery_database();", cancellationToken: cancellationToken));
+            return id is { } value && value != Guid.Empty
+                ? Result<Guid>.Success(value)
+                : Result<Guid>.Failure(new Error(ErrorCode.Authorization, "No se pudo identificar la base de recuperación."));
+        }, cancellationToken);
+
+    [SupportedOSPlatform("windows")]
+    public async Task<Result<IWorkstationSaleRecovery>> CreateExperimentalRecoveryAsync(
+        long terminalId, ICurrentSession session, IOperationalGate gate, CancellationToken cancellationToken)
+    {
+        if (!experimentalRecovery)
+        {
+            throw new InvalidOperationException("El puesto no está configurado para recuperación de laboratorio.");
+        }
+
+        var database = await ReadRecoveryDatabaseIdAsync(cancellationToken);
+        if (database.IsFailure)
+        {
+            return Result<IWorkstationSaleRecovery>.Failure(database.Error!);
+        }
+
+        var directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "FrubberPOS", "RecuperacionLab");
+        Directory.CreateDirectory(directory);
+        var journal = new ProtectedSaleAttemptJournal(Path.Combine(directory, $"puesto-{terminalId}.dpapi"));
+        return Result<IWorkstationSaleRecovery>.Success(new WorkstationSaleRecovery(
+            journal, database.Value, terminalId, session, gate, SendExperimentalSaleAttemptAsync));
+    }
 
     internal Task<Result<WorkstationLicenseRow>> ReadLicenseAsync(CancellationToken cancellationToken) =>
         QueryAsync(async connection =>
@@ -82,6 +124,7 @@ public sealed class Postgres20WorkstationStore : IWorkstationStore
         QueryAsync(async connection =>
         {
             AdminToken = null;
+            saleToken = null;
             const string challengeSql = """
                 SELECT u.display_name AS DisplayName, u.user_role AS Role, p.pin_salt AS Salt,
                        p.pin_iterations AS Iterations, p.pin_algorithm_version AS AlgorithmVersion
@@ -101,11 +144,15 @@ public sealed class Postgres20WorkstationStore : IWorkstationStore
             var candidate = Pbkdf2PinHasher.DeriveKey(pin, challenge.Salt, challenge.Iterations);
             try
             {
-                var verifySql = challenge.Role == "ADMIN" ? """
-                    SELECT authenticated AS Authenticated, wait_seconds AS WaitSeconds, admin_token AS AdminToken
+                var verifySql = experimentalRecovery ? """
+                    SELECT authenticated AS Authenticated, wait_seconds AS WaitSeconds,
+                           admin_token AS AdminToken, sale_token AS SaleToken
+                    FROM public.app_sale_login(@UserId, @Candidate);
+                    """ : challenge.Role == "ADMIN" ? """
+                    SELECT authenticated AS Authenticated, wait_seconds AS WaitSeconds, admin_token AS AdminToken, NULL::uuid AS SaleToken
                     FROM public.app_admin_login(@UserId, @Candidate);
                     """ : """
-                    SELECT authenticated AS Authenticated, wait_seconds AS WaitSeconds, NULL::uuid AS AdminToken
+                    SELECT authenticated AS Authenticated, wait_seconds AS WaitSeconds, NULL::uuid AS AdminToken, NULL::uuid AS SaleToken
                     FROM public.app_pin_verify(@UserId, @Candidate);
                     """;
                 // A failed attempt is committed too, so the engine keeps its lockout state.
@@ -127,6 +174,7 @@ public sealed class Postgres20WorkstationStore : IWorkstationStore
                 }
 
                 AdminToken = result.AdminToken;
+                saleToken = result.SaleToken;
                 return Result<SignedInUser>.Success(new SignedInUser(userId, challenge.DisplayName, ToUserRole(challenge.Role)));
             }
             finally
@@ -193,14 +241,22 @@ public sealed class Postgres20WorkstationStore : IWorkstationStore
 
     public Task<Result<WorkstationSale>> RegisterSaleAsync(
         int userId, Guid requestId, FinalizeSaleRequest request, CancellationToken cancellationToken) =>
+        RegisterSaleAsync(userId, requestId, request, attempt: null, cancellationToken);
+
+    internal Task<Result<WorkstationSale>> SendExperimentalSaleAttemptAsync(SaleAttempt attempt, CancellationToken cancellationToken) =>
+        RegisterSaleAsync(attempt.CashierId, attempt.RequestId, attempt.Sale, attempt, cancellationToken);
+
+    private Task<Result<WorkstationSale>> RegisterSaleAsync(
+        int userId, Guid requestId, FinalizeSaleRequest request, SaleAttempt? attempt, CancellationToken cancellationToken) =>
         QueryAsync(async connection =>
         {
-            const string sql = """
+            const string columns = """
                 SELECT sale_id AS SaleId, sale_number AS SaleNumber, total_cop AS TotalCop
-                FROM public.app_registrar_venta(
-                """ + "(" + OwnOpenCashSql + "), " + """
-                    @UserId, @DiscountCop, @PaymentMethod, @ReceivedCop, @RequestId, CAST(@Lines AS jsonb));
                 """;
+            const string args = "@UserId, @DiscountCop, @PaymentMethod, @ReceivedCop, @RequestId, CAST(@Lines AS jsonb));";
+            var sql = attempt is not null
+                ? columns + " FROM public.app_sale_submit(@Token, @Database, @CashId, " + args
+                : columns + " FROM public.app_registrar_venta((" + OwnOpenCashSql + "), " + args;
             var lines = JsonSerializer.Serialize(request.Lines.Select(line => new
             {
                 product_id = line.ProductId,
@@ -214,7 +270,8 @@ public sealed class Postgres20WorkstationStore : IWorkstationStore
                 sql, new
                 {
                     UserId = (long)userId, request.DiscountCop, request.PaymentMethod, request.ReceivedCop,
-                    RequestId = requestId, Lines = lines,
+                    RequestId = requestId, Lines = lines, CashId = attempt?.CashId,
+                    Token = saleToken, Database = attempt?.DatabaseId,
                 }, cancellationToken: cancellationToken));
             return Result<WorkstationSale>.Success(sale);
         }, cancellationToken, "No se pudo confirmar el cobro. Revise el historial antes de continuar.");
@@ -259,5 +316,5 @@ public sealed class Postgres20WorkstationStore : IWorkstationStore
     private sealed record ActiveUserRow(int UserId, string DisplayName, string Role);
     private sealed record ActiveProductRow(int ProductId, string Plu, string Name, string Unit, long PriceCop, long StockMilli, bool UnitLocked);
     private sealed record PinChallenge(string DisplayName, string Role, byte[] Salt, int Iterations, int AlgorithmVersion);
-    private sealed record PinVerification(bool Authenticated, int WaitSeconds, Guid? AdminToken);
+    private sealed record PinVerification(bool Authenticated, int WaitSeconds, Guid? AdminToken, Guid? SaleToken);
 }

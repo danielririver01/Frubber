@@ -13,6 +13,13 @@
             <TextBlock Text="{Binding TerminalName}" AutomationProperties.AutomationId="TerminalName"
                        Style="{StaticResource PageSubtitle}" Margin="0,4,0,4"/>
             <TextBlock Text="{Binding UserName}" Style="{StaticResource PageSubtitle}" Margin="0,0,0,10"/>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,10"
+                        Visibility="{Binding ShowRecovery, Converter={StaticResource VisibleWhenTrue}, FallbackValue=Collapsed}">
+                <Button Content="Recuperar cobro pendiente" Click="OnRecoverSale"
+                        AutomationProperties.AutomationId="RecoverPendingSale"/>
+                <Button Content="Continuar" Margin="8,0,0,0" Click="OnAcknowledgeReceipt"
+                        IsEnabled="{Binding CanAcknowledgeReceipt}" AutomationProperties.AutomationId="AcknowledgeRecoveredSale"/>
+            </StackPanel>
             <StackPanel x:Name="AdminMenu" Orientation="Horizontal" Margin="0,0,0,10"
                         Visibility="{Binding ShowAdminMenu, Converter={StaticResource VisibleWhenTrue}, FallbackValue=Collapsed}">
                 <Button Content="Historial" Click="OnHistory"/>

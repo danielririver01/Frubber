@@ -1,7 +1,10 @@
 using System.Globalization;
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Text.Json;
+using System.Windows.Automation;
 using Dapper;
 using FrubberPOS.Application.Authentication;
 using FrubberPOS.Application.Cash;
@@ -17,6 +20,7 @@ using FrubberPOS.Desktop.ViewModels;
 using FrubberPOS.Desktop.Views;
 using FrubberPOS.Domain.Products;
 using FrubberPOS.Domain.Users;
+using FrubberPOS.Domain.Licensing;
 using FrubberPOS.Infrastructure.Migrations;
 using FrubberPOS.Infrastructure.Licensing;
 using FrubberPOS.Infrastructure.Persistence;
@@ -34,6 +38,156 @@ public sealed class Postgres20WorkstationTests
     private const string AdminVariable = "FRUBBER_JHO136_WORKSTATION_ADMIN";
     private static readonly string Scripts = Path.GetFullPath(Path.Combine(
         AppContext.BaseDirectory, "..", "..", "..", "..", "..", "database", "postgresql"));
+
+    [IsolatedWorkstationFact(recoveryOnly: true)]
+    public async Task RecoversExperimentalSaleAfterLostResponseAndNewWorkstationModel()
+    {
+        // Run separately with a fresh cluster, as the security script creates cluster-wide roles.
+        var options = new NpgsqlConnectionStringBuilder(Environment.GetEnvironmentVariable(AdminVariable)!);
+        Assert.True(options.Host == "127.0.0.1" && options.Database == "frubber" &&
+                    options.Username == "postgres" && options.SslMode == SslMode.VerifyFull && options.Port != 5432);
+        await using var admin = new NpgsqlConnection(options.ConnectionString);
+        await admin.OpenAsync();
+        Assert.Equal(0, await admin.ExecuteScalarAsync<int>("""
+            SELECT count(*) FROM pg_roles WHERE rolname = 'frubber_puesto' OR rolname LIKE 'puesto_%';
+            """));
+        var cancellationToken = CancellationToken.None;
+        var installation = await new Postgres20BaselineInstaller().InstallAsync(
+            new NpgsqlConnectionFactory(new DatabaseOptions(options.ConnectionString)), cancellationToken);
+        Assert.True(installation.IsSuccess, installation.Error?.Message);
+        await using (var setup = await admin.BeginTransactionAsync())
+        {
+            foreach (var script in new[] { "002_Security.sql", "003_RegistroVenta.sql", "004_CobroIdempotente.sql",
+                         "005_AperturaCaja.sql", "006_LicenciaPuesto.sql", "007_CierreCaja.sql", "008_AdministracionPuesto.sql", "010_RecuperacionAutenticada.sql" })
+            {
+                await admin.ExecuteAsync(await File.ReadAllTextAsync(Path.Combine(Scripts, script)), transaction: setup);
+            }
+            await setup.CommitAsync();
+        }
+
+        var role = await RegisterAsync(admin, options, "Puesto de recuperación");
+        var userId = await SeedUserAsync(admin, "Cajero de recuperación", "2374");
+        var otherUser = await SeedUserAsync(admin, "Otro cajero", "6182");
+        await admin.ExecuteAsync("""
+            INSERT INTO public.product(plu, name, unit, price_cop, stock_milli, is_active, unit_locked)
+            VALUES ('P1', 'Manzana', 'KG', 1500, 10000, true, true);
+            """);
+
+        var directory = Directory.CreateTempSubdirectory("frubber-recovery-");
+        var journalPath = Path.Combine(directory.FullName, "sale-attempt");
+        try
+        {
+            var firstStore = new Postgres20WorkstationStore(new(role.ConnectionString), experimentalRecovery: true);
+            Assert.Equal(ErrorCode.Authorization, (await new Postgres20WorkstationStore(new(role.ConnectionString))
+                .CheckAsync(cancellationToken)).Error?.Code);
+            var checkedTerminal = await firstStore.CheckAsync(cancellationToken);
+            Assert.True(checkedTerminal.IsSuccess, checkedTerminal.Error?.Message);
+            var terminal = checkedTerminal.Value;
+            var databaseId = (await firstStore.ReadRecoveryDatabaseIdAsync(cancellationToken)).Value;
+            WorkstationSale? written = null;
+            var first = CreateModel(firstStore, async (attempt, token) =>
+            {
+                var result = await firstStore.SendExperimentalSaleAttemptAsync(attempt, token);
+                Assert.True(result.IsSuccess, result.Error?.Message);
+                written = result.Value;
+                return Result<WorkstationSale>.Failure(new Error(ErrorCode.Connection, "Respuesta de prueba descartada"));
+            });
+            await first.SignInAsync("2374");
+            await first.OpenCashAsync();
+            first.Plu = "P1";
+            first.Received = "1500";
+            await first.AddProductAsync();
+            await first.CheckoutAsync();
+            Assert.NotNull(written);
+            Assert.True(first.ShowRecovery);
+            Assert.False(first.CanCloseCash);
+            var originalAttempt = new ProtectedSaleAttemptJournal(journalPath).Read()!.Attempt;
+
+            var restartedStore = new Postgres20WorkstationStore(new(role.ConnectionString), experimentalRecovery: true);
+            Assert.Equal(ErrorCode.Authorization, (await restartedStore.SendExperimentalSaleAttemptAsync(
+                originalAttempt, cancellationToken)).Error?.Code);
+            Assert.True((await restartedStore.AuthenticateAsync(otherUser, "6182", cancellationToken)).IsSuccess);
+            Assert.Equal(ErrorCode.Authorization, (await restartedStore.SendExperimentalSaleAttemptAsync(
+                originalAttempt, cancellationToken)).Error?.Code);
+            var restarted = CreateModel(restartedStore, async (attempt, token) =>
+            {
+                Assert.Equal(originalAttempt.RequestId, attempt.RequestId);
+                Assert.Equal(originalAttempt.CashId, attempt.CashId);
+                var result = await restartedStore.SendExperimentalSaleAttemptAsync(attempt, token);
+                Assert.Equal(written, result.Value);
+                return result;
+            });
+            await restarted.SignInAsync("2374");
+            Assert.True(restarted.ShowRecovery);
+            await restarted.RecoverSaleAsync();
+            Assert.True(restarted.CanAcknowledgeReceipt, restarted.Message);
+            Assert.Contains("V-000001", restarted.Message);
+            await restarted.AcknowledgeReceiptAsync();
+            Assert.True(restarted.ShowSale);
+            Assert.Equal(1, await admin.ExecuteScalarAsync<int>("SELECT count(*) FROM public.sale;"));
+            Assert.Equal(9000L, await admin.ExecuteScalarAsync<long>("SELECT stock_milli FROM public.product;"));
+            Assert.Equal(1L, await admin.ExecuteScalarAsync<long>("SELECT last_number FROM public.ticket_counter;"));
+
+            await admin.ExecuteAsync("""
+                CREATE FUNCTION public.frubber_test_drop_sale_connection() RETURNS trigger
+                LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog AS $$
+                BEGIN
+                    PERFORM pg_terminate_backend(pg_backend_pid());
+                    RETURN NEW;
+                END;
+                $$;
+                CREATE TRIGGER frubber_test_drop_sale_connection BEFORE INSERT ON public.sale_line
+                FOR EACH ROW EXECUTE FUNCTION public.frubber_test_drop_sale_connection();
+                """);
+            var interrupted = CreateModel(restartedStore, restartedStore.SendExperimentalSaleAttemptAsync);
+            await interrupted.SignInAsync("2374");
+            interrupted.Plu = "P1";
+            interrupted.Received = "1500";
+            await interrupted.AddProductAsync();
+            await interrupted.CheckoutAsync();
+            Assert.True(interrupted.ShowRecovery);
+            Assert.False(interrupted.CanAcknowledgeReceipt);
+            Assert.Equal(1, await admin.ExecuteScalarAsync<int>("SELECT count(*) FROM public.sale;"));
+            Assert.Equal(9000L, await admin.ExecuteScalarAsync<long>("SELECT stock_milli FROM public.product;"));
+            await admin.ExecuteAsync("DROP TRIGGER frubber_test_drop_sale_connection ON public.sale_line;");
+
+            var recoveredStore = new Postgres20WorkstationStore(new(role.ConnectionString), experimentalRecovery: true);
+            var recovered = CreateModel(recoveredStore, recoveredStore.SendExperimentalSaleAttemptAsync);
+            await recovered.SignInAsync("2374");
+            Assert.True(recovered.ShowRecovery);
+            await recovered.RecoverSaleAsync();
+            Assert.True(recovered.CanAcknowledgeReceipt, recovered.Message);
+            Assert.Contains("V-000002", recovered.Message);
+            await recovered.AcknowledgeReceiptAsync();
+            Assert.Equal(2, await admin.ExecuteScalarAsync<int>("SELECT count(*) FROM public.sale;"));
+            Assert.Equal(8000L, await admin.ExecuteScalarAsync<long>("SELECT stock_milli FROM public.product;"));
+            Assert.Equal(2L, await admin.ExecuteScalarAsync<long>("SELECT last_number FROM public.ticket_counter;"));
+
+            if (Environment.GetEnvironmentVariable("FRUBBER_JHO114_SIGNED_LICENSE_PATH") is { Length: > 0 } licensePath)
+            {
+                await VerifyExecutableRecoveryAsync(admin, role, terminal.Id, directory.FullName, licensePath);
+            }
+
+            WorkstationViewModel CreateModel(Postgres20WorkstationStore store,
+                Func<SaleAttempt, CancellationToken, Task<Result<WorkstationSale>>> send)
+            {
+                var session = new CurrentSession();
+                var gate = new FakeOperationalGate();
+                return new WorkstationViewModel(terminal, [new(userId, "Cajero", UserRole.Cashier)], store,
+                    new(store, session), new(store, session, gate), new(store, session, gate),
+                    new(store, session, gate), new WorkstationSaleRecovery(
+                        new ProtectedSaleAttemptJournal(journalPath), databaseId, terminal.Id, session, gate, send));
+            }
+        }
+        finally
+        {
+            foreach (var file in directory.EnumerateFiles())
+            {
+                file.Delete();
+            }
+            directory.Delete();
+        }
+    }
 
     [IsolatedWorkstationFact]
     public async Task TwoWorkstations_OpenSellAndCloseIndependently()
@@ -444,6 +598,230 @@ public sealed class Postgres20WorkstationTests
         Assert.Equal(PostgresErrorCodes.InsufficientPrivilege, denied.SqlState);
     }
 
+    private static async Task VerifyExecutableRecoveryAsync(NpgsqlConnection admin, NpgsqlConnectionStringBuilder role,
+        long terminalId, string directory, string licensePath)
+    {
+        var signed = (await File.ReadAllTextAsync(licensePath)).Trim();
+        Assert.True(WorkstationLicenseFormat.TryParse(signed, out var license), "Se requiere licencia firmada de laboratorio.");
+        Assert.True(EcdsaLicenseSignatureVerifier.CreateProduction().VerifyCanonical(
+            license!.Key.KeyId, license.CanonicalPayload, license.Key.Signature));
+        await admin.ExecuteAsync("""
+            INSERT INTO public.license_state (license_state_id, payload_version, signed_payload)
+            VALUES (1, 2, @signed);
+            """, new { signed });
+        var profile = Path.Combine(directory, "recovery.cfg");
+        await WriteProfileAsync(role);
+
+        var journalPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "FrubberPOS", "RecuperacionLab", $"puesto-{terminalId}.dpapi");
+        Assert.False(File.Exists(journalPath));
+        Assert.False(File.Exists(journalPath + ".lock"));
+        var app = Path.GetFullPath(Path.Combine(Scripts, "..", "..", "src", "FrubberPOS.Desktop", "bin",
+            "Release", "net10.0-windows", "FrubberPOS.Desktop.exe"));
+        Assert.True(File.Exists(app), "Compile Release antes de ejecutar el ensayo del instalable.");
+
+        await admin.ExecuteAsync("""
+            CREATE TRIGGER frubber_test_drop_sale_connection BEFORE INSERT ON public.sale_line
+            FOR EACH ROW EXECUTE FUNCTION public.frubber_test_drop_sale_connection();
+            """);
+        try
+        {
+            using (var first = Start())
+            {
+                try
+                {
+                    var window = await FindAsync(AutomationElement.RootElement, "WorkstationWindow", first.Id);
+                    await SignInAsync(window);
+                    await SubmitSaleAsync(window);
+                    await FindAsync(window, "RecoverPendingSale");
+                    Assert.Equal(2, await admin.ExecuteScalarAsync<int>("SELECT count(*) FROM public.sale;"));
+                }
+                finally
+                {
+                    await CloseAsync(first);
+                }
+            }
+            await admin.ExecuteAsync("DROP TRIGGER frubber_test_drop_sale_connection ON public.sale_line;");
+            using var restarted = Start();
+            try
+            {
+                var window = await FindAsync(AutomationElement.RootElement, "WorkstationWindow", restarted.Id);
+                await SignInAsync(window);
+                Invoke(await FindAsync(window, "RecoverPendingSale"));
+                var acknowledge = await FindAsync(window, "AcknowledgeRecoveredSale", requireEnabled: true);
+                Assert.Contains("V-000003", (await FindAsync(window, "Result")).Current.Name);
+                Invoke(acknowledge);
+                await FindAsync(window, "Checkout");
+                Assert.Equal(3, await admin.ExecuteScalarAsync<int>("SELECT count(*) FROM public.sale;"));
+                Assert.Equal(7000L, await admin.ExecuteScalarAsync<long>("SELECT stock_milli FROM public.product;"));
+                Assert.Equal(3L, await admin.ExecuteScalarAsync<long>("SELECT last_number FROM public.ticket_counter;"));
+            }
+            finally
+            {
+                await CloseAsync(restarted);
+            }
+
+            await admin.ExecuteAsync("""
+                CREATE FUNCTION public.frubber_test_wait_sale() RETURNS trigger
+                LANGUAGE plpgsql SET search_path = pg_catalog AS $$
+                BEGIN
+                    PERFORM pg_advisory_xact_lock(114, 991);
+                    RETURN NEW;
+                END;
+                $$;
+                CREATE TRIGGER frubber_test_wait_sale BEFORE INSERT ON public.sale_line
+                FOR EACH ROW EXECUTE FUNCTION public.frubber_test_wait_sale();
+                SELECT pg_advisory_lock(114, 991);
+                """);
+            await using var relay = new RecoveryLoopbackRelay(role.Port);
+            var forwarded = new NpgsqlConnectionStringBuilder(role.ConnectionString) { Port = relay.Port };
+            await WriteProfileAsync(forwarded);
+            using (var first = Start())
+            {
+                try
+                {
+                    var window = await FindAsync(AutomationElement.RootElement, "WorkstationWindow", first.Id);
+                    await SignInAsync(window);
+                    await SubmitSaleAsync(window);
+                    await WaitForDatabaseAsync("""
+                        SELECT EXISTS (
+                            SELECT FROM pg_stat_activity WHERE usename = @username AND wait_event = 'advisory'
+                        );
+                        """);
+                    relay.HoldReplies();
+                    Assert.True(await admin.ExecuteScalarAsync<bool>("SELECT pg_advisory_unlock(114, 991);"));
+                    await WaitForDatabaseAsync("SELECT count(*) = 4 FROM public.sale;");
+                    relay.Cut();
+                    await FindAsync(window, "RecoverPendingSale", requireEnabled: true);
+                    Assert.Null(new ProtectedSaleAttemptJournal(journalPath).Read()?.Receipt);
+                }
+                finally
+                {
+                    await admin.ExecuteAsync("SELECT pg_advisory_unlock(114, 991);");
+                    relay.Cut();
+                    await CloseAsync(first);
+                }
+            }
+
+            await WriteProfileAsync(role);
+            using var afterCommit = Start();
+            try
+            {
+                var window = await FindAsync(AutomationElement.RootElement, "WorkstationWindow", afterCommit.Id);
+                await SignInAsync(window);
+                Invoke(await FindAsync(window, "RecoverPendingSale"));
+                var acknowledge = await FindAsync(window, "AcknowledgeRecoveredSale", requireEnabled: true);
+                Assert.Contains("V-000004", (await FindAsync(window, "Result")).Current.Name);
+                Invoke(acknowledge);
+                await FindAsync(window, "Checkout");
+                Assert.Equal(4, await admin.ExecuteScalarAsync<int>("SELECT count(*) FROM public.sale;"));
+                Assert.Equal(6000L, await admin.ExecuteScalarAsync<long>("SELECT stock_milli FROM public.product;"));
+                Assert.Equal(4L, await admin.ExecuteScalarAsync<long>("SELECT last_number FROM public.ticket_counter;"));
+            }
+            finally
+            {
+                await CloseAsync(afterCommit);
+            }
+        }
+        finally
+        {
+            File.Delete(journalPath);
+            File.Delete(journalPath + ".lock");
+        }
+
+        Process Start()
+        {
+            var info = new ProcessStartInfo(app) { UseShellExecute = false };
+            info.ArgumentList.Add("--puesto-recuperacion-lab");
+            info.ArgumentList.Add(profile);
+            return Process.Start(info)!;
+        }
+
+        async Task WriteProfileAsync(NpgsqlConnectionStringBuilder options)
+        {
+            var bytes = JsonSerializer.SerializeToUtf8Bytes(new { options.ConnectionString, ServerMachineCode = license.Key.MachineCode });
+            try
+            {
+                await File.WriteAllBytesAsync(profile, ProtectedData.Protect(bytes,
+                    Encoding.UTF8.GetBytes("FrubberPOS.Workstation.v2"), DataProtectionScope.CurrentUser));
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(bytes);
+            }
+        }
+
+        async Task WaitForDatabaseAsync(string sql)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            while (!await admin.ExecuteScalarAsync<bool>(new CommandDefinition(sql,
+                       new { username = role.Username }, cancellationToken: timeout.Token)))
+            {
+                await Task.Delay(50, timeout.Token);
+            }
+        }
+
+        static async Task SubmitSaleAsync(AutomationElement window)
+        {
+            SetText(await FindAsync(window, "Plu"), "P1");
+            SetText(await FindAsync(window, "Received"), "1500");
+            Invoke(await FindAsync(window, "AddProduct"));
+            Invoke(await FindAsync(window, "Checkout", requireEnabled: true));
+        }
+
+        static async Task SignInAsync(AutomationElement window)
+        {
+            SetText(await FindAsync(window, "Pin"), "2374");
+            Invoke(await FindAsync(window, "SignIn"));
+        }
+
+        static void SetText(AutomationElement element, string text) =>
+            ((ValuePattern)element.GetCurrentPattern(ValuePattern.Pattern)).SetValue(text);
+
+        static void Invoke(AutomationElement element) =>
+            ((InvokePattern)element.GetCurrentPattern(InvokePattern.Pattern)).Invoke();
+
+        static async Task<AutomationElement> FindAsync(AutomationElement root, string id, int? processId = null, bool requireEnabled = false)
+        {
+            Condition condition = new PropertyCondition(AutomationElement.AutomationIdProperty, id);
+            if (processId is { } pid)
+            {
+                condition = new AndCondition(condition, new PropertyCondition(AutomationElement.ProcessIdProperty, pid));
+            }
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            while (!timeout.IsCancellationRequested)
+            {
+                var element = root.FindFirst(processId.HasValue ? TreeScope.Children : TreeScope.Descendants, condition);
+                if (element is not null && (!requireEnabled || element.Current.IsEnabled))
+                {
+                    return element;
+                }
+                await Task.Delay(100);
+            }
+            throw new InvalidOperationException($"No apareció el control {id} en el ejecutable de laboratorio.");
+        }
+
+        static async Task CloseAsync(Process process)
+        {
+            if (process.HasExited)
+            {
+                return;
+            }
+            process.CloseMainWindow();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            try
+            {
+                await process.WaitForExitAsync(timeout.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                process.Kill();
+                await process.WaitForExitAsync();
+                throw;
+            }
+        }
+    }
+
     private static Task<int> SeedUserAsync(NpgsqlConnection admin, string name, string pin, string role = "CASHIER")
     {
         var hash = new Pbkdf2PinHasher().HashPin(pin);
@@ -473,10 +851,11 @@ public sealed class Postgres20WorkstationTests
 
     private sealed class IsolatedWorkstationFactAttribute : FactAttribute
     {
-        public IsolatedWorkstationFactAttribute()
+        public IsolatedWorkstationFactAttribute(bool recoveryOnly = false)
         {
             if (Environment.GetEnvironmentVariable("FRUBBER_JHO136_ISOLATED") != "1" ||
-                string.IsNullOrEmpty(Environment.GetEnvironmentVariable(AdminVariable)))
+                string.IsNullOrEmpty(Environment.GetEnvironmentVariable(AdminVariable)) ||
+                recoveryOnly != (Environment.GetEnvironmentVariable("FRUBBER_JHO114_RECOVERY_ONLY") == "1"))
             {
                 Skip = "Requires an explicitly enabled, disposable PostgreSQL cluster with TLS.";
             }

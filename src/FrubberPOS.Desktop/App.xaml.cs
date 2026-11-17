@@ -72,15 +72,15 @@ public partial class App : System.Windows.Application, INavigationService
                 return;
             }
 
-            if (e.Args.Contains("--puesto", StringComparer.Ordinal))
+            if (e.Args.Any(arg => arg is "--puesto" or "--puesto-recuperacion-lab"))
             {
-                if (e.Args is not ["--puesto", var configurationPath])
+                if (e.Args is not [("--puesto" or "--puesto-recuperacion-lab") and var workstationMode, var configurationPath])
                 {
                     ShowWorkstationStartupError(splash, "Indique el archivo de configuración protegida del puesto.");
                     return;
                 }
 
-                await StartWorkstationAsync(splash, configurationPath, CancellationToken.None);
+                await StartWorkstationAsync(splash, configurationPath, workstationMode == "--puesto-recuperacion-lab", CancellationToken.None);
                 return;
             }
 
@@ -199,7 +199,8 @@ public partial class App : System.Windows.Application, INavigationService
         }
     }
 
-    private async Task StartWorkstationAsync(SplashWindow splash, string configurationPath, CancellationToken cancellationToken)
+    private async Task StartWorkstationAsync(SplashWindow splash, string configurationPath,
+        bool experimentalRecovery, CancellationToken cancellationToken)
     {
         splash.SetStatus("Leyendo configuración protegida del puesto...");
         var configuration = await ProtectedWorkstationConfiguration.LoadAsync(configurationPath, cancellationToken);
@@ -211,7 +212,7 @@ public partial class App : System.Windows.Application, INavigationService
 
         splash.SetStatus("Verificando conexión y licencia del negocio...");
         var settings = configuration.Value;
-        var store = new Postgres20WorkstationStore(settings.Database);
+        var store = new Postgres20WorkstationStore(settings.Database, experimentalRecovery);
         var session = new CurrentSession();
         var gate = new Postgres20LicenseGate(store, EcdsaLicenseSignatureVerifier.CreateProduction(),
             settings.ServerMachineCode, SystemClock.Instance);
@@ -229,11 +230,23 @@ public partial class App : System.Windows.Application, INavigationService
             return;
         }
 
+        IWorkstationSaleRecovery? recovery = null;
+        if (experimentalRecovery)
+        {
+            var result = await store.CreateExperimentalRecoveryAsync(startup.Value.Id, session, gate, cancellationToken);
+            if (result.IsFailure)
+            {
+                ShowWorkstationStartupError(splash, result.Error!.Message);
+                return;
+            }
+            recovery = result.Value;
+        }
+
         var model = new WorkstationViewModel(startup.Value, users.Value, store,
             new AuthenticateWorkstationUserUseCase(store, session),
             new OpenWorkstationCashUseCase(store, session, gate),
             new CloseWorkstationCashUseCase(store, session, gate),
-            new FinalizeWorkstationSaleUseCase(store, session, gate));
+            new FinalizeWorkstationSaleUseCase(store, session, gate), recovery);
         var historyRepository = new Postgres20SaleHistorySearchRepository(store);
         var historyUnits = new NpgsqlUnitOfWorkFactory(new NpgsqlConnectionFactory(settings.Database), serializeWorkstationAdmin: true);
         var history = new SearchSalesHistoryUseCase(historyRepository, historyUnits, session);

@@ -15,7 +15,8 @@ internal sealed class WorkstationViewModel(
     AuthenticateWorkstationUserUseCase authenticate,
     OpenWorkstationCashUseCase openCash,
     CloseWorkstationCashUseCase closeCash,
-    FinalizeWorkstationSaleUseCase checkout) : INotifyPropertyChanged
+    FinalizeWorkstationSaleUseCase checkout,
+    IWorkstationSaleRecovery? recovery = null) : INotifyPropertyChanged
 {
     private readonly DraftSale draft = new();
     private SignedInUser? signedIn;
@@ -23,6 +24,7 @@ internal sealed class WorkstationViewModel(
     private bool busy;
     private bool reviewPending;
     private bool closePending;
+    private bool receiptDisplayed;
 
     public event PropertyChangedEventHandler? PropertyChanged;
     public string TerminalName => terminal.Name;
@@ -30,11 +32,13 @@ internal sealed class WorkstationViewModel(
     public ActiveUserDto? SelectedUser { get; set; } = users.FirstOrDefault();
     public bool ShowLogin => signedIn is null;
     public bool ShowAdminMenu => signedIn?.Role == FrubberPOS.Domain.Users.UserRole.Admin;
-    public bool ShowCash => signedIn is not null && !cashId.HasValue;
-    public bool ShowSale => signedIn is not null && cashId.HasValue;
+    public bool ShowRecovery => signedIn is not null && recovery?.HasPendingAttempt == true;
+    public bool CanAcknowledgeReceipt => ShowRecovery && receiptDisplayed;
+    public bool ShowCash => signedIn is not null && !cashId.HasValue && !ShowRecovery;
+    public bool ShowSale => signedIn is not null && cashId.HasValue && !ShowRecovery;
     public bool CanInteract => !busy;
-    public bool CanEditSale => !reviewPending && !closePending;
-    public bool CanCloseCash => cashId.HasValue && !reviewPending && draft.IsEmpty;
+    public bool CanEditSale => !reviewPending && !closePending && !ShowRecovery;
+    public bool CanCloseCash => cashId.HasValue && !reviewPending && !ShowRecovery && draft.IsEmpty;
     public string UserName => signedIn?.DisplayName ?? string.Empty;
     public string OpeningBalance { get; set; } = "0";
     public string Plu { get; set; } = string.Empty;
@@ -68,6 +72,10 @@ internal sealed class WorkstationViewModel(
 
     public Task OpenCashAsync() => RunAsync(async token =>
     {
+        if (ShowRecovery)
+        {
+            return;
+        }
         if (!MoneyText.TryParseCop(OpeningBalance, out var balance))
         {
             Message = "Ingrese un saldo inicial válido.";
@@ -112,6 +120,10 @@ internal sealed class WorkstationViewModel(
 
     public Task AddProductAsync() => RunAsync(async token =>
     {
+        if (!CanEditSale)
+        {
+            return;
+        }
         var plu = Plu.Trim().ToUpperInvariant();
         if (plu.Length is 0 or > 32)
         {
@@ -140,7 +152,7 @@ internal sealed class WorkstationViewModel(
 
     public Task CheckoutAsync() => RunAsync(async token =>
     {
-        if (!CanEditSale)
+        if (!CanEditSale || (recovery is not null && cashId is null))
         {
             return;
         }
@@ -156,17 +168,58 @@ internal sealed class WorkstationViewModel(
             received = cash;
         }
 
-        var result = await checkout.ExecuteAsync(new(draft.Lines.ToArray(), draft.DiscountCop,
-            IsCash ? "CASH" : "TRANSFER", received), token);
+        var request = new FinalizeSaleRequest(draft.Lines.ToArray(), draft.DiscountCop,
+            IsCash ? "CASH" : "TRANSFER", received);
+        var result = recovery is not null && cashId is { } currentCash
+            ? await recovery.RegisterAsync(currentCash, request, token)
+            : await checkout.ExecuteAsync(request, token);
         if (ShowError(result))
         {
-            reviewPending = result.Error?.Code == ErrorCode.Storage;
+            reviewPending = recovery is null && result.Error?.Code == ErrorCode.Storage;
             return;
         }
 
         draft.Clear();
         Received = string.Empty;
+        receiptDisplayed = recovery is not null;
         Message = $"Venta V-{result.Value.SaleNumber:D6} registrada · {MoneyText.FormatCop(result.Value.TotalCop)}";
+    });
+
+    public Task RecoverSaleAsync() => RunAsync(async token =>
+    {
+        if (recovery is null || !ShowRecovery)
+        {
+            return;
+        }
+
+        var result = await recovery.RecoverAsync(token);
+        if (!ShowError(result))
+        {
+            draft.Clear();
+            Received = string.Empty;
+            receiptDisplayed = true;
+            Message = $"Venta V-{result.Value.SaleNumber:D6} recuperada · {MoneyText.FormatCop(result.Value.TotalCop)}";
+        }
+    });
+
+    public Task AcknowledgeReceiptAsync() => RunAsync(async token =>
+    {
+        if (recovery is null || !CanAcknowledgeReceipt)
+        {
+            return;
+        }
+
+        try
+        {
+            recovery.Acknowledge();
+            receiptDisplayed = false;
+            var cash = await store.GetCashAsync(token);
+            cashId = ShowError(cash) ? null : cash.Value.CashId;
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException or System.Text.Json.JsonException)
+        {
+            Message = "No se pudo cerrar la revisión del comprobante.";
+        }
     });
 
     public void ClearSale()
