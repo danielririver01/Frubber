@@ -197,3 +197,32 @@ Por tarea:
 ## 9. Spec Kit en este proyecto
 
 Spec Kit organiza cambios nuevos sin sustituir los documentos y decisiones ya aprobados. Leer `.specify/memory/constitution.md` y, para el cambio activo, `spec.md`, `plan.md` y `tasks.md` bajo `specs/`. La integración instalada es genérica: los comandos son instrucciones en `.specify/arena-commands/`, no se presume que este entorno descubra comandos `/speckit` automáticamente. Su flujo puede seguirse leyendo esas instrucciones y usando los scripts Python instalados. No instalar ni ejecutar extensiones que creen o cambien ramas en esta sesión. El puntero `.specify/feature.json` es local e ignorado por Git; si falta, establecer `SPECIFY_FEATURE_DIRECTORY` con la ruta de la especificación correspondiente. El issue en Linear y sus criterios siguen siendo la autoridad para el avance y cierre.
+
+## 10. PROTOCOLO OBLIGATORIO DE CALIDAD DE PRUEBAS
+
+Aplicable a todas las funcionalidades nuevas y correcciones de errores.
+
+### Principios
+
+1. **Los requisitos mandan.** Las pruebas deben derivarse de reglas de negocio y criterios de aceptación, no únicamente del código implementado.
+2. **Test-First cuando sea viable.** Para funcionalidades nuevas, escribir primero pruebas de comportamiento y comprobar que fallan por el motivo esperado antes de implementar.
+3. **Aserciones verificables.** Comprobar resultados, cambios de estado, persistencia y ausencia de efectos secundarios cuando corresponda.
+4. **Casos positivos y negativos.** Incluir entradas válidas, inválidas, condiciones límite y operaciones rechazadas según el riesgo.
+5. **Mocks con criterio.** Usarlos para dependencias externas, sin sustituir toda la lógica que necesitamos verificar.
+6. **Integración real.** Las operaciones críticas con PostgreSQL deben probarse con una base aislada y verificaciones del estado persistido.
+7. **Pruebas de regresión.** Ante un defecto, crear primero una prueba que lo reproduzca y confirmar que falla antes de corregirlo.
+8. **Mutaciones basadas en riesgo.** Evaluar periódicamente si las pruebas críticas detectan modificaciones incorrectas del comportamiento.
+9. **Revisión independiente.** Revisar los tests contra los requisitos; no aprobarlos exclusivamente porque pasan.
+10. **No manipular resultados.** Nunca cambiar aserciones o reglas del negocio solo para conseguir pruebas verdes.
+
+### Condición de aceptación
+
+Una funcionalidad no se considera terminada hasta que:
+
+- Cumpla los criterios de aceptación.
+- Pase las pruebas pertinentes.
+- Tenga evidencia de validación de sus efectos críticos.
+- No introduzca regresiones conocidas.
+- Registre cualquier limitación o riesgo pendiente.
+
+**Regla fundamental:** la cantidad de pruebas y la cobertura de líneas no sustituyen la comprobación de los comportamientos esperados.
