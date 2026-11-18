@@ -1,6 +1,8 @@
+using Dapper;
 using FrubberPOS.Application.Common;
 using FrubberPOS.Application.Products;
 using FrubberPOS.Domain.Products;
+using FrubberPOS.Tests.TestInfrastructure;
 
 namespace FrubberPOS.Tests.Products;
 
@@ -41,6 +43,9 @@ public sealed class AdjustStockUseCaseTests
 
         Assert.True(adjusted.IsSuccess);
         Assert.Equal(-750, adjusted.Value.StockMilli);
+
+        // La regla es sobre lo persistido, no sobre el eco del caso de uso.
+        Assert.Equal(-750, await GetStockAsync(created.Value.ProductId));
     }
 
     [Fact]
@@ -74,6 +79,9 @@ public sealed class AdjustStockUseCaseTests
 
         Assert.True(adjusted.IsSuccess);
         Assert.Equal(-2000, adjusted.Value.StockMilli);
+
+        // Verificación directa en PostgreSQL: el stock negativo quedó guardado.
+        Assert.Equal(-2000, await GetStockAsync(created.Value.ProductId));
     }
 
     [Fact]
@@ -133,5 +141,13 @@ public sealed class AdjustStockUseCaseTests
 
         Assert.True(result.IsFailure);
         Assert.Equal(ErrorCode.Authorization, result.Error!.Code);
+    }
+
+    private static async Task<long> GetStockAsync(int productId)
+    {
+        await using var connection = PostgresTestDb.NewConnection();
+        await connection.OpenAsync();
+        return await connection.ExecuteScalarAsync<long>(
+            "SELECT StockMilli FROM Product WHERE ProductId = @ProductId;", new { ProductId = productId });
     }
 }
