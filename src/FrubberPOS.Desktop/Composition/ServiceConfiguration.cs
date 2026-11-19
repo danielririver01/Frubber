@@ -58,7 +58,13 @@ public static class ServiceConfiguration
         services.AddSingleton<IDatabaseConnectionFactory>(provider =>
             new NpgsqlConnectionFactory(new DatabaseOptions(provider.GetRequiredService<IAppPaths>().DatabaseConnectionString)));
         services.AddSingleton(sp => new DatabaseOptions(sp.GetRequiredService<IAppPaths>().DatabaseConnectionString));
-        services.AddSingleton<MigrationRunner>();
+        services.AddSingleton<MigrationRunner>(sp =>
+        {
+            var backup = sp.GetRequiredService<PostgresBackupService>();
+            var directory = global::System.IO.Path.Combine(paths.RootDirectory, "Backups", "Premigracion");
+            return new MigrationRunner(MigrationCatalog.Default, sp.GetRequiredService<IClock>(),
+                token => backup.BackupBeforeMigrationAsync(directory, token));
+        });
         services.AddSingleton<IUnitOfWorkFactory, NpgsqlUnitOfWorkFactory>();
         services.AddSingleton<IPinHasher, Pbkdf2PinHasher>();
         services.AddSingleton<IUserRepository, DapperUserRepository>();
@@ -78,7 +84,8 @@ public static class ServiceConfiguration
         services.AddSingleton<IScaleReader, SerialPortScaleReader>();
         services.AddSingleton<ITicketPrinter, WindowsTicketPrinter>();
         services.AddSingleton<ICurrentSession, CurrentSession>();
-        services.AddSingleton<IBackupService, PostgresBackupService>();
+        services.AddSingleton<PostgresBackupService>();
+        services.AddSingleton<IBackupService>(sp => sp.GetRequiredService<PostgresBackupService>());
         services.AddSingleton<IBackupStatusService>(sp =>
             new PostgresBackupStatusService(
                 sp.GetRequiredService<DatabaseOptions>(), paths.LogDirectory));

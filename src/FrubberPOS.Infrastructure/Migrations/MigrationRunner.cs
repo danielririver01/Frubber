@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using System.Data;
 using System.Data.Common;
 using FrubberPOS.Application.Common;
 using FrubberPOS.Application.Persistence;
@@ -17,8 +19,8 @@ namespace FrubberPOS.Infrastructure.Migrations;
 /// <remarks>
 /// Connection setup is minimal; JHO-21 centralizes connection creation and
 /// this runner adopts it via <see cref="IDatabaseConnectionFactory"/>.
-/// The pre-migration consistent backup (ADR-008) is wired in JHO-53; until
-/// then the caller owns it. Timestamps come from <c>IClock</c> (JHO-22).
+/// Server startup supplies a pre-migration backup (ADR-008).
+/// Timestamps come from <c>IClock</c> (JHO-22).
 /// Scripts must leave <c>SchemaMigration</c> existing: 001 creates it and
 /// it is never dropped, so the runner never creates it itself.
 /// </remarks>
@@ -26,6 +28,7 @@ public sealed class MigrationRunner
 {
     private readonly IReadOnlyList<KnownMigration> catalog;
     private readonly IClock clock;
+    private readonly Func<CancellationToken, Task>? backupBeforeMigration;
 
     public MigrationRunner()
         : this(MigrationCatalog.Default, SystemClock.Instance)
@@ -44,6 +47,12 @@ public sealed class MigrationRunner
 
         this.catalog = catalog;
         this.clock = clock;
+    }
+
+    public MigrationRunner(IReadOnlyList<KnownMigration> catalog, IClock clock, Func<CancellationToken, Task> backupBeforeMigration)
+        : this(catalog, clock)
+    {
+        this.backupBeforeMigration = backupBeforeMigration ?? throw new ArgumentNullException(nameof(backupBeforeMigration));
     }
 
     /// <returns>Number of migrations applied by this run (0 when updated).</returns>
@@ -83,6 +92,25 @@ public sealed class MigrationRunner
 
         await using var connection = await connectionFactory.CreateOpenConnectionAsync(cancellationToken);
 
+        await using var migrationLock = connection.CreateCommand();
+        migrationLock.CommandText = "SELECT pg_catalog.pg_advisory_lock(1179796818, 8);";
+        await migrationLock.ExecuteNonQueryAsync(cancellationToken);
+        try
+        {
+            return await MigrateUnderLockAsync(connection, cancellationToken);
+        }
+        finally
+        {
+            if (connection.State == ConnectionState.Open)
+            {
+                migrationLock.CommandText = "SELECT pg_catalog.pg_advisory_unlock(1179796818, 8);";
+                await migrationLock.ExecuteNonQueryAsync(CancellationToken.None);
+            }
+        }
+    }
+
+    private async Task<Result<int>> MigrateUnderLockAsync(DbConnection connection, CancellationToken cancellationToken)
+    {
         // The 2.0 baseline has a different migration ledger and incompatible
         // tables. Never run the legacy catalog against it, even if its ledger
         // is empty or the legacy ledger also exists (mixed/partial database).
@@ -110,7 +138,6 @@ public sealed class MigrationRunner
             }
         }
 
-        var appliedCount = 0;
         foreach (var migration in ordered)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -124,17 +151,34 @@ public sealed class MigrationRunner
                         ErrorCode.Conflict,
                         $"La migración {migration.ScriptName} (versión {migration.Version}) cambió después de aplicarse. No se puede continuar."));
                 }
-
-                continue;
             }
+        }
 
+        var pending = ordered.Where(migration => !applied.ContainsKey(migration.Version)).ToList();
+        if (pending.Count > 0 && backupBeforeMigration is not null)
+        {
+            try
+            {
+                await backupBeforeMigration(cancellationToken);
+            }
+            catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or InvalidOperationException
+                or Win32Exception)
+            {
+                return Result<int>.Failure(new Error(ErrorCode.Backup,
+                    "No se pudo crear o verificar el respaldo previo. Revise que PostgreSQL y la carpeta de respaldos estén disponibles. No se aplicaron migraciones."));
+            }
+        }
+
+        var appliedCount = 0;
+        foreach (var migration in pending)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
             var outcome = await ApplyOnceAsync(connection, migration, cancellationToken);
             if (outcome.IsFailure)
             {
                 return outcome;
             }
 
-            applied[migration.Version] = (migration.ScriptName, MigrationChecksum.Sha256Hex(migration.Sql));
             appliedCount++;
         }
 

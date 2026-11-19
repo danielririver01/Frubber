@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Globalization;
+using System.Text;
 using FrubberPOS.Application.Backup;
 using FrubberPOS.Application.Persistence;
 using Npgsql;
@@ -21,7 +23,17 @@ public sealed class PostgresBackupService : IBackupService
         this.database = database;
     }
 
-    public async Task BackupAsync(string destinationFilePath, CancellationToken cancellationToken)
+    public Task BackupAsync(string destinationFilePath, CancellationToken cancellationToken) =>
+        BackupAsync(destinationFilePath, verify: false, cancellationToken);
+
+    public async Task BackupBeforeMigrationAsync(string backupDirectory, CancellationToken cancellationToken)
+    {
+        Directory.CreateDirectory(backupDirectory);
+        var fileName = FormattableString.Invariant($"premigracion-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}.sql");
+        await BackupAsync(Path.Combine(backupDirectory, fileName), verify: true, cancellationToken);
+    }
+
+    private async Task BackupAsync(string destinationFilePath, bool verify, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(destinationFilePath);
 
@@ -36,47 +48,36 @@ public sealed class PostgresBackupService : IBackupService
             cancellationToken.ThrowIfCancellationRequested();
 
             var builder = new NpgsqlConnectionStringBuilder(database.ConnectionString);
-            var env = Environment.GetEnvironmentVariables();
-
-            // pg_dump reads connection parameters from environment variables
-            // and PGPASSWORD for the password, avoiding command-line exposure.
-            // JHO-113: --dbname must be a *libpq* conninfo string
-            // (key='value' pairs); passing the Npgsql ';key=value' form made
-            // libpq reject it ("opción de conexión no válida \"Host\"") and
-            // every manual backup failed.
-            var conninfo = new List<string>();
-            if (!string.IsNullOrEmpty(builder.Host))
-            {
-                conninfo.Add($"host='{builder.Host}'");
-            }
-
-            if (builder.Port > 0)
-            {
-                conninfo.Add($"port='{builder.Port}'");
-            }
-
-            if (!string.IsNullOrEmpty(builder.Database))
-            {
-                conninfo.Add($"dbname='{builder.Database}'");
-            }
-
-            if (!string.IsNullOrEmpty(builder.Username))
-            {
-                conninfo.Add($"user='{builder.Username}'");
-            }
 
             using var process = new Process
             {
                 StartInfo = new ProcessStartInfo
                 {
-                    FileName = ResolvePgDumpExecutable(),
-                    Arguments = $"--dbname=\"{string.Join(" ", conninfo)}\" --file=\"{temporary}\" --no-password",
+                    FileName = ResolvePostgresExecutable("pg_dump"),
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
                     CreateNoWindow = true,
                 },
             };
+            process.StartInfo.ArgumentList.Add("--file");
+            process.StartInfo.ArgumentList.Add(temporary);
+            process.StartInfo.ArgumentList.Add("--no-password");
+            // Keep libpq pointed at the same server and database as Npgsql.
+            process.StartInfo.Environment.Remove("PGHOSTADDR");
+            process.StartInfo.Environment.Remove("PGSERVICE");
+            process.StartInfo.Environment["PGSSLMODE"] = builder.SslMode switch
+            {
+                SslMode.VerifyFull => "verify-full",
+                SslMode.VerifyCA => "verify-ca",
+                _ => builder.SslMode.ToString().ToLowerInvariant(),
+            };
+            if (!string.IsNullOrEmpty(builder.RootCertificate))
+                process.StartInfo.Environment["PGSSLROOTCERT"] = builder.RootCertificate;
+            if (!string.IsNullOrEmpty(builder.SslCertificate))
+                process.StartInfo.Environment["PGSSLCERT"] = builder.SslCertificate;
+            if (!string.IsNullOrEmpty(builder.SslKey))
+                process.StartInfo.Environment["PGSSLKEY"] = builder.SslKey;
 
             if (builder.Password is not null)
             {
@@ -88,7 +89,7 @@ public sealed class PostgresBackupService : IBackupService
             }
             if (builder.Port > 0)
             {
-                process.StartInfo.EnvironmentVariables["PGPORT"] = builder.Port.ToString();
+                process.StartInfo.EnvironmentVariables["PGPORT"] = builder.Port.ToString(CultureInfo.InvariantCulture);
             }
             if (builder.Database is not null)
             {
@@ -100,14 +101,35 @@ public sealed class PostgresBackupService : IBackupService
             }
 
             process.Start();
-            await process.WaitForExitAsync(cancellationToken);
+            var diagnostics = process.StandardError.BaseStream.CopyToAsync(Stream.Null);
+            var output = process.StandardOutput.BaseStream.CopyToAsync(Stream.Null);
+            try
+            {
+                await process.WaitForExitAsync(cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                if (!process.HasExited)
+                {
+                    try { process.Kill(); }
+                    catch (InvalidOperationException) when (process.HasExited) { }
+                }
+                await process.WaitForExitAsync();
+                throw;
+            }
+            finally
+            {
+                await Task.WhenAll(diagnostics, output);
+            }
 
             if (process.ExitCode != 0)
             {
-                var error = await process.StandardError.ReadToEndAsync();
-                throw new InvalidOperationException($"pg_dump falló (código {process.ExitCode}): {error}");
+                throw new InvalidOperationException($"pg_dump falló (código {process.ExitCode}).");
             }
 
+            if (verify)
+                await VerifySqlDumpAsync(temporary, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             // Publicación final atómica dentro del mismo volumen (§16.1).
             File.Move(temporary, destinationFilePath, overwrite: true);
         }
@@ -122,15 +144,31 @@ public sealed class PostgresBackupService : IBackupService
         }
     }
 
+    private static async Task VerifySqlDumpAsync(string path, CancellationToken cancellationToken)
+    {
+        await using var file = File.OpenRead(path);
+        var length = (int)Math.Min(file.Length, 4096);
+        var buffer = new byte[length];
+        await file.ReadExactlyAsync(buffer, cancellationToken);
+        if (!Encoding.UTF8.GetString(buffer).Contains("-- PostgreSQL database dump", StringComparison.Ordinal))
+            throw new InvalidDataException("El respaldo no contiene el encabezado de PostgreSQL.");
+
+        file.Seek(-length, SeekOrigin.End);
+        await file.ReadExactlyAsync(buffer, cancellationToken);
+        if (!Encoding.UTF8.GetString(buffer).Split('\n')
+            .Any(line => line.TrimEnd('\r') == "-- PostgreSQL database dump complete"))
+            throw new InvalidDataException("El respaldo quedó incompleto.");
+    }
+
     /// <summary>
     /// Resolves <c>pg_dump</c> without assuming it is on PATH. The POS box
     /// ships its own PostgreSQL engine and the Windows installer does not
     /// always add <c>bin</c> to PATH, yet the manual backup (JHO-53) has to
     /// work there; PATH wins when it does have it.
     /// </summary>
-    private static string ResolvePgDumpExecutable()
+    internal static string ResolvePostgresExecutable(string name)
     {
-        var fileName = OperatingSystem.IsWindows() ? "pg_dump.exe" : "pg_dump";
+        var fileName = OperatingSystem.IsWindows() ? name + ".exe" : name;
 
         foreach (var directory in PathDirectories())
         {
