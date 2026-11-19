@@ -84,7 +84,7 @@ Spec Kit `specs/003-operacion-dos-puestos/` separa el arranque del escritorio de
 Para reproducir, crear un clúster desechable local con TLS y SCRAM, base vacía `frubber` y roles de puesto aún ausentes. El certificado debe validar `127.0.0.1` y no `localhost` para probar el rechazo por nombre. Exigir TLS para esa base. Usar un puerto de prueba distinto de 5432. Definir `FRUBBER_JHO136_ISOLATED=1` y `FRUBBER_JHO136_WORKSTATION_ADMIN` con la conexión temporal del administrador, `SSL Mode=VerifyFull` y la ruta al certificado. Ejecutar:
 
 ```powershell
-dotnet test tests/FrubberPOS.Tests/FrubberPOS.Tests.csproj -c Release --no-build --filter "FullyQualifiedName~Postgres20WorkstationTests"
+dotnet test tests/FrubberPOS.Tests/FrubberPOS.Tests.csproj -c Release --no-build --filter "FullyQualifiedName~TwoWorkstations_OpenSellAndCloseIndependently"
 ```
 
 El guion 002 aún modifica roles globales, por lo que este banco se ejecuta únicamente en un clúster nuevo, dedicado y eliminable. Las credenciales de los puestos se crean para el ensayo y se mantienen en memoria.
@@ -102,6 +102,12 @@ El ejecutable rechazó al iniciar un archivo de configuración sin DPAPI. Con un
 El ejecutable de laboratorio se compiló desde una copia temporal que llevaba la clave pública de prueba. Las licencias FRB1 y FRB2 se firmaron en memoria para esa prueba. El ejecutable compilado en el workspace conserva la clave pública del dueño. El banco eliminó su copia, el certificado, los archivos DPAPI y el clúster temporal. La evidencia cubre la pantalla operativa del puesto y los flujos anteriores. El aprovisionamiento del instalador, el control de cupo durante el alta y el despliegue en equipos distintos conservan sus tareas.
 
 El build Release de la solución pasó con cero errores y dos avisos xUnit2013 preexistentes. El banco dirigido comprobó además el rechazo del cupo manipulado y de una licencia vinculada a otro servidor. La regresión completa pasó **749 de 749** en 4 min 16 s. Quedaron cero bases aleatorias y se eliminó el segundo clúster de pruebas.
+
+### Prueba compartida y reloj del servidor (JHO-115)
+
+Antes de actualizar los puestos, aplicar `database/postgresql/012_PruebaNegocio.sql` como administrador del esquema, en una transacción después de `002_Security.sql`. Si el negocio viene de la 1.0, completar antes su importación para conservar el inicio y la última hora observada. La actualización solo prepara el esquema. La prueba comienza al autorizar el primer puesto sin licencia cuando la base aún carece de un periodo de prueba. La segunda caja usa el mismo vencimiento y el tercer puesto requiere licencia con cupo suficiente.
+
+Una diferencia superior a cinco minutos entre el reloj del puesto y el servidor produce un mensaje que indica si el puesto está adelantado o atrasado. El vencimiento se mide con el reloj PostgreSQL. Para verificar el flujo, usar un clúster nuevo con el mismo entorno de pruebas TLS de esta guía y filtrar por `TwoTrialRegistersShareExpiryAndRecheckBeforeCashAndSales`.
 
 ### Cierre independiente por puesto
 

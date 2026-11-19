@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Globalization;
 using System.Text;
 using Dapper;
 using FrubberPOS.Application.Common;
@@ -31,13 +32,16 @@ public sealed class Postgres20WorkstationRegistrationTests
         var installed = await new Postgres20BaselineInstaller().InstallAsync(
             new NpgsqlConnectionFactory(new DatabaseOptions(options.ConnectionString)), CancellationToken.None);
         Assert.True(installed.IsSuccess, installed.Error?.Message);
-        var scriptPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
-            "..", "..", "..", "..", "..", "database", "postgresql", "002_Security.sql"));
-        await connection.ExecuteAsync(await File.ReadAllTextAsync(scriptPath));
+        var scripts = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
+            "..", "..", "..", "..", "..", "database", "postgresql"));
+        foreach (var script in new[] { "002_Security.sql", "012_PruebaNegocio.sql" })
+            await connection.ExecuteAsync(await File.ReadAllTextAsync(Path.Combine(scripts, script)));
 
         using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var verifier = new EcdsaLicenseSignatureVerifier(key.ExportSubjectPublicKeyInfo(), "test");
-        var clock = new FakeClock(new DateTimeOffset(2026, 11, 17, 12, 0, 0, TimeSpan.Zero));
+        var clock = new FakeClock(DateTimeOffset.UtcNow);
+        var today = clock.UtcNow.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
+        var tomorrow = clock.UtcNow.AddDays(1).ToString("yyyyMMdd", CultureInfo.InvariantCulture);
         var registration = new Postgres20WorkstationRegistration(verifier, Server, clock);
         async Task SetLicense(string payload) => await connection.ExecuteAsync("""
             INSERT INTO public.license_state(license_state_id,payload_version,signed_payload)
@@ -50,8 +54,7 @@ public sealed class Postgres20WorkstationRegistrationTests
         Task<Result<RegisteredWorkstation>> Register(string code) => registration.RegisterAsync(
             connection, "Caja de prueba", code, CancellationToken.None);
 
-        Assert.Equal(ErrorCode.LicenseBlocked, (await Register("B111111111111111")).Error?.Code);
-        await SetLicense(Sign($"FRB1|test|{Server}|20261117"));
+        await SetLicense(Sign($"FRB1|test|{Server}|{today}"));
         var first = await Register("B111111111111111");
         Assert.True(first.IsSuccess, first.Error?.Message);
         Assert.Equal(1, first.Value.Seats);
@@ -62,9 +65,9 @@ public sealed class Postgres20WorkstationRegistrationTests
 
         foreach (var invalid in new[]
                  {
-                     Sign($"FRB2|test|{Server}|20261118|2"),
-                     Sign("FRB2|test|D123456789ABCDEF|20261117|2"),
-                     Sign($"FRB2|test|{Server}|20261117|2").Replace("|2.", "|3."),
+                     Sign($"FRB2|test|{Server}|{tomorrow}|2"),
+                     Sign($"FRB2|test|D123456789ABCDEF|{today}|2"),
+                     Sign($"FRB2|test|{Server}|{today}|2").Replace("|2.", "|3."),
                      "licencia inválida",
                  })
         {
@@ -72,7 +75,7 @@ public sealed class Postgres20WorkstationRegistrationTests
             Assert.Equal(ErrorCode.LicenseBlocked, (await Register("B222222222222222")).Error?.Code);
         }
 
-        var signed = Sign($"FRB2|test|{Server}|20261117|2");
+        var signed = Sign($"FRB2|test|{Server}|{today}|2");
         await SetLicense(signed);
         Assert.Equal(ErrorCode.Conflict, (await Register("B111111111111111")).Error?.Code);
         Assert.Equal(ErrorCode.Validation, (await Register("0000000000000000")).Error?.Code);

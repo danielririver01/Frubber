@@ -39,6 +39,132 @@ public sealed class Postgres20WorkstationTests
     private static readonly string Scripts = Path.GetFullPath(Path.Combine(
         AppContext.BaseDirectory, "..", "..", "..", "..", "..", "database", "postgresql"));
 
+    [IsolatedWorkstationFact]
+    public async Task TwoTrialRegistersShareExpiryAndRecheckBeforeCashAndSales()
+    {
+        const string server = "AB12CD34EF567890";
+        var token = CancellationToken.None;
+        var options = new NpgsqlConnectionStringBuilder(Environment.GetEnvironmentVariable(AdminVariable)!);
+        Assert.True(options.Host == "127.0.0.1" && options.Database == "frubber" &&
+                    options.Username == "postgres" && options.SslMode == SslMode.VerifyFull && options.Port != 5432);
+        await using var admin = new NpgsqlConnection(options.ConnectionString);
+        await admin.OpenAsync(token);
+        Assert.Equal(0, await admin.ExecuteScalarAsync<int>(
+            "SELECT count(*) FROM pg_roles WHERE rolname = 'frubber_puesto' OR rolname LIKE 'puesto_%';"));
+        var installed = await new Postgres20BaselineInstaller().InstallAsync(
+            new NpgsqlConnectionFactory(new DatabaseOptions(options.ConnectionString)), token);
+        Assert.True(installed.IsSuccess, installed.Error?.Message);
+        foreach (var script in new[] { "002_Security.sql", "003_RegistroVenta.sql", "005_AperturaCaja.sql",
+                     "006_LicenciaPuesto.sql", "007_CierreCaja.sql", "012_PruebaNegocio.sql" })
+            await admin.ExecuteAsync(await File.ReadAllTextAsync(Path.Combine(Scripts, script), token));
+
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var verifier = new EcdsaLicenseSignatureVerifier(key.ExportSubjectPublicKeyInfo(), "lab-key");
+        var clock = new FakeClock(DateTimeOffset.UtcNow);
+        var registration = new Postgres20WorkstationRegistration(verifier, server, clock);
+        async Task<Result<RegisteredWorkstation>> Register(string code)
+        {
+            await using var connection = new NpgsqlConnection(options.ConnectionString);
+            await connection.OpenAsync(token);
+            return await registration.RegisterAsync(connection, "Caja de prueba", code, token);
+        }
+
+        var first = await Register("B111111111111111");
+        Assert.True(first.IsSuccess, first.Error?.Message);
+        Assert.Equal(2, first.Value.Seats);
+        var trialStart = await admin.ExecuteScalarAsync<DateTime>("SELECT first_run_at FROM public.trial_state;");
+        var attempts = await Task.WhenAll(Register("B222222222222222"), Register("B333333333333333"));
+        var second = Assert.Single(attempts, result => result.IsSuccess);
+        Assert.Equal(2, second.Value.Active);
+        Assert.Equal(ErrorCode.LicenseBlocked, Assert.Single(attempts, result => result.IsFailure).Error?.Code);
+        Assert.Equal(trialStart, await admin.ExecuteScalarAsync<DateTime>("SELECT first_run_at FROM public.trial_state;"));
+
+        Postgres20WorkstationStore Store(RegisteredWorkstation credentials) =>
+            new(new DatabaseOptions(new NpgsqlConnectionStringBuilder(options.ConnectionString)
+            {
+                Username = credentials.Role,
+                Password = credentials.Password
+            }.ConnectionString));
+        var firstStore = Store(first.Value);
+        var secondStore = Store(second.Value);
+        var firstGate = new Postgres20LicenseGate(firstStore, verifier, server, clock);
+        var secondGate = new Postgres20LicenseGate(secondStore, verifier, server, clock);
+        foreach (var startup in new[] { new CheckWorkstationStartupUseCase(firstStore, firstGate),
+                     new CheckWorkstationStartupUseCase(secondStore, secondGate) })
+        {
+            var result = await startup.ExecuteAsync(new(), token);
+            Assert.True(result.IsSuccess, result.Error?.Message);
+        }
+
+        foreach (var skew in new[] { -10, 10 })
+        {
+            clock.UtcNow = DateTimeOffset.UtcNow.AddMinutes(skew);
+            var error = await firstGate.CheckAsync(token);
+            Assert.Equal(ErrorCode.LicenseBlocked, error?.Code);
+            Assert.Contains(skew > 0 ? "adelantado" : "atrasado", error!.Message);
+        }
+        clock.UtcNow = DateTimeOffset.UtcNow;
+        await admin.ExecuteAsync("UPDATE public.trial_state SET last_seen_at = clock_timestamp() + interval '1 hour';");
+        Assert.Contains("retroceso en el reloj del servidor", (await firstGate.CheckAsync(token))?.Message);
+        Assert.True(await admin.ExecuteScalarAsync<bool>("SELECT last_seen_at > clock_timestamp() FROM public.trial_state;"));
+        await admin.ExecuteAsync("UPDATE public.trial_state SET last_seen_at = clock_timestamp();");
+        var firstUser = await SeedUserAsync(admin, "Cajero A", "1234");
+        var secondUser = await SeedUserAsync(admin, "Cajero B", "2345");
+        var firstSession = new FakeCurrentSession();
+        var secondSession = new FakeCurrentSession();
+        Assert.True((await new AuthenticateWorkstationUserUseCase(firstStore, firstSession)
+            .ExecuteAsync(new(firstUser, "1234"), token)).IsSuccess);
+        Assert.True((await new AuthenticateWorkstationUserUseCase(secondStore, secondSession)
+            .ExecuteAsync(new(secondUser, "2345"), token)).IsSuccess);
+        var opening = new OpenWorkstationCashUseCase(firstStore, firstSession, firstGate);
+        var opened = await opening.ExecuteAsync(new(0), token);
+        Assert.True(opened.IsSuccess, opened.Error?.Message);
+        var product = await admin.ExecuteScalarAsync<int>("""
+            INSERT INTO public.product(plu, name, unit, price_cop, stock_milli, is_active, unit_locked)
+            VALUES ('P1', 'Manzana', 'KG', 1000, 10000, true, true) RETURNING product_id::int;
+            """);
+        var sale = new FinalizeWorkstationSaleUseCase(firstStore, firstSession, firstGate);
+        var request = new FinalizeSaleRequest([new(product, "P1", "Manzana", ProductUnit.Kg, 1000, 1000)], 0, "CASH", 1000);
+        var sold = await sale.ExecuteAsync(request, token);
+        Assert.True(sold.IsSuccess, sold.Error?.Message);
+        await admin.ExecuteAsync("UPDATE public.trial_state SET first_run_at = clock_timestamp() - interval '720 hours';");
+
+        var refusedSale = await sale.ExecuteAsync(request, token);
+        var refusedRegistration = await Register("B444444444444444");
+        var refusedCash = await new OpenWorkstationCashUseCase(secondStore, secondSession, secondGate)
+            .ExecuteAsync(new(0), token);
+        foreach (var error in new[] { refusedSale.Error, refusedCash.Error, refusedRegistration.Error })
+        {
+            Assert.Equal(ErrorCode.LicenseBlocked, error?.Code);
+            Assert.Contains("periodo de prueba terminó", error!.Message);
+        }
+        Assert.Equal(1, await admin.ExecuteScalarAsync<int>("SELECT count(*) FROM public.sale;"));
+        Assert.Equal(1, await admin.ExecuteScalarAsync<int>("SELECT count(*) FROM public.cash_session;"));
+        Assert.Equal(9000L, await admin.ExecuteScalarAsync<long>("SELECT stock_milli FROM public.product;"));
+        Assert.Equal(1L, await admin.ExecuteScalarAsync<long>("SELECT last_number FROM public.ticket_counter;"));
+
+        async Task License(string format, string machine, string seats = "")
+        {
+            var date = DateTime.UtcNow.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
+            var payload = $"{format}|lab-key|{machine}|{date}{seats}";
+            var signature = key.SignData(Encoding.UTF8.GetBytes(payload), HashAlgorithmName.SHA256,
+                DSASignatureFormat.IeeeP1363FixedFieldConcatenation);
+            await admin.ExecuteAsync("""
+                INSERT INTO public.license_state(license_state_id,payload_version,signed_payload)
+                VALUES (1,2,@Signed) ON CONFLICT (license_state_id)
+                DO UPDATE SET signed_payload = excluded.signed_payload;
+                """, new { Signed = payload + "." + Convert.ToBase64String(signature) });
+        }
+        await License("FRB2", "0000111122223333", "|2");
+        Assert.Contains("no es válida para este negocio", (await firstGate.CheckAsync(token))?.Message);
+        await License("FRB1", server);
+        Assert.Null(await firstGate.CheckAsync(token));
+        Assert.Equal(ErrorCode.LicenseBlocked, (await secondGate.CheckAsync(token))?.Code);
+        await License("FRB2", server, "|2");
+        Assert.Null(await firstGate.CheckAsync(token));
+        Assert.Null(await secondGate.CheckAsync(token));
+    }
+
     [IsolatedWorkstationFact(recoveryOnly: true)]
     public async Task RecoversExperimentalSaleAfterLostResponseAndNewWorkstationModel()
     {
@@ -58,7 +184,8 @@ public sealed class Postgres20WorkstationTests
         await using (var setup = await admin.BeginTransactionAsync())
         {
             foreach (var script in new[] { "002_Security.sql", "003_RegistroVenta.sql", "004_CobroIdempotente.sql",
-                         "005_AperturaCaja.sql", "006_LicenciaPuesto.sql", "007_CierreCaja.sql", "008_AdministracionPuesto.sql", "010_RecuperacionAutenticada.sql" })
+                         "005_AperturaCaja.sql", "006_LicenciaPuesto.sql", "007_CierreCaja.sql", "008_AdministracionPuesto.sql",
+                         "010_RecuperacionAutenticada.sql", "012_PruebaNegocio.sql" })
             {
                 await admin.ExecuteAsync(await File.ReadAllTextAsync(Path.Combine(Scripts, script)), transaction: setup);
             }
@@ -209,7 +336,8 @@ public sealed class Postgres20WorkstationTests
         Assert.Equal(1, install.Value);
         await using (var setup = await admin.BeginTransactionAsync())
         {
-            foreach (var script in new[] { "002_Security.sql", "003_RegistroVenta.sql", "005_AperturaCaja.sql", "006_LicenciaPuesto.sql", "007_CierreCaja.sql", "008_AdministracionPuesto.sql", "009_ProductosUsuariosPuesto.sql" })
+            foreach (var script in new[] { "002_Security.sql", "003_RegistroVenta.sql", "005_AperturaCaja.sql", "006_LicenciaPuesto.sql",
+                         "007_CierreCaja.sql", "008_AdministracionPuesto.sql", "009_ProductosUsuariosPuesto.sql", "012_PruebaNegocio.sql" })
             {
                 await admin.ExecuteAsync(await File.ReadAllTextAsync(Path.Combine(Scripts, script)), transaction: setup);
             }
