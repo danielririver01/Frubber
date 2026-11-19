@@ -139,6 +139,10 @@ La integración dirigida abrió las vistas WPF con datos de PostgreSQL 18.6 por 
 
 Aplicar `database/postgresql/013_AnulacionEntreCajas.sql` en el servidor después de `008_AdministracionPuesto.sql`, antes de actualizar los puestos. Desde cualquier caja, iniciar sesión como administrador, abrir **Historial**, seleccionar la venta y pulsar **Anular venta**. La caja que registró la venta debe seguir abierta. Al confirmar, Historial muestra la anulación y sus datos de auditoría, y el inventario recupera las cantidades vendidas.
 
+### Ventas del día (JHO-127)
+
+Aplicar `database/postgresql/014_ConsolidadoDiario.sql` en el servidor después de `008_AdministracionPuesto.sql`, antes de actualizar los puestos. Configurar en PostgreSQL la zona horaria del negocio. Desde cualquier puesto, abrir **Ventas del día** en el menú de administrador. El informe muestra la fecha del servidor, lo vendido por puesto y el total del negocio. Si una caja abarca dos fechas, el informe toma solo las ventas del día mostrado. Su cierre reúne la sesión completa.
+
 ### Aprovisionamiento del certificado del puesto (JHO-129)
 
 El servidor configura `ssl = on` y reglas `hostssl` para sus puestos. La dirección configurada en `Host` coincide con un nombre DNS o una dirección IP del certificado del servidor. El instalador del puesto debe colocar el certificado público de confianza y guardar su ruta en `Root Certificate` dentro del perfil DPAPI, con `SSL Mode=VerifyFull`. La clave privada permanece en el servidor.

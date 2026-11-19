@@ -18,7 +18,7 @@ using Npgsql;
 
 namespace FrubberPOS.Infrastructure.Persistence.Workstations;
 
-public sealed class Postgres20WorkstationStore : IWorkstationStore, IWorkstationSaleVoidStore
+public sealed class Postgres20WorkstationStore : IWorkstationStore, IWorkstationSaleVoidStore, IWorkstationDailySalesReader
 {
     private readonly NpgsqlConnectionFactory connections;
     private readonly bool experimentalRecovery;
@@ -132,6 +132,32 @@ public sealed class Postgres20WorkstationStore : IWorkstationStore, IWorkstation
                 _ => Result<VoidSaleResponse>.Failure(new(ErrorCode.Storage, "El servidor no confirmó la anulación."))
             };
         }, cancellationToken, "No se pudo confirmar la anulación. Consulte el historial antes de volver a intentarlo.");
+    }
+
+    public Task<Result<DailySalesReport>> ReadDailySalesAsync(CancellationToken cancellationToken)
+    {
+        if (AdminToken is not { } adminToken)
+        {
+            return Task.FromResult(Result<DailySalesReport>.Failure(
+                new Error(ErrorCode.Authorization, "Inicie sesión nuevamente como administrador.")));
+        }
+
+        return QueryAsync(async connection =>
+        {
+            const string sql = """
+                SELECT business_date::timestamp AS BusinessDate, terminal_id AS TerminalId,
+                       terminal_name AS TerminalName, total_cop AS TotalCop, business_total_cop AS BusinessTotalCop
+                FROM public.app_admin_daily_sales(@Token);
+                """;
+            var rows = (await connection.QueryAsync<DailySalesRow>(new CommandDefinition(
+                sql, new { Token = adminToken }, cancellationToken: cancellationToken))).AsList();
+            var first = rows[0];
+            var terminals = rows.Where(row => row.TerminalId.HasValue)
+                .Select(row => new WorkstationDailySales(row.TerminalId!.Value, row.TerminalName!, row.TotalCop))
+                .ToArray();
+            return Result<DailySalesReport>.Success(new(
+                DateOnly.FromDateTime(first.BusinessDate), terminals, first.BusinessTotalCop));
+        }, cancellationToken);
     }
 
     public Task<Result<IReadOnlyList<ActiveUserDto>>> ListUsersAsync(CancellationToken cancellationToken) =>
@@ -341,6 +367,8 @@ public sealed class Postgres20WorkstationStore : IWorkstationStore, IWorkstation
 
     internal sealed record WorkstationLicenseRow(string? SignedPayload, long Slot, DateTime ServerTime,
         DateTime? TrialStart, DateTime? TrialLastSeen);
+    private sealed record DailySalesRow(DateTime BusinessDate, long? TerminalId, string? TerminalName, long TotalCop,
+        long BusinessTotalCop);
     private sealed record ActiveUserRow(int UserId, string DisplayName, string Role);
     private sealed record ActiveProductRow(int ProductId, string Plu, string Name, string Unit, long PriceCop, long StockMilli, bool UnitLocked);
     private sealed record PinChallenge(string DisplayName, string Role, byte[] Salt, int Iterations, int AlgorithmVersion);

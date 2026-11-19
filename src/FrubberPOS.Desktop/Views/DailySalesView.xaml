@@ -1,0 +1,27 @@
+<UserControl x:Class="FrubberPOS.Desktop.Views.DailySalesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="VisibleWhenTrue"/>
+    </UserControl.Resources>
+    <Grid Background="{DynamicResource AppBackground}">
+        <TextBlock Text="{Binding ErrorMessage}" Style="{DynamicResource ErrorText}"
+                   Margin="24" TextWrapping="Wrap"/>
+        <DockPanel Margin="24" Visibility="{Binding HasReport, Converter={StaticResource VisibleWhenTrue}}">
+            <StackPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+                <TextBlock Text="{Binding DateText}" Style="{DynamicResource PageSubtitle}"/>
+                <TextBlock Text="Total del negocio" Style="{DynamicResource PageSubtitle}" Margin="0,8,0,0"/>
+                <TextBlock Text="{Binding TotalText}" Style="{DynamicResource DisplayTotal}"
+                           AutomationProperties.AutomationId="DailySalesTotal"/>
+            </StackPanel>
+            <DataGrid ItemsSource="{Binding Rows}" AutoGenerateColumns="False" IsReadOnly="True"
+                      CanUserAddRows="False" AutomationProperties.Name="Ventas del día por puesto">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Puesto" Binding="{Binding TerminalName}" Width="*"/>
+                    <DataGridTextColumn Header="Total vendido" Binding="{Binding TotalText}" Width="*"
+                                        CanUserSort="False"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </DockPanel>
+    </Grid>
+</UserControl>

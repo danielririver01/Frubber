@@ -338,7 +338,7 @@ public sealed class Postgres20WorkstationTests
         {
             foreach (var script in new[] { "002_Security.sql", "003_RegistroVenta.sql", "005_AperturaCaja.sql", "006_LicenciaPuesto.sql",
                          "007_CierreCaja.sql", "008_AdministracionPuesto.sql", "009_ProductosUsuariosPuesto.sql",
-                         "012_PruebaNegocio.sql", "013_AnulacionEntreCajas.sql" })
+                         "012_PruebaNegocio.sql", "013_AnulacionEntreCajas.sql", "014_ConsolidadoDiario.sql" })
             {
                 await admin.ExecuteAsync(await File.ReadAllTextAsync(Path.Combine(Scripts, script)), transaction: setup);
             }
@@ -588,7 +588,8 @@ public sealed class Postgres20WorkstationTests
                 new OpenWorkstationCashUseCase(adminStore, adminSession, firstGate),
                 new CloseWorkstationCashUseCase(adminStore, adminSession, firstGate),
                 new FinalizeWorkstationSaleUseCase(adminStore, adminSession, firstGate));
-            var window = new WorkstationWindow(screen, () => historyPage, () => productPage, () => userPage);
+            var window = new WorkstationWindow(screen, () => historyPage, () => productPage, () => userPage,
+                () => new DailySalesViewModel(new GetDailySalesUseCase(adminStore, adminSession)));
             StaViewHarness.PumpLoaded(window);
             Assert.Equal(System.Windows.Visibility.Collapsed, window.AdminMenu.Visibility);
             screen.SelectedUser = directory[1];
@@ -724,6 +725,65 @@ public sealed class Postgres20WorkstationTests
         Assert.True(afterVoidClose.IsSuccess, afterVoidClose.Error?.Message);
         Assert.Equal(3000, afterVoidClose.Value.ExpectedCash);
         Assert.Equal(0, afterVoidClose.Value.SaleCount);
+
+        var readReport = new GetDailySalesUseCase(second, otherSession);
+        var report = await readReport.ExecuteAsync(new(), token);
+        Assert.True(report.IsSuccess, report.Error?.Message);
+        var totals = report.Value.Workstations.ToDictionary(row => row.TerminalId, row => row.TotalCop);
+        Assert.Equal(2, totals.Count);
+        Assert.Equal(firstSummary.Value.NetSales, totals[firstTerminal.Value.Id]);
+        Assert.Equal(secondSummary.Value.NetSales, totals[secondTerminal.Value.Id]);
+        Assert.Equal(firstSummary.Value.NetSales + secondSummary.Value.NetSales, report.Value.TotalCop);
+        Assert.Equal(DateOnly.FromDateTime(await admin.ExecuteScalarAsync<DateTime>("SELECT CURRENT_DATE::timestamp;")),
+            report.Value.BusinessDate);
+        Assert.Equal(ErrorCode.Authorization, (await new GetDailySalesUseCase(first, firstSession)
+            .ExecuteAsync(new(), token)).Error?.Code);
+        await using (var cashierConnection = new NpgsqlConnection(firstOptions.ConnectionString))
+        {
+            await AssertDeniedAsync(cashierConnection, "SELECT * FROM public.app_admin_daily_sales(NULL);");
+            var denied = await Assert.ThrowsAsync<PostgresException>(() => cashierConnection.ExecuteAsync(
+                "SELECT * FROM public.app_admin_daily_sales(@Token);", new { Token = second.AdminToken }));
+            Assert.Equal(PostgresErrorCodes.InsufficientPrivilege, denied.SqlState);
+        }
+
+        StaViewHarness.Run(() =>
+        {
+            StaViewHarness.EnsureApplicationWithTheme();
+            var model = new DailySalesViewModel(readReport);
+            var page = new DailySalesView(model);
+            StaViewHarness.Await(model.LoadAsync(token));
+            Assert.Same(model, page.DataContext);
+            Assert.True(model.HasReport, model.ErrorMessage);
+            Assert.Equal(MoneyText.FormatCop(report.Value.TotalCop), model.TotalText);
+            Assert.Equal(report.Value.Workstations.Select(item => (item.TerminalName, MoneyText.FormatCop(item.TotalCop))),
+                model.Rows.Select(item => (item.TerminalName, item.TotalText)));
+        });
+
+        await RegisterAsync(admin, adminOptions, "Puesto sin ventas");
+        var withEmpty = await readReport.ExecuteAsync(new(), token);
+        Assert.True(withEmpty.IsSuccess, withEmpty.Error?.Message);
+        Assert.Equal(3, withEmpty.Value.Workstations.Count);
+        Assert.Equal(0, withEmpty.Value.Workstations.Single(row => row.TerminalName == "Puesto sin ventas").TotalCop);
+
+        var newCash = await firstOpen.ExecuteAsync(new(0), token);
+        Assert.True(newCash.IsSuccess, newCash.Error?.Message);
+        // Insert timestamps around midnight rather than changing the workstation or server clocks.
+        await admin.ExecuteAsync("""
+            INSERT INTO public.sale (sale_number, cash_session_id, cashier_user_id, cashier_name_snapshot,
+                sold_at, subtotal_cop, discount_cop, total_cop, payment_method, client_request_id)
+            SELECT @Number + item.ordinal, @Cash, @UserId, 'Cajero A', item.sold_at,
+                   item.amount, 0, item.amount, 'TRANSFER', gen_random_uuid()
+            FROM (VALUES
+                (1, CURRENT_DATE::timestamptz - interval '1 microsecond', 444),
+                (2, CURRENT_DATE::timestamptz, 75),
+                (3, (CURRENT_DATE + 1)::timestamptz, 555)
+            ) item(ordinal, sold_at, amount);
+            """, new { Number = number, Cash = newCash.Value, UserId = firstUser });
+        var boundaryReport = await readReport.ExecuteAsync(new(), token);
+        Assert.True(boundaryReport.IsSuccess, boundaryReport.Error?.Message);
+        Assert.Equal(report.Value.TotalCop + 75, boundaryReport.Value.TotalCop);
+        Assert.Equal(firstSummary.Value.NetSales + 75,
+            boundaryReport.Value.Workstations.Single(row => row.TerminalId == firstTerminal.Value.Id).TotalCop);
 
         async Task SellAsync(FinalizeWorkstationSaleUseCase checkout)
         {

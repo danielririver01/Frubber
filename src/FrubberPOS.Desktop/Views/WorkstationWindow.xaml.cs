@@ -10,14 +10,17 @@ public partial class WorkstationWindow : Window
     private readonly Func<SalesHistoryViewModel> createHistory;
     private readonly Func<ProductsViewModel> createProducts;
     private readonly Func<UsersViewModel> createUsers;
+    private readonly Func<DailySalesViewModel> createDailySales;
 
     internal WorkstationWindow(WorkstationViewModel model, Func<SalesHistoryViewModel> createHistory,
-        Func<ProductsViewModel> createProducts, Func<UsersViewModel> createUsers)
+        Func<ProductsViewModel> createProducts, Func<UsersViewModel> createUsers,
+        Func<DailySalesViewModel> createDailySales)
     {
         this.model = model;
         this.createHistory = createHistory;
         this.createProducts = createProducts;
         this.createUsers = createUsers;
+        this.createDailySales = createDailySales;
         InitializeComponent();
         DataContext = model;
     }
@@ -38,6 +41,9 @@ public partial class WorkstationWindow : Window
 
     private void OnUsers(object sender, RoutedEventArgs e) =>
         ShowAdminPage("Usuarios", () => new UsersView(createUsers()));
+
+    private void OnDailySales(object sender, RoutedEventArgs e) =>
+        ShowAdminPage("Ventas del día", () => new DailySalesView(createDailySales()));
 
     private void ShowAdminPage(string title, Func<FrameworkElement> createView)
     {

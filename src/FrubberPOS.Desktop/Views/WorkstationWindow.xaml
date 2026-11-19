@@ -25,6 +25,7 @@
                 <Button Content="Historial" Click="OnHistory"/>
                 <Button Content="Productos" Margin="8,0,0,0" Click="OnProducts"/>
                 <Button Content="Usuarios" Margin="8,0,0,0" Click="OnUsers"/>
+                <Button Content="Ventas del día" Margin="8,0,0,0" Click="OnDailySales"/>
             </StackPanel>
 
             <Border Style="{StaticResource Card}" Visibility="{Binding ShowLogin, Converter={StaticResource VisibleWhenTrue}}">

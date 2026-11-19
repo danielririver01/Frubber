@@ -272,7 +272,8 @@ public partial class App : System.Windows.Application, INavigationService
             () => new ProductsViewModel(new SearchProductsUseCase(products, historyUnits, session),
                 new SetProductActiveStateUseCase(products, historyUnits, session), new DeleteProductUseCase(products, historyUnits, session), this),
             () => new UsersViewModel(new ListUsersUseCase(accounts, historyUnits, session),
-                new SetUserActiveStateUseCase(accounts, historyUnits, session), new DeleteUserUseCase(accounts, historyUnits, session), this)));
+                new SetUserActiveStateUseCase(accounts, historyUnits, session), new DeleteUserUseCase(accounts, historyUnits, session), this),
+            () => new DailySalesViewModel(new GetDailySalesUseCase(store, session))));
         splash.Close();
     }
 

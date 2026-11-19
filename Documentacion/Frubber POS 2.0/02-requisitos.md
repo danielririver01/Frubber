@@ -8,7 +8,7 @@ Versión 2.0 · 19 de noviembre de 2026
 - **S-3.** Cada puesto usa un rol distinto con permisos mínimos y contraseña protegida mediante DPAPI en su cuenta Windows. El PIN de cuatro dígitos se verifica mediante funciones SECURITY DEFINER. Se conserva el límite de intentos de autenticación. El motor exige TLS y el cliente verifica identidad y certificado con VerifyFull.
 - **S-4.** La licencia se vincula al código del servidor. FRB1 autoriza una caja y FRB2 usa el cupo firmado. Se verifica firma, equipo y cupo en el arranque y antes de abrir caja o vender. La prueba de 30 días es única por negocio. Permite hasta dos cajas sin licencia en la misma instalación PostgreSQL, con un vencimiento compartido según la hora del motor. Al vencer, se bloquean las nuevas aperturas de caja y ventas hasta activar una licencia. Se conserva la información del negocio. El cambio de servidor requiere una licencia emitida para el código de destino.
 - **S-5 y S-6.** Cada puesto tiene como máximo una caja abierta. El administrador puede anular desde cualquier puesto mientras siga abierta la caja de origen.
-- **S-7.** El consolidado muestra el total del día por puesto y del negocio, dentro de la aplicación.
+- **S-7.** En **Ventas del día**, el administrador consulta el total del día por puesto y del negocio, dentro de la aplicación. El día sigue la fecha y zona horaria del servidor PostgreSQL.
 - **S-8 y S-9.** El administrador autoriza, lista y desactiva puestos, consulta el cupo y revisa la conexión y la última comunicación. El puesto permite reintentar la conexión.
 - **S-10.** Si el servidor no responde, el puesto muestra el estado e impide iniciar operaciones que dependan de él. Un cobro de resultado desconocido se recupera usando su identificador original.
 
