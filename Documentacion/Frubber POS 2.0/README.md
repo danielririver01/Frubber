@@ -14,6 +14,6 @@ Estas siete revisiones aplican las 38 enmiendas del Movimiento 2. Sus archivos M
 | [Diseño técnico detallado](06-diseno-tecnico-detallado.md) | T-1 a T-4 | PDF de Diseño Técnico Detallado 1.0 |
 | [Diseño de interfaz](07-diseno-de-interfaz.md) | U-1 a U-3 | Prototipos HTML funcionales y diseño de UX |
 
-La carpeta [del Movimiento 2](../Frubber%20POS%20%E2%80%94%20Movimiento%202%20%C2%B7%20Multi-Puesto%20%28commit%207bec700%29/) conserva las actas 3.4 a 3.7 y los antecedentes de cada decisión. Los documentos vigentes de propuesta, registro e índice se publican en [el paquete actualizado](paquete/). El estado de las implementaciones y pruebas se sigue en Linear. Los requisitos aprobados pueden incluir tareas pendientes.
+El [archivo histórico del Movimiento 2](../Frubber%20POS%20%E2%80%94%20Movimiento%202%20%C2%B7%20Multi-Puesto%20%28commit%207bec700%29/README.md) conserva las actas 3.4 a 3.7 y las propuestas originales. La arquitectura, la instalación y el registro de trabajo vigentes se consultan en [el paquete 2.0](paquete/). El estado de las implementaciones y pruebas se sigue en Linear. Los requisitos aprobados pueden incluir tareas pendientes.
 
 JHO-132 incorpora el procedimiento de soporte aprobado para recuperar una FRB1. Soporte busca primero la emisión original. Cuando no aparece, el dueño puede reemitirla para el mismo equipo y una caja. Véase el [procedimiento de licencia](paquete/2.4-licenciamiento-red-y-seguridad.md).
