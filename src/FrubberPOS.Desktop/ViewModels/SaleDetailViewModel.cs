@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Windows.Media;
+using FrubberPOS.Application.Common;
 using FrubberPOS.Application.Navigation;
 using FrubberPOS.Application.Sales;
 using FrubberPOS.Desktop.Common;
@@ -23,7 +24,7 @@ namespace FrubberPOS.Desktop.ViewModels;
 public sealed class SaleDetailViewModel : INotifyPropertyChanged
 {
     private readonly GetSaleDetailUseCase getDetail;
-    private readonly VoidSaleUseCase? voidSale;
+    private readonly IUseCase<VoidSaleRequest, VoidSaleResponse>? voidSale;
     private readonly GetTicketForSaleUseCase? getTicketForSale;
     private readonly ITicketPrinter? ticketPrinter;
     private readonly INavigationService? navigation;
@@ -42,15 +43,20 @@ public sealed class SaleDetailViewModel : INotifyPropertyChanged
         VoidSaleUseCase voidSale,
         GetTicketForSaleUseCase getTicketForSale,
         ITicketPrinter ticketPrinter,
-        INavigationService navigation) : this(getDetail)
+        INavigationService navigation) : this(getDetail, voidSale, navigation)
     {
-        ArgumentNullException.ThrowIfNull(voidSale);
         ArgumentNullException.ThrowIfNull(getTicketForSale);
         ArgumentNullException.ThrowIfNull(ticketPrinter);
-        ArgumentNullException.ThrowIfNull(navigation);
-        this.voidSale = voidSale;
         this.getTicketForSale = getTicketForSale;
         this.ticketPrinter = ticketPrinter;
+    }
+
+    public SaleDetailViewModel(GetSaleDetailUseCase getDetail,
+        IUseCase<VoidSaleRequest, VoidSaleResponse> voidSale, INavigationService navigation) : this(getDetail)
+    {
+        ArgumentNullException.ThrowIfNull(voidSale);
+        ArgumentNullException.ThrowIfNull(navigation);
+        this.voidSale = voidSale;
         this.navigation = navigation;
     }
 
@@ -237,7 +243,9 @@ public sealed class SaleDetailViewModel : INotifyPropertyChanged
     private void Apply(SaleDetailDto value)
     {
         detail = value;
-        ErrorMessage = string.Empty;
+        ErrorMessage = voidSale is not null && isAdmin && value is { Status: "ACTIVE", CashSessionOpen: false }
+            ? "La venta solo puede anularse mientras su caja de origen siga abierta."
+            : string.Empty;
         StatusMessage = string.Empty;
 
         SaleNumberText = $"V-{value.SaleNumber:D6}";

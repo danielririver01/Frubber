@@ -18,7 +18,7 @@ using Npgsql;
 
 namespace FrubberPOS.Infrastructure.Persistence.Workstations;
 
-public sealed class Postgres20WorkstationStore : IWorkstationStore
+public sealed class Postgres20WorkstationStore : IWorkstationStore, IWorkstationSaleVoidStore
 {
     private readonly NpgsqlConnectionFactory connections;
     private readonly bool experimentalRecovery;
@@ -107,6 +107,32 @@ public sealed class Postgres20WorkstationStore : IWorkstationStore
                     ErrorCode.LicenseBlocked, "El puesto no está autorizado para operar."))
                 : Result<WorkstationLicenseRow>.Success(row);
         }, cancellationToken);
+
+    public Task<Result<VoidSaleResponse>> VoidSaleAsync(long saleNumber, CancellationToken cancellationToken)
+    {
+        if (AdminToken is not { } adminToken)
+        {
+            return Task.FromResult(Result<VoidSaleResponse>.Failure(
+                new Error(ErrorCode.Authorization, "Inicie sesión nuevamente como administrador.")));
+        }
+
+        return QueryAsync(async connection =>
+        {
+            var state = await connection.ExecuteScalarAsync<string>(new CommandDefinition(
+                "SELECT public.app_admin_void_sale(@Token, @SaleNumber);",
+                new { Token = adminToken, SaleNumber = saleNumber }, cancellationToken: cancellationToken));
+            var label = $"V-{saleNumber:D6}";
+            return state switch
+            {
+                "VOIDED" => Result<VoidSaleResponse>.Success(new(saleNumber)),
+                "MISSING" => Result<VoidSaleResponse>.Failure(new(ErrorCode.NotFound, $"No se encontró la venta {label}.")),
+                "ALREADY_VOIDED" => Result<VoidSaleResponse>.Failure(new(ErrorCode.Conflict, $"La venta {label} ya está anulada.")),
+                "CASH_CLOSED" => Result<VoidSaleResponse>.Failure(new(ErrorCode.Conflict,
+                    $"La venta {label} solo puede anularse mientras su caja siga abierta.")),
+                _ => Result<VoidSaleResponse>.Failure(new(ErrorCode.Storage, "El servidor no confirmó la anulación."))
+            };
+        }, cancellationToken, "No se pudo confirmar la anulación. Consulte el historial antes de volver a intentarlo.");
+    }
 
     public Task<Result<IReadOnlyList<ActiveUserDto>>> ListUsersAsync(CancellationToken cancellationToken) =>
         QueryAsync(async connection =>

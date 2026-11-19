@@ -23,7 +23,8 @@ public sealed class Postgres20SaleHistorySearchRepository(Postgres20WorkstationS
                    sold_at AS SoldAt, subtotal_cop AS SubtotalCop, discount_cop AS DiscountCop,
                    total_cop AS TotalCop, payment_method AS PaymentMethod, received_cop AS ReceivedCop,
                    change_cop AS ChangeCop, sale_status AS Status, voided_at AS VoidedAt,
-                   voided_by_name_snapshot AS VoidedBy
+                   voided_by_name_snapshot AS VoidedBy,
+                   public.app_admin_sale_cash_open(@Token, @SaleNumber) AS CashSessionOpen
             FROM public.v_sale_history WHERE sale_number = @SaleNumber;
             """;
         try
@@ -42,7 +43,7 @@ public sealed class Postgres20SaleHistorySearchRepository(Postgres20WorkstationS
             DateTimeOffset? voidedAt = row.VoidedAt is { } utc ? new DateTimeOffset(utc, TimeSpan.Zero) : null;
             return new SaleDetailDto(saleNumber, row.CashSessionId, row.CashierName, soldAt.ToUnixTimeMilliseconds(),
                 OffsetMinutes(soldAt), row.SubtotalCop, row.DiscountCop, row.TotalCop, row.PaymentMethod,
-                row.ReceivedCop, row.ChangeCop, row.Status, false, voidedAt?.ToUnixTimeMilliseconds(),
+                row.ReceivedCop, row.ChangeCop, row.Status, row.CashSessionOpen, voidedAt?.ToUnixTimeMilliseconds(),
                 voidedAt is { } instant ? OffsetMinutes(instant) : null, row.VoidedBy, lines);
         }
         catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.InsufficientPrivilege)
@@ -60,7 +61,7 @@ public sealed class Postgres20SaleHistorySearchRepository(Postgres20WorkstationS
 
     private sealed record DetailRow(int CashSessionId, string CashierName, DateTime SoldAt,
         long SubtotalCop, long DiscountCop, long TotalCop, string PaymentMethod, long? ReceivedCop,
-        long? ChangeCop, string Status, DateTime? VoidedAt, string? VoidedBy);
+        long? ChangeCop, string Status, DateTime? VoidedAt, string? VoidedBy, bool CashSessionOpen);
 
     public async Task<SaleHistoryPage> SearchAsync(
         IUnitOfWork unit, long fromUtcMs, long toUtcMsExclusive,

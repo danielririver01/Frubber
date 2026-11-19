@@ -337,7 +337,8 @@ public sealed class Postgres20WorkstationTests
         await using (var setup = await admin.BeginTransactionAsync())
         {
             foreach (var script in new[] { "002_Security.sql", "003_RegistroVenta.sql", "005_AperturaCaja.sql", "006_LicenciaPuesto.sql",
-                         "007_CierreCaja.sql", "008_AdministracionPuesto.sql", "009_ProductosUsuariosPuesto.sql", "012_PruebaNegocio.sql" })
+                         "007_CierreCaja.sql", "008_AdministracionPuesto.sql", "009_ProductosUsuariosPuesto.sql",
+                         "012_PruebaNegocio.sql", "013_AnulacionEntreCajas.sql" })
             {
                 await admin.ExecuteAsync(await File.ReadAllTextAsync(Path.Combine(Scripts, script)), transaction: setup);
             }
@@ -503,6 +504,7 @@ public sealed class Postgres20WorkstationTests
         Assert.True((await adminLogin.ExecuteAsync(new(adminUser, "8541"), token)).IsSuccess);
         var saleDetail = await detail.ExecuteAsync(new(1), token);
         Assert.True(saleDetail.IsSuccess, saleDetail.Error?.Message);
+        Assert.True(saleDetail.Value.CashSessionOpen, "El detalle debe mostrar que la caja de origen sigue abierta.");
         Assert.Single(saleDetail.Value.Lines);
         Assert.Equal(ErrorCode.NotFound, (await detail.ExecuteAsync(new(999), token)).Error?.Code);
         var adminUnits = new NpgsqlUnitOfWorkFactory(
@@ -671,6 +673,57 @@ public sealed class Postgres20WorkstationTests
         Assert.Equal(firstSummary.Value, repeated.Value);
         Assert.Equal(reopened.Value, await admin.ExecuteScalarAsync<long>(
             "SELECT cash_session_id FROM public.cash_session WHERE closed_at IS NULL;"));
+
+        var candidate = await firstCheckout.ExecuteAsync(request, token);
+        Assert.True(candidate.IsSuccess, candidate.Error?.Message);
+        var number = candidate.Value.SaleNumber;
+        var cashierVoid = new VoidWorkstationSaleUseCase(second, secondSession, secondGate);
+        Assert.Equal(ErrorCode.Authorization, (await cashierVoid.ExecuteAsync(new(number), token)).Error?.Code);
+        Assert.Equal(0, await admin.ExecuteScalarAsync<int>("SELECT count(*) FROM public.sale_void;"));
+        var beforeVoid = await admin.ExecuteScalarAsync<long>(
+            "SELECT stock_milli FROM public.product WHERE product_id = @ProductId;", new { ProductId = productId });
+
+        var otherAdmin = await SeedUserAsync(admin, "Administradora de caja 2", "6417", "ADMIN");
+        var otherSession = new CurrentSession();
+        Assert.True((await new AuthenticateWorkstationUserUseCase(second, otherSession)
+            .ExecuteAsync(new(otherAdmin, "6417"), token)).IsSuccess);
+        var otherUnits = new NpgsqlUnitOfWorkFactory(
+            new NpgsqlConnectionFactory(new DatabaseOptions(secondOptions.ConnectionString)));
+        var otherDetail = new GetSaleDetailUseCase(new Postgres20SaleHistorySearchRepository(second), otherUnits, otherSession);
+        var adminVoid = new VoidWorkstationSaleUseCase(second, otherSession, secondGate);
+        StaViewHarness.Run(() =>
+        {
+            StaViewHarness.EnsureApplicationWithTheme();
+            var navigator = new FakeNavigator { NextSaleVoidConfirmed = false };
+            var page = new SaleDetailViewModel(otherDetail, adminVoid, navigator);
+            StaViewHarness.Await(page.LoadAsync(number, viewerIsAdmin: true));
+            Assert.True(page.CanVoid, page.ErrorMessage);
+            StaViewHarness.Await(page.VoidAsync());
+            Assert.False(page.VoidedHere);
+            navigator.NextSaleVoidConfirmed = true;
+            StaViewHarness.Await(page.VoidAsync());
+            Assert.True(page.VoidedHere, page.ErrorMessage);
+            Assert.True(page.IsVoided);
+            Assert.False(page.CanVoid);
+
+            StaViewHarness.Await(page.LoadAsync(saleAfterClose.Value.SaleNumber, viewerIsAdmin: true));
+            Assert.False(page.CanVoid);
+            Assert.Contains("caja de origen", page.ErrorMessage);
+        });
+        Assert.Equal(ErrorCode.Conflict, (await adminVoid.ExecuteAsync(new(number), token)).Error?.Code);
+        var afterClose = await adminVoid.ExecuteAsync(new(saleAfterClose.Value.SaleNumber), token);
+        Assert.Equal(ErrorCode.Conflict, afterClose.Error?.Code);
+        Assert.Contains("caja siga abierta", afterClose.Error!.Message);
+        Assert.Equal(otherAdmin, await admin.ExecuteScalarAsync<int>(
+            "SELECT voided_by_user_id::integer FROM public.sale_void WHERE sale_id = @Id;", new { Id = candidate.Value.SaleId }));
+        Assert.Equal(beforeVoid + 1000, await admin.ExecuteScalarAsync<long>(
+            "SELECT stock_milli FROM public.product WHERE product_id = @ProductId;", new { ProductId = productId }));
+        Assert.Equal(1, await admin.ExecuteScalarAsync<int>("SELECT count(*) FROM public.sale_void;"));
+        Assert.Equal(number, await admin.ExecuteScalarAsync<long>("SELECT last_number FROM public.ticket_counter;"));
+        var afterVoidClose = await firstClose.ExecuteAsync(new(reopened.Value), token);
+        Assert.True(afterVoidClose.IsSuccess, afterVoidClose.Error?.Message);
+        Assert.Equal(3000, afterVoidClose.Value.ExpectedCash);
+        Assert.Equal(0, afterVoidClose.Value.SaleCount);
 
         async Task SellAsync(FinalizeWorkstationSaleUseCase checkout)
         {

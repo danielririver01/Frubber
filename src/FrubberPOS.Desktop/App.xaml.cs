@@ -251,6 +251,7 @@ public partial class App : System.Windows.Application, INavigationService
         var historyUnits = new NpgsqlUnitOfWorkFactory(new NpgsqlConnectionFactory(settings.Database), serializeWorkstationAdmin: true);
         var history = new SearchSalesHistoryUseCase(historyRepository, historyUnits, session);
         var detail = new GetSaleDetailUseCase(historyRepository, historyUnits, session);
+        var voidSale = new VoidWorkstationSaleUseCase(store, session, gate);
         var products = new Postgres20ProductRepository(store);
         var accounts = new Postgres20UserRepository(store);
         var hasher = new Pbkdf2PinHasher();
@@ -263,11 +264,10 @@ public partial class App : System.Windows.Application, INavigationService
         SwapWindow(new WorkstationWindow(model, () => new SalesHistoryViewModel(history, navigation: null,
             openDetail: saleNumber =>
             {
-                new SaleDetailDialog(new SaleDetailViewModel(detail), saleNumber, viewerIsAdmin: true)
+                return new SaleDetailDialog(new SaleDetailViewModel(detail, voidSale, this), saleNumber, viewerIsAdmin: true)
                 {
                     Owner = DialogOwner
-                }.ShowDialog();
-                return false;
+                }.ShowDialog() == true;
             }),
             () => new ProductsViewModel(new SearchProductsUseCase(products, historyUnits, session),
                 new SetProductActiveStateUseCase(products, historyUnits, session), new DeleteProductUseCase(products, historyUnits, session), this),
@@ -474,7 +474,7 @@ public partial class App : System.Windows.Application, INavigationService
                 + " marcada como anulada en el historial. Esta acción no se puede deshacer. (F9 confirma)",
             "Anular venta")
         {
-            Owner = currentWindow
+            Owner = DialogOwner
         };
         return dialog.ShowDialog() == true;
     }

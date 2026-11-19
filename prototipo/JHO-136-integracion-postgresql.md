@@ -135,6 +135,10 @@ Para el menú administrativo de la 2.0, aplicar en el servidor `008_Administraci
 
 La integración dirigida abrió las vistas WPF con datos de PostgreSQL 18.6 por TLS en el clúster desechable. Verificó las operaciones de Productos y Usuarios, el detalle de solo lectura, la visibilidad por rol, los rechazos de permisos en SQL y la protección del último administrador. Se mantuvieron los resultados de cierre y cobro de T012 en los dos equipos. Para los resultados detallados, véase T013 en `specs/003-operacion-dos-puestos/tasks.md`.
 
+### Anulación entre cajas (JHO-126)
+
+Aplicar `database/postgresql/013_AnulacionEntreCajas.sql` en el servidor después de `008_AdministracionPuesto.sql`, antes de actualizar los puestos. Desde cualquier caja, iniciar sesión como administrador, abrir **Historial**, seleccionar la venta y pulsar **Anular venta**. La caja que registró la venta debe seguir abierta. Al confirmar, Historial muestra la anulación y sus datos de auditoría, y el inventario recupera las cantidades vendidas.
+
 ### Aprovisionamiento del certificado del puesto (JHO-129)
 
 El servidor configura `ssl = on` y reglas `hostssl` para sus puestos. La dirección configurada en `Host` coincide con un nombre DNS o una dirección IP del certificado del servidor. El instalador del puesto debe colocar el certificado público de confianza y guardar su ruta en `Root Certificate` dentro del perfil DPAPI, con `SSL Mode=VerifyFull`. La clave privada permanece en el servidor.
