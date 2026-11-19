@@ -20,6 +20,9 @@ Stack aprobado (ADR-001…ADR-020):
 
 ## 2. Fuente de verdad documental
 
+Para el Movimiento 2 consultar la [revisión oficial 2.0](Documentacion/Frubber%20POS%202.0/README.md)
+y las decisiones vigentes del paquete. Los documentos siguientes establecen la base de la 1.0.
+
 Leer en este orden ante cualquier duda. Lo local manda sobre la memoria del agente:
 
 1. `Documentacion/Documento Vision y Alcance/Frubber POS — Documento de Visión y Alcance.pdf` (v1.1)
