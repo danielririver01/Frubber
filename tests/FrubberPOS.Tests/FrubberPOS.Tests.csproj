@@ -25,6 +25,7 @@
     <ProjectReference Include="..\..\src\FrubberPOS.Application\FrubberPOS.Application.csproj" />
     <ProjectReference Include="..\..\src\FrubberPOS.Infrastructure\FrubberPOS.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\FrubberPOS.Desktop\FrubberPOS.Desktop.csproj" />
+    <ProjectReference Include="..\..\tools\FrubberPOS.DataMigration\FrubberPOS.DataMigration.csproj" />
   </ItemGroup>
 
 </Project>

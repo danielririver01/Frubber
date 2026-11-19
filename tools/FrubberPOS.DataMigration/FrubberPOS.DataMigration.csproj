@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/FrubberPOS.Infrastructure/FrubberPOS.Infrastructure.csproj" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
+    <EmbeddedResource Include="../../database/sqlite10-reference/2026-11-18/schema.sql" LogicalName="SourceSchema.sql" />
+    <EmbeddedResource Include="../../database/postgresql/011_EstadoLegadoSQLite.sql" LogicalName="LegacyState.sql" />
+  </ItemGroup>
+</Project>
