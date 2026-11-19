@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
 using FrubberPOS.Infrastructure.Persistence.Workstations;
@@ -19,7 +20,8 @@ public sealed class InstallService
 {
     public const string AppExeName = "FrubberPOS.Desktop.exe";
     public const string AppName = "Frubber POS";
-    public const string Version = "1.0.1";
+    public static string Version { get; } = typeof(InstallService).Assembly
+        .GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion.Split('+', 2)[0];
     public const string UninstallerName = "FrubberPOS-Desinstalar.exe";
     public string? InstalledWorkstationProfile { get; private set; }
 

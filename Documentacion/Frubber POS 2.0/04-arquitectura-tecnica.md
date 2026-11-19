@@ -2,7 +2,7 @@
 
 Versión 2.0 · 19 de noviembre de 2026
 
-WPF y MVVM componen los casos de uso del monolito modular .NET 10. Infrastructure usa Npgsql y Dapper con SQL explícito parametrizado. Los puestos se conectan directamente a PostgreSQL 18.6 por la red local. El servidor ejecuta el motor local de datos y puede operar además como puesto de venta.
+WPF y MVVM componen los casos de uso del monolito modular .NET 10. Infrastructure usa Npgsql y Dapper con SQL explícito parametrizado. Los puestos se conectan directamente a PostgreSQL 18 por la red local. El servidor ejecuta el motor local de datos y puede operar además como puesto de venta. PostgreSQL 18.7 es la versión aprobada para el instalador de Caja principal desde el 19 de noviembre de 2026 (JHO-121).
 
 - **A-1 y A-5.** ADR-004 admite el motor local de base de datos. ADR-010, SQLite con WAL, aplica a la 1.0. En 2.0 el acceso es por conexión al motor y cada puesto tiene su propio rol.
 - **A-2 y A-3.** ADR-008, ADR-018 y ADR-028 exigen respaldo verificable antes de migrar. El servidor aplica las migraciones y detiene la operación si falla el respaldo. La tolerancia de hardware de ADR-013 se sigue por JHO-119.
