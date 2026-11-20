@@ -106,8 +106,21 @@ try {
 
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     [IO.Compression.ZipFile]::ExtractToDirectory($archive, $root)
-    Initialize-FrubberCluster -PgBin $bin -Data $data -SecretDirectory $private -Setup $setup `
-        -Address $DireccionLan -Prefix $prefix -Port $port -Password $password
+    # initdb relaunches with the Administrators group disabled on Windows.
+    # Grant its actual user access only for the duration of initialization.
+    $installerSid = '*' + [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+    $engineDirectory = Split-Path $bin -Parent
+    try {
+        Invoke-FrubberNative $icacls @($engineDirectory, '/grant', ("${installerSid}:(OI)(CI)RX"))
+        Invoke-FrubberNative $icacls @($data, '/grant', ("${installerSid}:(OI)(CI)M"))
+        Invoke-FrubberNative $icacls @($private, '/grant', ("${installerSid}:(OI)(CI)RX"))
+        Initialize-FrubberCluster -PgBin $bin -Data $data -SecretDirectory $private -Setup $setup `
+            -Address $DireccionLan -Prefix $prefix -Port $port -Password $password
+    } finally {
+        foreach ($directory in @($private, $data, $engineDirectory)) {
+            Invoke-FrubberNative $icacls @($directory, '/remove:g', $installerSid)
+        }
+    }
     Copy-Item -LiteralPath (Join-Path $data 'server.crt') -Destination $certificate
 
     $pgctl = Join-Path $bin 'pg_ctl.exe'
@@ -137,7 +150,7 @@ try {
         -User 'SYSTEM' -RunLevel Highest | Out-Null
     $taskReady = $true
 
-    New-NetFirewallRule -Name $rule -DisplayName 'Frubber POS | PostgreSQL red local' `
+    New-NetFirewallRule -Name $rule -DisplayName 'Frubber POS - PostgreSQL red local' `
         -Direction Inbound -Action Allow -Protocol TCP -LocalAddress $DireccionLan.IPAddressToString `
         -LocalPort $port -RemoteAddress $network -Profile Private,Domain -Program (Join-Path $bin 'postgres.exe') |
         Out-Null
